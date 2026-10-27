@@ -1,4 +1,5 @@
 import type { AccessService } from '../permissions/accessService.js';
+import { describeTools } from './toolPresentation.js';
 import { and, eq, inArray, gt, isNull, or, sql } from 'drizzle-orm';
 import {
   profiles,
@@ -233,6 +234,13 @@ export class ProfileService {
           .where(and(eq(tools.ownerId, ownerId), inArray(tools.id, ids)))
       : [];
     return this.scopedCatalog(ownerId, rows);
+  }
+  async describedCatalog(ownerId: string, profileId: string) {
+    return describeTools({
+      db: this.db,
+      profile: await this.owned(ownerId, profileId),
+      catalog: await this.catalog(ownerId, profileId),
+    });
   }
   async catalog(ownerId: string, profileId?: string, connectionId?: string) {
     const rows = await this.db

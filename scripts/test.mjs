@@ -59,6 +59,7 @@ const groups = requested.length
         'tests/workspacePermissions.test.ts',
         'tests/workspaceIdentity.test.ts',
         'tests/workspaceHandoffs.test.ts',
+        'tests/workspaceExternalTools.test.ts',
       ],
       ['tests/pi.test.ts'],
       ['tests/upstreamOAuth.test.ts'],

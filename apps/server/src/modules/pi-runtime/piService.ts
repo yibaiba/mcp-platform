@@ -1,6 +1,6 @@
 import { TaskStore } from './taskStore.js';
 import { OutputCheckpoint } from './outputCheckpoint.js';
-import { artifactToolset } from './artifactTools.js';
+import { artifactToolset } from '../artifacts/artifactTools.js';
 import type { ArtifactService } from '../artifacts/artifactService.js';
 import type { RequestService } from '../permissions/requestService.js';
 import { availablePermissionTools } from '../permissions/tools.js';

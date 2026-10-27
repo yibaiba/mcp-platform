@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { artifactToolset, isArtifactTool } from '../artifacts/artifactTools.js';
+import type { ArtifactService } from '../artifacts/artifactService.js';
+import type { AccessService } from '../permissions/accessService.js';
 import { availablePermissionTools } from '../permissions/tools.js';
 import type { RequestService } from '../permissions/requestService.js';
 import {
@@ -20,6 +23,8 @@ import { currentExecution, withExecution } from './executionContext.js';
 import { legacyToolDefinition, parseTool, isInputRequiredResult } from '@platform/mcp';
 
 export type GatewayHandlers = {
+  access: AccessService;
+  artifacts: ArtifactService;
   requests: RequestService;
   profiles: ProfileService;
   invocations: InvocationService;
@@ -70,10 +75,12 @@ export async function createGatewayServer(
   }
   setHandler('tools/list', async () => {
     await input.profiles.authenticate(principal.profileId, principal.token);
-    const rows = await input.profiles.catalog(principal.ownerId, principal.profileId);
+    const rows = await input.profiles.describedCatalog(principal.ownerId, principal.profileId);
+    const artifacts = await artifactToolset(input, access());
     return {
       tools: [
         ...(await availablePermissionTools(input.requests, access())),
+        ...artifacts.tools,
         ...rows.map((row) => {
           const definition = {
             ...parseTool(scopeToolDefinition(row.connectionId, row.definition)),
@@ -86,6 +93,10 @@ export async function createGatewayServer(
   });
   setHandler('tools/call', async (request, context) => {
     const name = request.params.name;
+    if (isArtifactTool(name)) {
+      const artifacts = await artifactToolset(input, access());
+      return artifacts.call(name, request.params.arguments ?? {}, context.mcpReq.signal);
+    }
     if (name === 'platform_permissions_catalog')
       return {
         content: [{ type: 'text', text: JSON.stringify(await input.requests.catalog(access())) }],

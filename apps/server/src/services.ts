@@ -88,6 +88,14 @@ export function createServices(db: Database, config: Config) {
     },
   });
   profiles.access = access;
+  const artifacts = new ArtifactService({
+    db,
+    access,
+    files: new DiskFileStore(resolve(config.DATA_DIR, 'artifacts')),
+    broker,
+    devices,
+    publicUrl: config.PUBLIC_URL,
+  });
   const interactions = new InteractionService({ db, vault });
   const invocations: InvocationService = new InvocationService({
     db,
@@ -123,6 +131,8 @@ export function createServices(db: Database, config: Config) {
     catalog: (access) => requestCatalog({ db, profiles, connections, content }, access),
   });
   const gateway: Gateway = new Gateway({
+    access,
+    artifacts,
     profiles,
     invocations,
     content,
@@ -131,14 +141,6 @@ export function createServices(db: Database, config: Config) {
     requests,
   });
   const skills = new SkillService({ db, broker, devices, profiles });
-  const artifacts = new ArtifactService({
-    db,
-    access,
-    files: new DiskFileStore(resolve(config.DATA_DIR, 'artifacts')),
-    broker,
-    devices,
-    publicUrl: config.PUBLIC_URL,
-  });
   const agentOAuth = new AgentOAuth({ db, profiles, publicUrl: config.PUBLIC_URL });
   const pi: PiService = new PiService({
     db,

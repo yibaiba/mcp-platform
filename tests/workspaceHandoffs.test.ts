@@ -1,6 +1,6 @@
 import { beforeAll, afterAll, expect, test, vi } from 'vitest';
 import { OutputCheckpoint } from '../apps/server/src/modules/pi-runtime/outputCheckpoint.js';
-import { artifactToolset } from '../apps/server/src/modules/pi-runtime/artifactTools.js';
+import { artifactToolset } from '../apps/server/src/modules/artifacts/artifactTools.js';
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { tasks } from '../packages/db/src/index.js';

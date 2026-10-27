@@ -2,7 +2,7 @@ import { currentExecution } from '../mcp/executionContext.js';
 import type { AccessService } from '../permissions/accessService.js';
 import { streamFinally } from '../mcp/gatewayStream.js';
 import { randomUUID } from 'node:crypto';
-import { and, eq, gt, desc } from 'drizzle-orm';
+import { and, eq, gt, desc, inArray } from 'drizzle-orm';
 import { artifacts, transfers, type Database } from '@platform/db';
 import { z } from 'zod';
 import { digest, secretToken } from '../../shared/crypto.js';
@@ -26,6 +26,14 @@ export class ArtifactService {
       .select()
       .from(artifacts)
       .where(eq(artifacts.ownerId, ownerId))
+      .orderBy(desc(artifacts.createdAt));
+  }
+  async listSelected(ownerId: string, ids: readonly string[]) {
+    if (!ids.length) return [];
+    return this.deps.db
+      .select()
+      .from(artifacts)
+      .where(and(eq(artifacts.ownerId, ownerId), inArray(artifacts.id, [...ids])))
       .orderBy(desc(artifacts.createdAt));
   }
   async upload(
