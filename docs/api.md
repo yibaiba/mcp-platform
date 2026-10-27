@@ -97,7 +97,9 @@ stdio 的进程凭证通过 `env` 配置；上游 HTTP OAuth 端点不适用于 
 
 Agent 使用原接入密钥或 OAuth token 对 **`GET /mcp/:profileId/artifacts/:artifactId`** 发起授权下载。仅允许当前有效权限中的产物（长期授权或当前主体的临时授权），响应流带 Content-Length 和 X-Content-SHA256。把产物 ID、文件名和哈希交给 Agent，Agent 下载后再次核对哈希；该接口不把整个文件塞进模型上下文。
 
-外部 MCP 与 Pi 共用 `platform_artifacts_catalog`、`platform_artifacts_read`。Profile 有已授权或可申请产物时，目录提供这两个只读工具；可申请但尚未批准的文件不会出现在产物目录，也不能读取。读取参数为 `{id,offset,length,encoding?}`，offset/length 均以字节计；encoding 默认 `base64`，文本可选 `utf8`。无效或截断的 UTF-8 明确报错，不替换损坏字符。返回实际读取 length、总 size、encoding 与 data。目录中的 downloadPath 仍需携带当前 Agent 凭证；不签发公开下载令牌。身份和隔离方式见[外部 Agent 接入与隔离](external-agents.md)。
+外部 MCP 与 Pi 共用 `platform_artifacts_catalog`、`platform_artifacts_read`。Profile 有已授权、可申请产物或 OpenAPI 工具时，目录提供这两个只读工具；可申请但尚未批准的文件不会出现在产物目录，也不能读取。读取参数为 `{id,offset,length,encoding?}`，offset/length 均以字节计；encoding 默认 `base64`，文本可选 `utf8`。无效或截断的 UTF-8 明确报错，不替换损坏字符。返回实际读取 length、总 size、encoding 与 data。目录中的 downloadPath 仍需携带当前 Agent 凭证；不签发公开下载令牌。身份和隔离方式见[外部 Agent 接入与隔离](external-agents.md)。
+
+OpenAPI 二进制结果与其产生主体的读取授权原子入库。授权属于当前凭证或任务，一小时到期，任务结束、授权撤销、Profile 修订或绑定变化时失效；不会增加其他凭证的权限。调用开始时记录主体、Profile 修订和绑定，保存前重新检查，失败时清理未提交文件。授权可通过现有临时授权撤销接口管理。
 
 ## 设备通道 v1
 

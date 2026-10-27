@@ -95,6 +95,7 @@ export function createServices(db: Database, config: Config) {
     broker,
     devices,
     publicUrl: config.PUBLIC_URL,
+    changed: (id) => gateway.permissionsChanged(id),
   });
   const interactions = new InteractionService({ db, vault });
   const invocations: InvocationService = new InvocationService({
@@ -131,6 +132,7 @@ export function createServices(db: Database, config: Config) {
     catalog: (access) => requestCatalog({ db, profiles, connections, content }, access),
   });
   const gateway: Gateway = new Gateway({
+    publicUrl: config.PUBLIC_URL,
     access,
     artifacts,
     profiles,

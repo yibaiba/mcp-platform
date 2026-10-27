@@ -212,10 +212,20 @@ test.each([false, true])(
           },
         }),
       );
+      expect(request.approvalUrl).toBe(`${h.baseURL}/profiles?workspace=${profile.id}`);
+      expect(request.statusTool).toBe('platform_permissions_status');
+      expect(request.next).toContain('当前业务尚未执行');
       await h.services.requests.decide(account.ownerId, request.id, {
         decision: 'approved',
         permissions: { artifactIds: [file.id] },
       });
+      const decision = payload(
+        await client.callTool({
+          name: 'platform_permissions_status',
+          arguments: { id: request.id },
+        }),
+      );
+      expect(decision.next).toContain('发起新的业务调用');
       const catalog = payload(
         await client.callTool({ name: 'platform_artifacts_catalog', arguments: {} }),
       );

@@ -59,6 +59,7 @@ export function createOpenApiAdapter(
         value: input.arguments,
       });
       const signal = AbortSignal.any([lifetime.signal, ...(input.signal ? [input.signal] : [])]);
+      const storeResult = await deps.artifacts.resultWriter(context.ownerId, context.id);
       const { url, headers } = buildRequest(config.baseUrl, operation, input.arguments);
       await applySecurity({
         operation,
@@ -96,7 +97,8 @@ export function createOpenApiAdapter(
       }
       if (type.startsWith('text/') || !response.body)
         return { content: [{ type: 'text', text: await response.text() }] };
-      const artifact = await deps.artifacts.store(context.ownerId, {
+      signal.throwIfAborted();
+      const artifact = await storeResult({
         name: `${context.config.name}-response`,
         body: response.body,
       });

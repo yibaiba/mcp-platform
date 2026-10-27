@@ -1,0 +1,75 @@
+name: Verify platform
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: connector/go.mod
+          cache-dependency-path: connector/go.sum
+      - name: Enable project package manager
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.12.4 --activate
+      - name: Frozen install
+        run: node scripts/check.mjs 300 pnpm install --frozen-lockfile
+      - name: Start isolated test database
+        run: |
+          test_db_password="$(openssl rand -hex 32)"
+          echo "::add-mask::$test_db_password"
+          printf 'DATABASE_URL=postgresql://platform:%s@127.0.0.1:5432/platform\n' "$test_db_password" >> "$GITHUB_ENV"
+          docker run --detach --name platform-ci-db \
+            --publish 127.0.0.1:5432:5432 \
+            --env POSTGRES_USER=platform --env POSTGRES_DB=platform \
+            --env POSTGRES_PASSWORD="$test_db_password" \
+            --health-cmd 'pg_isready -U platform -d platform' \
+            --health-interval 1s --health-timeout 5s --health-retries 60 postgres:17
+          timeout 60 bash -c 'until [ "$(docker inspect --format "{{.State.Health.Status}}" platform-ci-db)" = healthy ]; do sleep 1; done'
+      - name: Migrate and verify repeat migration
+        run: |
+          node scripts/check.mjs 60 pnpm db:migrate
+          node scripts/check.mjs 60 pnpm db:migrate
+      - name: Type checking
+        run: node scripts/check.mjs 120 pnpm check-types
+      - name: Lint
+        run: node scripts/check.mjs 120 pnpm lint
+      - name: Production build
+        run: node scripts/check.mjs 180 pnpm build
+      - name: Backend integration tests (60 seconds per process)
+        run: node scripts/check.mjs 420 pnpm test
+      - name: Pi bridge without inference
+        run: pnpm test:pi
+      - name: Go tests and vet
+        working-directory: connector
+        run: |
+          node ../scripts/check.mjs 60 go test -timeout 60s ./...
+          node ../scripts/check.mjs 60 go vet ./...
+      - name: Six architecture connector builds
+        if: matrix.node == '24'
+        run: node scripts/check.mjs 600 pnpm connector:build
+      - name: Database logs on failure
+        if: failure()
+        run: docker logs platform-ci-db
+      - name: Remove test database
+        if: always()
+        run: docker rm --force platform-ci-db

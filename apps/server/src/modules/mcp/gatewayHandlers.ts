@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { artifactToolset, isArtifactTool } from '../artifacts/artifactTools.js';
 import type { ArtifactService } from '../artifacts/artifactService.js';
 import type { AccessService } from '../permissions/accessService.js';
-import { availablePermissionTools } from '../permissions/tools.js';
+import { availablePermissionTools, externalPermissionResult } from '../permissions/tools.js';
 import type { RequestService } from '../permissions/requestService.js';
 import {
   Server,
@@ -23,6 +23,7 @@ import { currentExecution, withExecution } from './executionContext.js';
 import { legacyToolDefinition, parseTool, isInputRequiredResult } from '@platform/mcp';
 
 export type GatewayHandlers = {
+  publicUrl: string;
   access: AccessService;
   artifacts: ArtifactService;
   requests: RequestService;
@@ -106,7 +107,12 @@ export async function createGatewayServer(
         content: [
           {
             type: 'text',
-            text: JSON.stringify(await input.requests.create(access(), request.params.arguments)),
+            text: JSON.stringify(
+              externalPermissionResult(
+                await input.requests.create(access(), request.params.arguments),
+                input.publicUrl,
+              ),
+            ),
           },
         ],
       };
@@ -116,7 +122,10 @@ export async function createGatewayServer(
           {
             type: 'text',
             text: JSON.stringify(
-              await input.requests.status(access(), z.uuid().parse(request.params.arguments?.id)),
+              externalPermissionResult(
+                await input.requests.status(access(), z.uuid().parse(request.params.arguments?.id)),
+                input.publicUrl,
+              ),
             ),
           },
         ],

@@ -98,8 +98,15 @@ export class AccessService {
   async bindingsValid(bindings: Record<string, string>) {
     const ownerId = currentExecution()?.ownerId;
     if (!ownerId) return false;
-    for (const [id, expected] of Object.entries(bindings))
-      if ((await this.deps.binding(ownerId, id)) !== expected) return false;
+    for (const [id, expected] of Object.entries(bindings)) {
+      try {
+        if ((await this.deps.binding(ownerId, id)) !== expected) return false;
+      } catch (error) {
+        if (error instanceof AppError && ['BINDING_REVOKED', 'NOT_FOUND'].includes(error.code))
+          return false;
+        throw error;
+      }
+    }
     return true;
   }
   async effective(access: Access): Promise<PermissionSet | undefined> {

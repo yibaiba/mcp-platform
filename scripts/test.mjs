@@ -61,6 +61,7 @@ const groups = requested.length
         'tests/workspaceHandoffs.test.ts',
         'tests/workspaceExternalTools.test.ts',
       ],
+      ['tests/workspaceOutputArtifacts.test.ts'],
       ['tests/pi.test.ts'],
       ['tests/upstreamOAuth.test.ts'],
       ['tests/catalog.test.ts', 'tests/catalogAdapters.test.ts'],

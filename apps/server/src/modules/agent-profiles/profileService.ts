@@ -235,6 +235,14 @@ export class ProfileService {
       : [];
     return this.scopedCatalog(ownerId, rows);
   }
+  async hasArtifactOutputs(ownerId: string, profileId: string) {
+    const catalog = await this.potentialCatalog(ownerId, profileId);
+    for (const id of new Set(catalog.map((row) => row.connectionId))) {
+      const context = await this.connections?.context(ownerId, id);
+      if (context?.config.source === 'openapi') return true;
+    }
+    return false;
+  }
   async describedCatalog(ownerId: string, profileId: string) {
     return describeTools({
       db: this.db,

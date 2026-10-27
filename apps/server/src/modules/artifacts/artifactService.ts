@@ -10,6 +10,7 @@ import { AppError, requireValue, errorMessage } from '../../shared/errors.js';
 import type { DeviceBroker } from '../devices/deviceBroker.js';
 import type { DeviceService } from '../devices/deviceService.js';
 import type { FileStore } from './fileStore.js';
+import { captureOutputScope, grantOutput, type OutputScope } from '../permissions/outputGrant.js';
 export class ArtifactService {
   constructor(
     private readonly deps: {
@@ -19,6 +20,7 @@ export class ArtifactService {
       devices: DeviceService;
       publicUrl: string;
       access: AccessService;
+      changed: (profileId: string) => Promise<void>;
     },
   ) {}
   list(ownerId: string) {
@@ -50,28 +52,48 @@ export class ArtifactService {
   }
   async store(
     ownerId: string,
-    input: { name: string; body: ReadableStream<Uint8Array> | null; sha256?: string },
+    input: {
+      name: string;
+      body: ReadableStream<Uint8Array> | null;
+      sha256?: string;
+      outputScope?: OutputScope;
+    },
   ) {
     if (!input.body) throw new AppError('BODY_REQUIRED', '缺少文件流');
     const id = randomUUID();
     const stored = await this.deps.files.write({ id, sha256: input.sha256, body: input.body });
     try {
-      const [row] = await this.deps.db
-        .insert(artifacts)
-        .values({
-          id,
-          ownerId,
-          name: input.name,
-          ...stored,
-          taskId: currentExecution()?.taskId,
-          profileId: currentExecution()?.profileId,
-        })
-        .returning();
-      return requireValue(row);
+      return await this.deps.db.transaction(async (tx) => {
+        if (input.outputScope)
+          await grantOutput(
+            { tx, access: this.deps.access },
+            { scope: input.outputScope, artifactId: id },
+          );
+        const [row] = await tx
+          .insert(artifacts)
+          .values({
+            id,
+            ownerId,
+            name: input.name,
+            ...stored,
+            taskId: currentExecution()?.taskId,
+            profileId: currentExecution()?.profileId,
+          })
+          .returning();
+        return requireValue(row);
+      });
     } catch (error) {
       await this.deps.files.remove(id);
       throw error;
     }
+  }
+  async resultWriter(ownerId: string, connectionId: string) {
+    const outputScope = await captureOutputScope(this.deps.access, { ownerId, connectionId });
+    return async (input: { name: string; body: ReadableStream<Uint8Array> | null }) => {
+      const row = await this.store(ownerId, { ...input, outputScope });
+      if (outputScope) await this.deps.changed(outputScope.profileId);
+      return row;
+    };
   }
   async blob(ownerId: string, id: string) {
     const [row] = await this.deps.db

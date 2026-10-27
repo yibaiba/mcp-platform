@@ -12,7 +12,7 @@ pnpm test
 pnpm test:pi
 ```
 
-`pnpm test` 分六组顺序执行，覆盖连接、身份、工作空间、授权、交接、OAuth、Pi、协议目录、OpenAPI、交互与 Apps。每个后端测试进程由脚本强制限制为 60 秒，无自动重试。可使用同一入口运行专项：
+`pnpm test` 分七组顺序执行，覆盖连接、身份、工作空间、授权、交接、OAuth、Pi、协议目录、OpenAPI、交互与 Apps。每个后端测试进程由脚本强制限制为 60 秒，无自动重试。产物结果专项包含新旧 SDK 客户端、产生者授权、到期与保存期间配置失效的检查。可使用同一入口运行专项：
 
 ```sh
 pnpm test tests/upstreamOAuth.test.ts tests/openapiOAuth.test.ts
@@ -21,6 +21,8 @@ pnpm test tests/upstreamOAuth.test.ts tests/openapiOAuth.test.ts
 `pnpm test:pi` 通过真实 Pi SDK 和适配器对本地 MCP 服务发现与调用，不请求模型，硬超时为 60 秒。该检查需要依赖已经安装，不需要设置 `PI_ENABLED=true`。
 
 ## Go 与跨平台构建
+
+GitHub Actions 在 Node.js 22、24 和独立 PostgreSQL 上执行冻结安装、重复迁移、类型检查、ESLint、生产构建、分组后端测试、无模型 Pi 桥接与 Go test/vet；Node.js 24 任务同时交叉构建六个架构。这些 Linux CI 检查不能替代各客户端、供应商 OAuth 和物理设备验收。
 
 ```sh
 cd connector
