@@ -17,6 +17,7 @@ export async function fixtureCatalog() {
   let promptName = 'review';
   let text = 'resource body';
   let invalidOutput = false;
+  let nextToolResult: Promise<void> | undefined;
   let schema: Tool['inputSchema'] = {
     type: 'object',
     $schema: 'http://json-schema.org/draft-07/schema#',
@@ -52,12 +53,15 @@ export async function fixtureCatalog() {
     }));
     server.setRequestHandler('tools/call', async (request, context) => {
       toolCount++;
+      const resultReady = nextToolResult;
+      nextToolResult = undefined;
       const token = request.params._meta?.progressToken;
       if (token !== undefined)
         await context.mcpReq.notify({
           method: 'notifications/progress',
           params: { progressToken: token, progress: 1, total: 1, message: 'done' },
         });
+      await resultReady;
       const message = String(request.params.arguments?.message ?? 'echo');
       return {
         content: [{ type: 'text', text: message }],
@@ -140,6 +144,18 @@ export async function fixtureCatalog() {
   return {
     url: `http://127.0.0.1:${address.port}/mcp`,
     calls: () => toolCount,
+    holdNextToolResult() {
+      if (nextToolResult) throw new Error('A tool result is already held');
+      let release!: () => void;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      nextToolResult = held;
+      return () => {
+        if (nextToolResult === held) nextToolResult = undefined;
+        release();
+      };
+    },
     schema: (value: Tool['inputSchema']) => {
       schema = value;
     },

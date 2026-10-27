@@ -108,15 +108,20 @@ test.each(['device', 'pi'] as const)(
       ).toContain('note:///device-note');
       const progress: number[] = [];
       const before = fixture.calls();
-      expect(
-        await client.callTool(
-          { name: tool!.id, arguments: { message: adapter } },
-          { onprogress: (event) => progress.push(event.progress) },
-        ),
-      ).toMatchObject({
-        structuredContent: { message: adapter },
-        _meta: { fixture: 'raw result' },
-      });
+      const releaseResult = fixture.holdNextToolResult();
+      // Notifications have their own receive queue; verify progress while the call is pending.
+      await Promise.all([
+        expect(
+          client.callTool(
+            { name: tool!.id, arguments: { message: adapter } },
+            { onprogress: (event) => progress.push(event.progress) },
+          ),
+        ).resolves.toMatchObject({
+          structuredContent: { message: adapter },
+          _meta: { fixture: 'raw result' },
+        }),
+        vi.waitFor(() => expect(progress).toEqual([1]), { timeout: 5000 }).finally(releaseResult),
+      ]);
       expect(fixture.calls()).toBe(before + 1);
       expect(progress).toEqual([1]);
       const listen = await client.listen({
