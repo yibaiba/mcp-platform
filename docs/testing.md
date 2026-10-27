@@ -41,7 +41,7 @@ Gitee 专项覆盖远程及 stdio 配置、平台直连和 Pi 的凭证加密与
 
 设备连接简化增加 `connect`：首次配对后直接运行，后续复用原配置。Go CLI 单元测试覆盖只配对一次、凭证不出现在输出、无效配置与不同平台明确失败、原 `pair` 不覆盖配置，以及空配对码。`tests/devices.test.ts` 新增真实进程的首次配对、上线、退出、复用配置重启和不新增设备记录；专项共 7 项通过，保持每个后端进程 60 秒硬超时。Go test/vet、类型检查、ESLint、生产构建和六架构交叉构建通过。
 
-2026-10-27 在本机 macOS 运行真实 Go `connect`，经 `localhost:4303` 的 Vite HTTP/WebSocket 代理配对并上线，Chrome 显示真实设备及心跳；检查了“添加本机工具”预选设备/stdio、Escape 关闭和 390px 窄屏无横向溢出。验收设备随后停止并撤销。未在浏览器提交新工具配置或生成配对码；未验证远端物理电脑、Windows/Linux 自启动、实际文件/终端工具、浏览器自动化或桌面鼠标键盘。尚无 npm 启动包和三类工具自动安装功能。这些结果也不代表完整 CI 已通过；前一提交的 Node.js 24 OAuth 隔离测试超时仍待排查。
+2026-10-27 在本机 macOS 运行真实 Go `connect`，经 `localhost:4303` 的 Vite HTTP/WebSocket 代理配对并上线，Chrome 显示真实设备及心跳；检查了“添加本机工具”预选设备/stdio、Escape 关闭和 390px 窄屏无横向溢出。验收设备随后停止并撤销。未在浏览器提交新工具配置或生成配对码；未验证远端物理电脑、Windows/Linux 自启动、实际文件/终端工具、浏览器自动化或桌面鼠标键盘。尚无 npm 启动包和三类工具自动安装功能。对应提交 `20db835` 的 Node.js 22/24 CI 已通过；这不能替代上述未完成的实机验收。
 
 GitHub Actions 在 Node.js 22、24 和独立 PostgreSQL 上执行冻结安装、重复迁移、类型检查、ESLint、生产构建、分组后端测试、无模型 Pi 桥接与 Go test/vet；Node.js 24 任务同时交叉构建六个架构。这些 Linux CI 检查不能替代各客户端、供应商 OAuth 和物理设备验收。
 
@@ -55,6 +55,18 @@ node scripts/check.mjs 600 pnpm connector:build
 
 交叉构建覆盖 macOS、Linux、Windows 的 amd64/arm64。设备集成测试在同机启动实际 Go 进程；两台物理设备、系统登录自启动与 Windows 进程树需要在对应环境单独验证。
 
+## 连接器下载与安装
+
+`pnpm test tests/connectorDistribution.test.ts tests/connectorInstaller.test.ts` 新增 13 项通过。覆盖匿名下载的实际二进制与 SHA-256、非法文件名与路径拒绝、缺少构建文件的 503、安装脚本文本、带空格目录安装、原配置保留、校验失败保留旧程序，以及脚本下载失败时命令返回非零。完整复制命令还启动真实 Go 连接器，完成配对、上线、MCP 调用、退出和复用配置重连，确认没有新增第二条设备记录。每个后端测试进程仍保持 60 秒硬超时。
+
+2026-10-27 在本机 macOS Chrome 点击“复制安装连接命令”，将实际剪贴板内容在空安装目录运行，经 `localhost:4303` 下载、校验、配对并上线，页面显示设备。验收后停止并撤销该设备。浏览器检查 Windows 命令切换、六种手动下载入口和 390px 窄屏无横向溢出。本机地址提示明确说明其他电脑需要使用可访问的平台 HTTPS 域名。
+
+类型检查、ESLint、生产构建、Go test/vet、六架构交叉构建以及服务端和 Web Docker 镜像构建通过。隔离 Compose 项目通过 Caddy 匿名下载两个安装脚本及六种二进制，逐个核对镜像内的 SHA-256；同时通过新库迁移、重复迁移、认证/API、Apps 隔离源及真实无模型 Pi 桥接。镜像构建验收发生在补充本机地址提示之前，最终提示已另行通过前端类型检查、生产构建和本机浏览器检查。
+
+首次全量回归有一项 Pi stdio 测试达到 15 秒单项超时，其余 157 项通过；当时同时运行 Docker 镜像构建。构建结束后独立运行 Pi 分组，7 项通过；随后完整七组回归 158 项全部通过。没有修改或延长测试超时，尚不能据此确定最初超时的原因。
+
+Windows PowerShell 安装脚本尚未实机运行；尝试使用官方 PowerShell Docker 镜像进行语法检查时，拉取镜像达到 300 秒命令超时，解析器未执行。远端物理电脑、远端 HTTPS 安装、Windows/Linux 的实际安装与桌面操作未验收；交叉编译和本机协议检查不代表这些环境已经可用。
+
 ## Compose
 
 先构建镜像，再运行隔离的检查项目：
@@ -64,7 +76,7 @@ node scripts/check.mjs 900 docker compose build
 node scripts/check.mjs 600 node scripts/verify-compose.mjs
 ```
 
-需要 Docker、支持 `!override` 的 Compose，并空出 54330/54332。脚本使用独立项目、临时凭证和新建卷，检查迁移、重复迁移、非 root 用户禁网执行 pnpm、页面、认证/API、Apps 隔离源与无模型 Pi 桥接，结束后清理该项目及卷。公网 DNS、证书和实际 iframe/CSP 行为需在部署环境验证。备份与恢复流程见 [部署说明](deployment.md)。
+需要 Docker、支持 `!override` 的 Compose，并空出 54330/54332。脚本使用独立项目、临时凭证和新建卷，检查迁移、重复迁移、非 root 用户禁网执行 pnpm、页面、认证/API、连接器安装脚本和六种下载文件校验、Apps 隔离源与无模型 Pi 桥接，结束后清理该项目及卷。公网 DNS、证书和实际 iframe/CSP 行为需在部署环境验证。备份与恢复流程见 [部署说明](deployment.md)。
 
 ## Apps 浏览器检查
 

@@ -12,8 +12,9 @@ import { envSchema } from '../apps/server/src/config.js';
 import { createApp } from '../apps/server/src/app.js';
 import { createServices } from '../apps/server/src/services.js';
 import { attachDeviceSocket } from '../apps/server/src/deviceSocket.js';
+import type { ConnectorFiles } from '../apps/server/src/modules/devices/connectorFiles.js';
 dotenv({ path: '.env', quiet: true });
-export async function harness() {
+export async function harness(options: { connectorFiles?: ConnectorFiles } = {}) {
   if (!process.env.DATABASE_URL)
     throw new Error('Tests require a migrated PostgreSQL DATABASE_URL');
   const directory = await mkdtemp(join(tmpdir(), 'platform-test-'));
@@ -45,7 +46,7 @@ export async function harness() {
     registration: true,
   });
   const services = createServices(db, config);
-  const app = createApp({ db, auth, config, services });
+  const app = createApp({ db, auth, config, services, connectorFiles: options.connectorFiles });
   const sockets = attachDeviceSocket(server as Server, services);
   const owners: string[] = [];
   async function signup() {

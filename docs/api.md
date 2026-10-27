@@ -103,6 +103,12 @@ Agent 使用原接入密钥或 OAuth token 对 **`GET /mcp/:profileId/artifacts/
 
 OpenAPI 二进制结果与其产生主体的读取授权原子入库。授权属于当前凭证或任务，一小时到期，任务结束、授权撤销、Profile 修订或绑定变化时失效；不会增加其他凭证的权限。调用开始时记录主体、Profile 修订和绑定，保存前重新检查，失败时清理未提交文件。授权可通过现有临时授权撤销接口管理。
 
+## 连接器公开下载
+
+`GET /api/v1/connector/install.sh` 和 `GET /api/v1/connector/install.ps1` 返回安装脚本文本；`GET /api/v1/connector/downloads/:name` 返回六种系统/架构的连接器或 `SHA256SUMS`。文件名固定为 `connector-{darwin|linux|windows}-{amd64|arm64}`，Windows 附加 `.exe`；其他文件名返回 404，缺少分发文件返回 `CONNECTOR_NOT_BUILT`（503）。
+
+这些只读接口无需登录，便于尚未配对的目标电脑安装；响应不含账号、配对码或设备令牌。建立设备通道仍需一次性配对和设备凭证。构建和使用见[设备安装说明](connector.md)。
+
 ## 设备通道 v1
 
 `WSS /api/v1/devices/channel`，Authorization 设备令牌；浏览器 Origin 不允许用于设备通道。主动出站，无需设备监听公网端口。

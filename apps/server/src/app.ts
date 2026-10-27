@@ -6,7 +6,10 @@ import { z, ZodError } from 'zod';
 import { desc, eq, sql, and } from 'drizzle-orm';
 import { calls, installations, transfers, oauthGrants, type Database } from '@platform/db';
 import type { Auth } from '@platform/auth';
-import type { Config } from './config.js';
+import { platformRoot, type Config } from './config.js';
+import { join } from 'node:path';
+import { DiskConnectorFiles, type ConnectorFiles } from './modules/devices/connectorFiles.js';
+import { connectorDistributionRoutes } from './modules/devices/distributionRoutes.js';
 import { AppError } from './shared/errors.js';
 import { bearer, owner, paramId, type ApiEnv } from './shared/http.js';
 import { deviceRoutes } from './modules/devices/routes.js';
@@ -23,7 +26,13 @@ import { interactionRoutes } from './modules/interactions/routes.js';
 import { openApiRoutes } from './modules/openapi/routes.js';
 import type { Services } from './services.js';
 
-export function createApp(deps: { db: Database; auth: Auth; config: Config; services: Services }) {
+export function createApp(deps: {
+  db: Database;
+  auth: Auth;
+  config: Config;
+  services: Services;
+  connectorFiles?: ConnectorFiles;
+}) {
   const { db, auth, config, services: s } = deps;
   const app = new Hono<ApiEnv>();
   app.use(
@@ -62,6 +71,16 @@ export function createApp(deps: { db: Database; auth: Auth; config: Config; serv
     return c.json({ status: 'ok', piEnabled: config.PI_ENABLED === 'true' });
   });
   app.on(['GET', 'POST'], '/api/v1/auth/*', (c) => auth.handler(c.req.raw));
+  app.route(
+    '/api/v1/connector',
+    connectorDistributionRoutes(
+      deps.connectorFiles ??
+        new DiskConnectorFiles({
+          downloads: join(platformRoot, 'connector/bin'),
+          installers: join(platformRoot, 'connector/install'),
+        }),
+    ),
+  );
   app.post('/api/v1/devices/pair', async (c) => {
     const input = z
       .object({ code: z.string().min(1) })

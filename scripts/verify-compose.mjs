@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
+import { connectorTargets } from '../packages/contracts/src/connectorDistribution.ts';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
@@ -119,6 +120,33 @@ async function verifySandbox() {
   assert.equal((await request(new URL(path, sandboxOrigin))).status, 410);
   console.log('PASS: separate Apps proxy, single-use document and CSP HTTP contract');
 }
+async function verifyConnectorDownloads() {
+  const response = await request(`${origin}/api/v1/connector/downloads/SHA256SUMS`);
+  assert.equal(response.status, 200);
+  const manifest = new Map(
+    (await response.text())
+      .trim()
+      .split('\n')
+      .map((line) => {
+        const [digest, name] = line.split('  ');
+        return [name, digest];
+      }),
+  );
+  for (const target of connectorTargets) {
+    const download = await request(`${origin}/api/v1/connector/downloads/${target.filename}`);
+    assert.equal(download.status, 200, target.filename);
+    const checksum = createHash('sha256')
+      .update(new Uint8Array(await download.arrayBuffer()))
+      .digest('hex');
+    assert.equal(checksum, manifest.get(target.filename), target.filename);
+  }
+  for (const installer of ['install.sh', 'install.ps1']) {
+    const script = await request(`${origin}/api/v1/connector/${installer}`);
+    assert.equal(script.status, 200);
+    assert.match(script.headers.get('content-type'), /text\/plain/);
+  }
+  console.log('PASS: public installers and all six connector downloads match packaged SHA-256');
+}
 try {
   const offline = await execute(
     'docker',
@@ -133,6 +161,7 @@ try {
   await compose(['up', '-d', '--no-build', 'server', 'web']);
   await waitForHealth();
   await verifyManagement();
+  await verifyConnectorDownloads();
   await verifySandbox();
   await compose(['exec', '-T', 'server', 'node', 'scripts/check.mjs', '60', 'pnpm', 'test:pi']);
   console.log('PASS: fresh Compose migrations, repeat migration and actual no-model Pi bridge');

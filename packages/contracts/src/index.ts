@@ -234,3 +234,4 @@ export const skillPackage = z
   })
   .strict();
 export type SkillPackage = z.infer<typeof skillPackage>;
+export { connectorTargets } from './connectorDistribution.js';
