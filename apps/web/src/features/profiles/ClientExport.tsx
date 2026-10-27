@@ -18,13 +18,13 @@ export function ClientExport({ profileId, issued }: { profileId?: string; issued
   const [open, setOpen] = useState(false);
   const [preset, setPreset] = useState<ClientPreset>('claude-code');
   const [copyError, setCopyError] = useState<Error>();
-  const [copied, setCopied] = useState(false);
-  const copy = async (text: string) => {
+  const [copied, setCopied] = useState<'config' | 'command'>();
+  const copy = async (text: string, kind: 'config' | 'command') => {
     setCopyError(undefined);
-    setCopied(false);
+    setCopied(undefined);
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
+      setCopied(kind);
     } catch (error) {
       setCopyError(error instanceof Error ? error : new Error(String(error)));
     }
@@ -44,7 +44,7 @@ export function ClientExport({ profileId, issued }: { profileId?: string; issued
         open={open}
         onOpenChange={(open) => {
           setOpen(open);
-          setCopied(false);
+          setCopied(undefined);
           setCopyError(undefined);
         }}
       >
@@ -62,7 +62,7 @@ export function ClientExport({ profileId, issued }: { profileId?: string; issued
               value={preset}
               onValueChange={(value) => {
                 setPreset(value as ClientPreset);
-                setCopied(false);
+                setCopied(undefined);
                 setCopyError(undefined);
               }}
             >
@@ -76,7 +76,9 @@ export function ClientExport({ profileId, issued }: { profileId?: string; issued
           <Feedback error={copyError ?? query.error} />
           {copied ? (
             <p role="status" className="text-sm text-primary">
-              已复制，请粘贴到客户端的 MCP 设置中。
+              {copied === 'command'
+                ? '已复制命令，请在终端中执行。'
+                : '已复制配置，请粘贴到客户端的 MCP 设置中。'}
             </p>
           ) : null}
           {output ? (
@@ -85,11 +87,13 @@ export function ClientExport({ profileId, issued }: { profileId?: string; issued
                 <p className="text-sm text-muted-foreground">{output.notes}</p>
               ) : null}
               <Code value={output.config} />
-              <Button onClick={() => void copy(output.config)}>复制配置</Button>
+              <Button onClick={() => void copy(output.config, 'config')}>复制配置</Button>
               {output.command ? (
                 <>
                   <Code value={output.command} />
-                  <Button onClick={() => void copy(output.command!)}>复制 CLI 命令</Button>
+                  <Button onClick={() => void copy(output.command!, 'command')}>
+                    复制 CLI 命令
+                  </Button>
                 </>
               ) : null}
             </>
