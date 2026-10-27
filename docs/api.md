@@ -134,7 +134,7 @@ Profile 新增 `revision`、`requestable:{toolIds,contentIds,artifactIds}` 与 `
 | 持久任务与调用          | `GET /tasks/:id`、`GET /calls/:id`、`GET /workspace/events/:id`                                                               |
 | 交接                    | `POST /handoffs/preview`、`GET/POST /handoffs`、`GET /handoffs/:id`、`GET .../export`、`POST .../execute`                     |
 
-管理权限与 Agent 权限分别使用；带 Agent 路径的操作执行该 Profile 的实际权限，调用方不能通过 body 注入执行上下文。任务详情先返回持久快照，再用事件流触发重新读取；revision 单调递增，旧事件不会覆盖新状态。`GET /calls` 可按 profileId/taskId/connectionId/deviceId/status 筛选。诊断记录只保存标识、阶段与必要错误信息，不保存认证秘密。
+管理权限与 Agent 权限分别使用；带 Agent 路径的操作执行该 Profile 的实际权限，调用方不能通过 body 注入执行上下文。任务详情先返回持久快照，再用事件流触发重新读取；revision 单调递增，旧事件不会覆盖新状态。`GET /calls` 可按 profileId/taskId/connectionId/deviceId/toolId/status 筛选，toolId 使用目录中的稳定标识，区分不同连接的同名工具。诊断记录只保存标识、阶段与必要错误信息，不保存认证秘密。
 
 开放 requestable 后，MCP 与 Pi 提供平台申请目录、申请及状态工具。申请绑定服务端确定的凭证或当前 Pi 任务；审批只能批准申请子集，默认有效期一小时，可显式调整。事务同时提交决定、授权和审计，重复审批不增加授权或延长时间。Pi 等待审批不占业务调用的网络超时，无隐式审批等待上限；任务取消、身份变化和凭证撤销会终止等待。批准只刷新可用工具并返回决定，业务必须由新调用执行。目录、调用、内容、订阅、Apps、交互续传及产物下载共同使用当前有效授权；长期授权仍有效时不因撤销临时授权而取消活动。
 

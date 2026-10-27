@@ -65,12 +65,12 @@ export default function DevicesPage() {
         <Card className="panel padded">
           <h2>连接器安装</h2>
           <p>从项目根目录运行构建命令，获取对应系统的可执行文件。</p>
-          <Code value="cd platform\npnpm connector:build" />
+          <Code value="pnpm connector:build" />
           <p>配对后启动连接器：</p>
           <Code value="connector run --config connector.json" />
           <small>
             需要桌面会话的应用使用用户登录启动；后台任务使用系统服务。三平台说明见
-            platform/docs/connector.md。
+            docs/connector.md。
           </small>
         </Card>
       </div>

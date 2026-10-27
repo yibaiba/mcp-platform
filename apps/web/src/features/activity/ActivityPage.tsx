@@ -1,33 +1,33 @@
-import { useState } from 'react';
-import { Input } from '../../components/ui/input.js';
-import { Field } from '../../components/shared/Controls.js';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Card } from '../../components/ui/card.js';
+import { Table, TableBody, TableHead, TableHeader, TableRow } from '../../components/ui/table.js';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../components/ui/table.js';
-import { api, type Call, type Tool, type Connection } from '../../lib/api.js';
-import { Action, date, Empty, Feedback, Status } from '../../components/shared/Controls.js';
-
+  api,
+  type Call,
+  type Tool,
+  type Connection,
+  type Profile,
+  type Device,
+} from '../../lib/api.js';
+import { Empty, Feedback } from '../../components/shared/Controls.js';
+import { ActivityFilters } from './ActivityFilters.js';
+import type { ActivitySearch } from './activitySearch.js';
+import { callNames } from './callPresentation.js';
+import { CallRow } from './CallRow.js';
+import { CallDetail } from './CallDetail.js';
 export default function ActivityPage() {
-  const [filters, setFilters] = useState({
-    profileId: '',
-    taskId: '',
-    connectionId: '',
-    deviceId: '',
-    status: '',
-  });
+  const filters = useSearch({ from: '/activity' });
+  const navigate = useNavigate({ from: '/activity' });
   const search = new URLSearchParams(
-    Object.entries(filters).filter(([, value]) => value),
+    Object.entries(filters).filter(([key, value]) => key !== 'callId' && Boolean(value)) as [
+      string,
+      string,
+    ][],
   ).toString();
   const calls = useQuery({
     queryKey: ['calls', search],
-    queryFn: () => api<Call[]>(`/calls?${search}`),
+    queryFn: ({ signal }) => api<Call[]>(`/calls?${search}`, { signal }),
     refetchInterval: 5000,
   });
   const tools = useQuery({ queryKey: ['tools'], queryFn: () => api<Tool[]>('/tools') });
@@ -35,42 +35,48 @@ export default function ActivityPage() {
     queryKey: ['connections'],
     queryFn: () => api<Connection[]>('/connections'),
   });
+  const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api<Profile[]>('/profiles') });
+  const devices = useQuery({ queryKey: ['devices'], queryFn: () => api<Device[]>('/devices') });
+  const names = callNames({
+    tools: tools.data,
+    connections: connections.data,
+    profiles: profiles.data,
+    devices: devices.data,
+  });
+  const update = (patch: ActivitySearch) =>
+    void navigate({ search: (previous) => ({ ...previous, callId: undefined, ...patch }) });
   return (
     <>
       <div className="page-heading">
         <div>
           <span className="eyebrow">ACTIVITY</span>
           <h1>运行记录</h1>
-          <p>记录执行位置与结果；“结果未知”需先检查设备，避免重复执行。</p>
+          <p>按 Agent、连接和设备定位调用，查看实际身份与执行阶段。</p>
         </div>
       </div>
-      <Feedback error={calls.error ?? tools.error ?? connections.error} />
-      <div className="overview-grid">
-        {(Object.keys(filters) as (keyof typeof filters)[]).map((key) => (
-          <Field
-            key={key}
-            label={
-              {
-                profileId: 'Agent ID',
-                taskId: '任务 ID',
-                connectionId: '连接 ID',
-                deviceId: '设备 ID',
-                status: '状态',
-              }[key]
-            }
-          >
-            <Input
-              value={filters[key]}
-              onChange={(e) => setFilters({ ...filters, [key]: e.target.value })}
-            />
-          </Field>
-        ))}
-      </div>
+      <Feedback
+        error={calls.error ?? tools.error ?? connections.error ?? profiles.error ?? devices.error}
+      />
+      <ActivityFilters
+        values={filters}
+        options={{
+          tools: tools.data ?? [],
+          connections: connections.data ?? [],
+          profiles: profiles.data ?? [],
+          devices: devices.data ?? [],
+        }}
+        onChange={update}
+      />
       <Card className="panel">
         <div className="panel-heading">
-          <h2>最近 100 次调用</h2>
+          <h2>最近 100 次匹配调用</h2>
           <span className="label">每 5 秒刷新</span>
         </div>
+        {calls.isPending ? (
+          <p className="quiet-empty" role="status">
+            正在读取调用记录…
+          </p>
+        ) : null}
         {calls.data?.length ? (
           <Table>
             <TableHeader>
@@ -84,51 +90,26 @@ export default function ActivityPage() {
             </TableHeader>
             <TableBody>
               {calls.data.map((call) => (
-                <TableRow key={call.id}>
-                  <TableCell>
-                    <Status value={call.status} />
-                  </TableCell>
-                  <TableCell>
-                    <strong>
-                      {tools.data?.find((tool) => tool.id === call.toolId)?.name ?? call.toolId}
-                    </strong>
-                    <small>
-                      {connections.data?.find((connection) => connection.id === call.connectionId)
-                        ?.name ?? call.connectionId}{' '}
-                      · {call.adapter}
-                    </small>
-                    <small>
-                      Agent {call.profileId ?? '管理账号'} · 任务 {call.taskId ?? '无'}
-                    </small>
-                    <small>
-                      {call.entry} · {call.phase} · 关联 {call.correlationId}
-                    </small>
-                    <small>{call.deviceId ?? '平台执行'}</small>
-                  </TableCell>
-                  <TableCell>{date(call.startedAt)}</TableCell>
-                  <TableCell>
-                    {call.endedAt
-                      ? `${new Date(call.endedAt).getTime() - new Date(call.startedAt).getTime()} ms`
-                      : '—'}
-                  </TableCell>
-                  <TableCell className="max-w-sm whitespace-normal">
-                    {call.error ? (
-                      <span className="text-destructive break-all">{call.error}</span>
-                    ) : null}
-                    {call.status === 'running' ? (
-                      <Action action={() => api(`/calls/${call.id}/cancel`, { method: 'POST' })}>
-                        请求取消
-                      </Action>
-                    ) : null}
-                  </TableCell>
-                </TableRow>
+                <CallRow
+                  key={call.id}
+                  call={call}
+                  names={names}
+                  onOpen={() => update({ callId: call.id })}
+                />
               ))}
             </TableBody>
           </Table>
-        ) : (
-          <Empty>尚无调用记录。</Empty>
-        )}
+        ) : calls.isSuccess ? (
+          <Empty>没有匹配的调用。可调整筛选条件，或前往工具目录执行一次调用。</Empty>
+        ) : null}
       </Card>
+      {filters.callId ? (
+        <CallDetail
+          id={filters.callId}
+          names={names}
+          onClose={() => update({ callId: undefined })}
+        />
+      ) : null}
     </>
   );
 }

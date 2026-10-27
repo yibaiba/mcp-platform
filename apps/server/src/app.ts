@@ -182,6 +182,7 @@ function registerManagement(
               c.req.query(key) ? eq(calls[key], z.uuid().parse(c.req.query(key))) : undefined,
             ),
             c.req.query('status') ? eq(calls.status, c.req.query('status')!) : undefined,
+            c.req.query('toolId') ? eq(calls.toolId, c.req.query('toolId')!) : undefined,
           ),
         )
         .orderBy(desc(calls.startedAt))

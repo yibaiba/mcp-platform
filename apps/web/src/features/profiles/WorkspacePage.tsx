@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
   api,
@@ -80,7 +81,14 @@ export function WorkspacePage({ profileId, onBack }: { profileId: string; onBack
                 产物: artifacts.data?.filter((a) => current.artifactIds.includes(a.id)),
               }}
             />
-            <a href={`/tools?profileId=${current.id}`}>以此 Agent 测试工具和内容</a>
+            <div className="flex flex-wrap gap-4">
+              <Link to="/tools" search={{ profileId: current.id }}>
+                以此 Agent 测试工具和内容
+              </Link>
+              <Link to="/activity" search={{ profileId: current.id }}>
+                查看此 Agent 的调用记录
+              </Link>
+            </div>
           </Card>
           <Card className="panel padded">
             <h2>身份与执行位置</h2>
