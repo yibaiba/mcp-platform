@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { api, json } from '../../lib/api.js';
 import { Form, Field, Code, value } from '../../components/shared/Controls.js';
-import { Card } from '../../components/ui/card.js';
 import { Input } from '../../components/ui/input.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import { CheckChoice } from '../../components/shared/CheckChoice.js';
@@ -24,8 +23,7 @@ export function OpenApiPanel() {
   const [preview, setPreview] = useState<Preview>();
   const [revision, setRevision] = useState(0);
   return (
-    <Card className="panel padded">
-      <h2>OpenAPI 来源</h2>
+    <Disclosure title="从 OpenAPI 文档添加连接" className="panel padded">
       <p>导入 OpenAPI 3.0/3.1 JSON 或 YAML，预览后选择发布操作。API 请求在平台执行。</p>
       <Form
         label="读取并预览"
@@ -134,6 +132,6 @@ export function OpenApiPanel() {
           </Field>
         </Form>
       ) : null}
-    </Card>
+    </Disclosure>
   );
 }

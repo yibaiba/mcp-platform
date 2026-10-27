@@ -31,6 +31,12 @@ pnpm test tests/connectorPresets.test.ts tests/authorizationFlow.test.ts tests/u
 
 Gitee 专项覆盖远程及 stdio 配置、平台直连和 Pi 的凭证加密与管理接口脱敏、运行方式切换时的凭证排除，以及 stdio 预设识别。macOS 本机执行官方 `npx -y @gitee/mcp-gitee@latest --version` 成功，输出 `Version: 1.0.0`；官方远程服务完成匿名 MCP 初始化。未配置实际 Gitee 令牌，账号工具的发现与调用尚未验收。
 
+## 连接列表与上手引导
+
+`pnpm test tests/setupProgress.test.ts tests/authorizationFlow.test.ts tests/toolCatalog.test.ts tests/connectorPresets.test.ts` 本轮 22 项通过，进程硬超时保持 60 秒。上手进度检查覆盖未连接/停止、空授权 Profile、跨 Profile 或已撤销密钥，以及只有 Prompt/Resource 授权的配置。进度只表示平台设置状态，不将密钥生成当作客户端已接通。
+
+2026-10-27 在 macOS Chrome 检查了紧凑连接行、授权弹窗、默认折叠的撤销/手工回调/OpenAPI、390px 窄屏无页面横向溢出、方向键/回车打开编辑和 Escape 关闭。从工作空间经指南能回到权限表单或客户端配置区域；包含占位凭证的真实配置复制完成后显示成功提示。已停机的本地协议服务产生真实目录连接错误，提示保留原始错误并独立于按钮布局。未重新执行供应商 OAuth、生成真实接入密钥或验证外部客户端；新密钥结果弹窗的真实签发与嵌套配置窗口尚未进行浏览器验收。
+
 ## Go 与跨平台构建
 
 GitHub Actions 在 Node.js 22、24 和独立 PostgreSQL 上执行冻结安装、重复迁移、类型检查、ESLint、生产构建、分组后端测试、无模型 Pi 桥接与 Go test/vet；Node.js 24 任务同时交叉构建六个架构。这些 Linux CI 检查不能替代各客户端、供应商 OAuth 和物理设备验收。

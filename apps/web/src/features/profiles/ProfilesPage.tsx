@@ -5,7 +5,15 @@ import { Button } from '../../components/ui/button.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import { Input } from '../../components/ui/input.js';
 import { useState } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog.js';
 import {
   api,
   json,
@@ -46,24 +54,15 @@ export default function ProfilesPage() {
     queryKey: ['keys'],
     queryFn: () => api<{ id: string; profileId: string; revoked: boolean }[]>('/profiles/keys/all'),
   });
-  const [workspace, setWorkspace] = useState<string | null>(
-    new URLSearchParams(window.location.search).get('workspace'),
-  );
+  const { workspace } = useSearch({ from: '/profiles' });
+  const navigate = useNavigate({ from: '/profiles' });
   const [editing, setEditing] = useState<Profile>();
   const [key, setKey] = useState<unknown>();
   const connectionNames = new Map(
     connections.data?.map((connection) => [connection.id, connection.name]),
   );
   if (workspace)
-    return (
-      <WorkspacePage
-        profileId={workspace}
-        onBack={() => {
-          setWorkspace(null);
-          window.history.replaceState(null, '', '/profiles');
-        }}
-      />
-    );
+    return <WorkspacePage profileId={workspace} onBack={() => void navigate({ search: {} })} />;
   return (
     <>
       <div className="page-heading">
@@ -84,8 +83,12 @@ export default function ProfilesPage() {
           catalog.error
         }
       />
+      <div className="mb-5 rounded-lg border bg-muted/20 p-4 text-xs leading-relaxed text-muted-foreground">
+        <strong className="text-foreground">在这里把工具交给 Agent：</strong>{' '}
+        填写名称、勾选工具并保存，然后在“已创建配置”中生成接入密钥。首次生成后，点击“复制完整客户端配置”即可带上密钥，无需手动拼接。
+      </div>
       <div className="overview-grid">
-        <Card className="panel padded">
+        <Card id="create-profile" className="panel padded scroll-mt-6">
           <h2>{editing ? `编辑：${editing.name}` : '创建配置'}</h2>
           <Form
             key={editing?.id ?? 'new'}
@@ -180,7 +183,7 @@ export default function ProfilesPage() {
             </fieldset>
           </Form>
         </Card>
-        <Card className="panel">
+        <Card id="agent-configurations" className="panel scroll-mt-6">
           <div className="panel-heading">
             <h2>已创建配置</h2>
           </div>
@@ -195,13 +198,19 @@ export default function ProfilesPage() {
                 <div className="row-actions">
                   <Button
                     onClick={() => {
-                      setWorkspace(profile.id);
-                      window.history.replaceState(null, '', `/profiles?workspace=${profile.id}`);
+                      void navigate({ search: { workspace: profile.id } });
                     }}
                   >
                     打开工作空间
                   </Button>
-                  <Button onClick={() => setEditing(profile)}>编辑权限</Button>
+                  <Button
+                    onClick={() => {
+                      setEditing(profile);
+                      window.location.hash = 'create-profile';
+                    }}
+                  >
+                    编辑权限
+                  </Button>
                   <ClientExport profileId={profile.id} />
                   <Action
                     action={async () =>
@@ -231,17 +240,30 @@ export default function ProfilesPage() {
           )}
         </Card>
       </div>
-      {key ? (
-        <Card className="panel padded">
-          <h2>接入配置</h2>
-          <p>密钥仅在此时展示。复制到 Agent 的 MCP 配置中。</p>
-          <Code value={key} />
-          <ClientExport
-            issued={(key as { exports: Parameters<typeof ClientExport>[0]['issued'] }).exports}
-          />
-          <Button onClick={() => setKey(undefined)}>关闭密钥展示</Button>
-        </Card>
-      ) : null}
+      <Dialog
+        open={Boolean(key)}
+        onOpenChange={(open) => {
+          if (!open) setKey(undefined);
+        }}
+      >
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>接入配置已生成</DialogTitle>
+            <DialogDescription>
+              密钥仅在此时展示。先复制完整客户端配置，再关闭此窗口。
+            </DialogDescription>
+          </DialogHeader>
+          {key ? (
+            <>
+              <ClientExport
+                issued={(key as { exports: Parameters<typeof ClientExport>[0]['issued'] }).exports}
+              />
+              <Code value={key} />
+              <Button onClick={() => setKey(undefined)}>关闭密钥展示</Button>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

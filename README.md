@@ -24,7 +24,7 @@ pnpm db:migrate
 pnpm dev
 ```
 
-管理界面 <http://localhost:4301>，API <http://localhost:4300>，Apps 隔离服务 <http://localhost:4302>，由同一后端启动。在“连接”选择平台直连、Pi 桥接或设备连接器，添加 Streamable HTTP、旧版 SSE 或 stdio 服务，点击“连接 / 刷新目录”，再到“工具目录”实际调用。也可选择独立的 OpenAPI 来源，预览并选择操作发布。stdio 命令在所选执行位置运行：平台直连/Pi 使用平台主机（Docker 的 server 容器），设备连接器使用所选设备。服务返回错误会直接展示；连接配置中的请求头和环境变量加密保存在数据库，不在列表中返回。
+管理界面 <http://localhost:4301>，API <http://localhost:4300>，Apps 隔离服务 <http://localhost:4302>，由同一后端启动。在“MCP 连接”添加内置服务账号，或使用“添加连接”选择平台直连、Pi 桥接或设备连接器；自定义连接保存后点击“连接”，已连接服务通过“更多操作”刷新目录，再到“工具目录”实际调用。页面的“使用指南”提供从服务授权、Agent 权限到客户端配置的完整入口，详见[首次接入说明](docs/getting-started.md)。也可展开 OpenAPI 导入，预览并选择操作发布。stdio 命令在所选执行位置运行：平台直连/Pi 使用平台主机（Docker 的 server 容器），设备连接器使用所选设备。服务返回错误会直接展示；连接配置中的请求头和环境变量加密保存在数据库，不在列表中返回。
 
 开发启动从仓库根目录 `.env` 读取配置；源代码生产启动 `pnpm start`，不依赖工作目录。`pnpm build` 验证后端编译并产出前端静态文件。后端部署使用 `tsx` 源码入口，以支持按需加载内置 Pi 运行时；不要直接运行 `apps/server/dist`。
 
@@ -69,6 +69,7 @@ pnpm test:pi                # 真实 Pi SDK 桥接；不调用模型，硬超时
 
 ## 文档
 
+- [首次接入与使用指南](docs/getting-started.md)
 - [部署与备份恢复](docs/deployment.md)
 - [设备连接器与三平台自启动](docs/connector.md)
 - [接口、权限与协议](docs/api.md)

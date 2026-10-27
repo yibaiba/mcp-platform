@@ -18,10 +18,13 @@ export function ClientExport({ profileId, issued }: { profileId?: string; issued
   const [open, setOpen] = useState(false);
   const [preset, setPreset] = useState<ClientPreset>('claude-code');
   const [copyError, setCopyError] = useState<Error>();
+  const [copied, setCopied] = useState(false);
   const copy = async (text: string) => {
     setCopyError(undefined);
+    setCopied(false);
     try {
       await navigator.clipboard.writeText(text);
+      setCopied(true);
     } catch (error) {
       setCopyError(error instanceof Error ? error : new Error(String(error)));
     }
@@ -37,7 +40,14 @@ export function ClientExport({ profileId, issued }: { profileId?: string; issued
       <Button variant="outline" onClick={() => setOpen(true)}>
         {issued ? '复制完整客户端配置' : '导出客户端配置'}
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(open) => {
+          setOpen(open);
+          setCopied(false);
+          setCopyError(undefined);
+        }}
+      >
         <DialogContent className="max-h-[85vh] overflow-auto">
           <DialogHeader>
             <DialogTitle>客户端接入配置</DialogTitle>
@@ -50,7 +60,11 @@ export function ClientExport({ profileId, issued }: { profileId?: string; issued
           <Field label="客户端">
             <SelectControl
               value={preset}
-              onValueChange={(value) => setPreset(value as ClientPreset)}
+              onValueChange={(value) => {
+                setPreset(value as ClientPreset);
+                setCopied(false);
+                setCopyError(undefined);
+              }}
             >
               {clientPresets.map((client) => (
                 <SelectItem key={client} value={client}>
@@ -60,6 +74,11 @@ export function ClientExport({ profileId, issued }: { profileId?: string; issued
             </SelectControl>
           </Field>
           <Feedback error={copyError ?? query.error} />
+          {copied ? (
+            <p role="status" className="text-sm text-primary">
+              已复制，请粘贴到客户端的 MCP 设置中。
+            </p>
+          ) : null}
           {output ? (
             <>
               {output.notes ? (

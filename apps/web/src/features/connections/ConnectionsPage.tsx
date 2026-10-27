@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { ConnectorPreset, ConnectorAuthentication } from '@platform/contracts';
 import { useQueryClient } from '@tanstack/react-query';
-import { Plug, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Card } from '../../components/ui/card.js';
 import { Button } from '../../components/ui/button.js';
 import {
@@ -16,22 +16,23 @@ import {
   DialogTrigger,
 } from '../../components/ui/dialog.js';
 import { api, type Connection, type Device } from '../../lib/api.js';
-import { Action, Empty, Feedback, Status } from '../../components/shared/Controls.js';
+import { Empty, Feedback } from '../../components/shared/Controls.js';
 import { ConnectionForm } from './ConnectionForm.js';
 import { ImportPanel } from './ImportPanel.js';
-import { AuthorizationBindings } from './AuthorizationBindings.js';
 import { ConnectorCatalog } from './ConnectorCatalog.js';
 import { ConnectorForm } from './ConnectorForm.js';
 import { ConnectionResult } from './ConnectionResult.js';
-import { AuthorizationButton } from './AuthorizationButton.js';
 import { authorizeConnection } from './authorizationFlow.js';
 import { authorizationResult } from './authorizationResult.js';
+import { ConnectionItem, type ConnectionInspection } from './ConnectionItem.js';
+import { SetupChecklist } from '../onboarding/SetupChecklist.js';
 
 export default function ConnectionsPage() {
   const [editing, setEditing] = useState<Connection>();
   const [show, setShow] = useState(false);
   const [preset, setPreset] = useState<ConnectorPreset>();
-  const [result, setResult] = useState<unknown>();
+  const [inspection, setInspection] = useState<ConnectionInspection>();
+  const setResult = (result: unknown) => setInspection({ title: '连接设置结果', result });
   const [setupError, setSetupError] = useState<Error | null>(null);
   const [setupMessage, setSetupMessage] = useState('');
   const queryClient = useQueryClient();
@@ -57,7 +58,6 @@ export default function ConnectionsPage() {
               navigate: (url) => window.location.assign(url),
             })
           : await api(`/connections/${created.id}/discover`, { method: 'POST' });
-      setResult(connected);
       setSetupMessage(
         authentication === 'oauth'
           ? authorizationResult(connected).url
@@ -77,6 +77,16 @@ export default function ConnectionsPage() {
     queryFn: () => api<Connection[]>('/connections'),
   });
   const devices = useQuery({ queryKey: ['devices'], queryFn: () => api<Device[]>('/devices') });
+  const deviceById = new Map(devices.data?.map((device) => [device.id, device]));
+  const connectorCatalog = (
+    <ConnectorCatalog
+      connections={connections.data ?? []}
+      onSelect={(selected) => {
+        setPreset(selected);
+        setShow(true);
+      }}
+    />
+  );
   return (
     <>
       <div className="page-heading">
@@ -104,9 +114,12 @@ export default function ConnectionsPage() {
             ) : (
               <ConnectionForm
                 devices={devices.data ?? []}
-                onSaved={(created) => {
-                  setResult(created);
+                onSaved={() => {
                   setShow(false);
+                  setSetupError(null);
+                  setSetupMessage(
+                    '配置已保存。点击新连接的“连接”读取工具目录；OAuth 服务请先打开“授权与账号”。',
+                  );
                 }}
               />
             )}
@@ -116,115 +129,55 @@ export default function ConnectionsPage() {
       <Feedback error={connections.error ?? devices.error} />
       {setupMessage ? <p role="status">{setupMessage}</p> : null}
       <Feedback error={setupError} />
-      <ConnectorCatalog
-        connections={connections.data ?? []}
-        onSelect={(selected) => {
-          setPreset(selected);
-          setShow(true);
-        }}
-      />
+      <SetupChecklist compact />
+      {!connections.data?.length ? connectorCatalog : null}
       <Card className="panel">
+        <div className="panel-heading">
+          <div>
+            <h2>我的连接</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              同一服务可添加多个账号。编辑、健康检查和运行控制在“更多操作”中。
+            </p>
+          </div>
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {connections.data?.length ?? '—'} 个连接
+          </span>
+        </div>
         {connections.data?.length ? (
           connections.data.map((connection) => (
-            <div
-              className="connection-row scroll-mt-6"
-              id={`connection-${connection.id}`}
+            <ConnectionItem
               key={connection.id}
-            >
-              <div className="row">
-                <div className="item-icon">
-                  <Plug size={20} />
-                </div>
-                <div className="grow">
-                  <strong>{connection.name}</strong>
-                  <small>
-                    {connection.source === 'openapi' ? 'OpenAPI · ' : ''}
-                    {connection.adapter} · {connection.transport} · {connection.mode}{' '}
-                    {connection.transport === 'stdio'
-                      ? `· ${connection.adapter === 'device' ? '所选设备执行' : '平台主机执行'} `
-                      : ''}
-                    {connection.url ? `· ${connection.url}` : ''}
-                    {connection.protocolVersion ? ` · MCP ${connection.protocolVersion}` : ''}
-                  </small>
-                </div>
-                <Status value={connection.status} />
-              </div>
-              <small>
-                授权：{connection.identityMode === 'independent' ? '独立身份' : '连接账号'} ·
-                活跃会话：{connection.sessions?.length ?? 0}
-              </small>
-              {connection.error ? <div className="error">{connection.error}</div> : null}
-              <div className="row-actions">
-                <Button variant="outline" onClick={() => setEditing(connection)}>
-                  编辑
-                </Button>
-                {(
-                  [
-                    ['wake', '唤醒'],
-                    ['sleep', '休眠'],
-                    ['check', '健康检查'],
-                  ] as const
-                ).map(([operation, label]) => (
-                  <Action
-                    key={operation}
-                    action={async () =>
-                      setResult(
-                        await api(`/connections/${connection.id}/${operation}`, { method: 'POST' }),
-                      )
-                    }
-                  >
-                    {label}
-                  </Action>
-                ))}
-                <Action
-                  action={async () =>
-                    setResult({
-                      sessions: connection.sessions,
-                      bindings: await api(`/connections/${connection.id}/bindings`),
-                    })
-                  }
-                >
-                  会话与授权诊断
-                </Action>
-                <Action
-                  action={async () =>
-                    setResult(
-                      await api(`/connections/${connection.id}/discover`, { method: 'POST' }),
-                    )
-                  }
-                >
-                  连接 / 刷新目录
-                </Action>
-                <Action
-                  action={() => api(`/connections/${connection.id}/stop`, { method: 'POST' })}
-                >
-                  停止连接
-                </Action>
-                {connection.transport !== 'stdio' && connection.source !== 'openapi' ? (
-                  <AuthorizationButton
-                    endpoint={`/connections/${connection.id}/oauth`}
-                    onResult={setResult}
-                  />
-                ) : null}
-              </div>
-              {connection.transport !== 'stdio' ? (
-                <AuthorizationBindings
-                  connectionId={connection.id}
-                  source={connection.source ?? 'mcp'}
-                />
-              ) : null}
-            </div>
+              connection={connection}
+              devices={deviceById}
+              onEdit={setEditing}
+              onInspect={setInspection}
+            />
           ))
-        ) : (
-          <Empty>还没有 MCP 连接，点击“添加连接”开始。</Empty>
-        )}
+        ) : connections.isPending ? (
+          <p role="status" className="p-5 text-muted-foreground">
+            正在读取连接…
+          </p>
+        ) : connections.isSuccess ? (
+          <Empty>选择上方服务添加第一个账号，或使用“添加连接”填写自定义服务。</Empty>
+        ) : null}
       </Card>
-      {result ? (
-        <Card className="panel padded">
-          <h2>操作结果</h2>
-          <ConnectionResult result={result} />
-        </Card>
-      ) : null}
+      {connections.data?.length ? connectorCatalog : null}
+      <Dialog
+        open={Boolean(inspection)}
+        onOpenChange={(open) => {
+          if (!open) setInspection(undefined);
+        }}
+      >
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{inspection?.title}</DialogTitle>
+            <DialogDescription>
+              此处显示本次操作的实际返回。详细数据可在诊断中展开。
+            </DialogDescription>
+          </DialogHeader>
+          {inspection ? <ConnectionResult result={inspection.result} /> : null}
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={Boolean(editing)}
         onOpenChange={(open) => {

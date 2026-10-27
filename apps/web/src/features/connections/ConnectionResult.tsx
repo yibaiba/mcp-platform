@@ -23,7 +23,11 @@ export function ConnectionResult({ result }: { result: unknown }) {
           </p>
         </div>
       ) : null}
-      <Disclosure title="高级授权诊断与回调配置">
+      <Disclosure
+        title={
+          redirectUrl || url || authorized || pending ? '高级授权诊断与回调配置' : '查看返回详情'
+        }
+      >
         {typeof redirectUrl === 'string' ? (
           <Field label="OAuth 回调地址" hint="预注册应用需填写此地址；独立身份的绑定回调地址不同。">
             <Input value={redirectUrl} readOnly />

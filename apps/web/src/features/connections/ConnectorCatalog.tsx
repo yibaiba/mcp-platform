@@ -1,14 +1,6 @@
 import { connectorPresets, type ConnectorPreset } from '@platform/contracts';
-import {
-  BookOpen,
-  Check,
-  ChevronDown,
-  Cloud,
-  GitBranch,
-  Github,
-  ListTodo,
-  Notebook,
-} from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
+import { ConnectorIcon } from './ConnectorIcon.js';
 import { Button } from '../../components/ui/button.js';
 import { Card } from '../../components/ui/card.js';
 import type { Connection } from '../../lib/api.js';
@@ -23,14 +15,6 @@ const groups = [
   { name: '开发与云服务', category: 'development' },
   { name: '效率与文档', category: 'productivity' },
 ] as const;
-const icons = {
-  cloudflare: Cloud,
-  github: Github,
-  gitee: GitBranch,
-  notion: Notebook,
-  linear: ListTodo,
-  'cloudflare-docs': BookOpen,
-};
 
 function ConnectorRow({
   preset,
@@ -47,12 +31,9 @@ function ConnectorRow({
       connection.url?.replace(/\/$/, '') === preset.url.replace(/\/$/, ''),
   );
   const existing = matches.find((connection) => connection.status === 'connected') ?? matches[0];
-  const Icon = icons[preset.id as keyof typeof icons];
   return (
     <div className="flex min-w-0 items-center gap-3 py-2">
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/50 text-foreground">
-        <Icon size={20} aria-hidden="true" />
-      </div>
+      <ConnectorIcon presetId={preset.id} />
       <div className="min-w-0 flex-1">
         <a
           href={preset.documentationUrl}
@@ -120,7 +101,11 @@ export function ConnectorCatalog({
   connections: readonly Connection[];
 }) {
   return (
-    <Card className="mb-6 gap-5 p-5" aria-labelledby="connector-catalog-title">
+    <Card
+      id="connector-catalog"
+      className="mb-6 scroll-mt-6 gap-5 p-5"
+      aria-labelledby="connector-catalog-title"
+    >
       <div>
         <h2 id="connector-catalog-title">内置连接器</h2>
         <p className="mt-1 text-xs text-muted-foreground">

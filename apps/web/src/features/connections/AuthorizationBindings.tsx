@@ -12,10 +12,12 @@ export function AuthorizationBindings({
   connectionId,
   source,
   initialBindingId,
+  defaultOpen,
 }: {
   connectionId: string;
   source: string;
   initialBindingId?: string;
+  defaultOpen?: boolean;
 }) {
   const bindings = useQuery({
     queryKey: ['bindings', connectionId],
@@ -29,8 +31,12 @@ export function AuthorizationBindings({
   const endpoint =
     source === 'openapi' ? `${root}/openapi/oauth/${encodeURIComponent(scheme)}` : `${root}/oauth`;
   return (
-    <Disclosure title="上游授权绑定">
+    <Disclosure title="上游授权绑定" defaultOpen={defaultOpen}>
       <Feedback error={bindings.error} />
+      <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+        选择要管理的授权身份。供应商页面确认后自动返回，无需复制回调地址；Agent 专属身份在对应 Agent
+        的工作空间中配置。
+      </p>
       <Field label="授权归属">
         <SelectControl
           value={selected}
@@ -52,27 +58,35 @@ export function AuthorizationBindings({
         </Field>
       ) : null}
       <div className="row-actions">
-        <Action action={async () => setResult(await api(endpoint))}>授权状态</Action>
         <AuthorizationButton endpoint={endpoint} onResult={setResult} />
-        <Action
-          action={async () => {
-            if (selected === 'default') throw new Error('请选择具体绑定');
-            setImpact(await api(`${root}/impact`));
-          }}
-        >
-          查看撤销影响
-        </Action>
-        <Action
-          danger
-          action={async () => {
-            if (!impact) throw new Error('请先查看此绑定的撤销影响');
-            setResult(await api(endpoint, { method: 'DELETE' }));
-            setImpact(undefined);
-          }}
-        >
-          撤销此绑定的本地凭证
-        </Action>
+        <Action action={async () => setResult(await api(endpoint))}>检查授权状态</Action>
       </div>
+      <Disclosure title="撤销授权（高级）">
+        <p className="text-xs text-muted-foreground">
+          先选择具体绑定并查看影响，再撤销该绑定。依赖它的任务和会话会受到影响。
+        </p>
+        <div className="row-actions">
+          <Action
+            action={async () => {
+              if (selected === 'default') throw new Error('请选择具体绑定');
+              setImpact(await api(`${root}/impact`));
+            }}
+          >
+            查看撤销影响
+          </Action>
+          <Action
+            danger
+            action={async () => {
+              if (!impact) throw new Error('请先查看此绑定的撤销影响');
+              setResult(await api(endpoint, { method: 'DELETE' }));
+              setImpact(undefined);
+            }}
+          >
+            撤销此绑定的本地凭证
+          </Action>
+        </div>
+        {impact ? <Code value={impact} /> : null}
+      </Disclosure>
       {source !== 'openapi' ? (
         <Disclosure title="手动完成授权（仅自动回调不可用时）">
           <Form
@@ -92,7 +106,6 @@ export function AuthorizationBindings({
           </Form>
         </Disclosure>
       ) : null}
-      {impact ? <Code value={impact} /> : null}
       {result ? <ConnectionResult result={result} /> : null}
     </Disclosure>
   );

@@ -6,13 +6,15 @@ export function Disclosure({
   title,
   children,
   className,
+  defaultOpen,
 }: {
   title: string;
   children: ReactNode;
   className?: string;
+  defaultOpen?: boolean;
 }) {
   return (
-    <Collapsible className={className}>
+    <Collapsible className={className} defaultOpen={defaultOpen}>
       <CollapsibleTrigger
         render={
           <Button

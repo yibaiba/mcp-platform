@@ -20,6 +20,7 @@ import { authClient } from '../../lib/auth-client.js';
 import { api } from '../../lib/api.js';
 import { AuthScreen } from './AuthScreen.js';
 import { Feedback } from './Controls.js';
+import { GettingStarted } from '../../features/onboarding/GettingStarted.js';
 const navigation = [
   ['/', '概览', LayoutDashboard],
   ['/connections', 'MCP 连接', Plug],
@@ -106,6 +107,7 @@ export function Shell() {
             工作空间 <span className="divider">/</span> 管理控制台
           </span>
           <span className="topbar-meta">
+            <GettingStarted />
             <span className="status status-online">
               <i />
               自主托管

@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router';
 import { Plug, Monitor, Wrench, ArrowUpRight, Plus, Network } from 'lucide-react';
 import { api, type Connection, type Device, type Tool, type Call } from '../../lib/api.js';
 import { date, Empty, Feedback, Status } from '../../components/shared/Controls.js';
+import { SetupChecklist } from '../onboarding/SetupChecklist.js';
 export default function OverviewPage() {
   const connections = useQuery({
     queryKey: ['connections'],
@@ -102,26 +103,7 @@ export default function OverviewPage() {
             </Empty>
           )}
         </Card>
-        <Card className="panel quickstart">
-          <div className="panel-heading">
-            <h2>连接你的工作流</h2>
-            <span className="label">快速开始</span>
-          </div>
-          {[
-            ['01', '添加 MCP 服务', '远程 HTTP 服务，或设备上的本地进程', '/connections'],
-            ['02', '配对你的设备', '通过出站连接，让本地工具安全接入', '/devices'],
-            ['03', '创建 Agent 配置', '选择工具，生成专属 MCP 接入配置', '/profiles'],
-          ].map(([n, title, desc, to]) => (
-            <Link key={n} to={to!} className="step">
-              <span>{n}</span>
-              <div>
-                <strong>{title}</strong>
-                <small>{desc}</small>
-              </div>
-              <ArrowUpRight size={18} />
-            </Link>
-          ))}
-        </Card>
+        <SetupChecklist />
       </div>
       <Card className="panel">
         <div className="panel-heading">
