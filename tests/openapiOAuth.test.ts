@@ -178,3 +178,28 @@ test('OpenAPI cancellation aborts the actual HTTP request without dispatching ag
   await vi.waitFor(() => expect(cancelled).toBe(1));
   expect(dispatched - before).toBe(1);
 });
+
+test('OpenAPI browser callback returns to the connection after discovery without API dispatch', async () => {
+  const { account, context } = await setup('oidc');
+  const root = `/connections/${context.id}/openapi/oauth/oauth`;
+  const start = await account.request(`${root}/start`, { method: 'POST' });
+  expect(start.status).toBe(200);
+  const authorization = new URL(
+    ((await start.json()) as { authorizationUrl: string }).authorizationUrl,
+  );
+  const query = new URLSearchParams({
+    code: 'browser-code',
+    state: authorization.searchParams.get('state')!,
+    iss: origin,
+  });
+  const before = dispatched;
+  const callback = await account.request(`${root}/callback?${query}`);
+  expect(callback.status).toBe(303);
+  expect(callback.headers.get('Location')).toBe(
+    `${h.config.WEB_ORIGIN}/connections#connection-${context.id}`,
+  );
+  expect((await h.services.apiOAuth.status(context, 'oauth')).authorized).toBe(true);
+  expect(dispatched).toBe(before);
+  expect((await account.request(`${root}/callback?${query}`)).status).toBeGreaterThanOrEqual(400);
+  expect(dispatched).toBe(before);
+});

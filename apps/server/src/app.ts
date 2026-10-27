@@ -129,6 +129,8 @@ export function createApp(deps: { db: Database; auth: Auth; config: Config; serv
   app.route(
     '/api/v1/connections',
     authorizationRoutes({
+      publicUrl: config.PUBLIC_URL,
+      webOrigin: config.WEB_ORIGIN,
       connections: s.connections,
       oauth: s.upstreamOAuth,
       pi: s.pi,
@@ -139,6 +141,8 @@ export function createApp(deps: { db: Database; auth: Auth; config: Config; serv
     '/api/v1/connections',
     authorizationRoutes(
       {
+        publicUrl: config.PUBLIC_URL,
+        webOrigin: config.WEB_ORIGIN,
         connections: s.connections,
         oauth: s.upstreamOAuth,
         pi: s.pi,
@@ -152,7 +156,7 @@ export function createApp(deps: { db: Database; auth: Auth; config: Config; serv
   app.route('/api/v1/profiles', profileRoutes({ ...s, publicUrl: config.PUBLIC_URL }));
   app.route('/api/v1/skills', skillRoutes(s.skills, importGit));
   app.route('/api/v1/artifacts', artifactRoutes(s.artifacts));
-  app.route('/api/v1', openApiRoutes(s));
+  app.route('/api/v1', openApiRoutes(s, config.WEB_ORIGIN));
   app.route('/api/v1/interactions', interactionRoutes(s.interactions));
   app.route('/api/v1/apps', appRoutes(s.apps));
   registerManagement(app, deps);

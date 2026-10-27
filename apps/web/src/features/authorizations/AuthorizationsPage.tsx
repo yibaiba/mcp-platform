@@ -14,6 +14,7 @@ import {
   value,
 } from '../../components/shared/Controls.js';
 import { ConnectionResult } from '../connections/ConnectionResult.js';
+import { AuthorizationButton } from '../connections/AuthorizationButton.js';
 export default function AuthorizationsPage() {
   const connections = useQuery({
     queryKey: ['connections'],
@@ -57,15 +58,10 @@ export default function AuthorizationsPage() {
                 >
                   查看授权状态
                 </Action>
-                <Action
-                  action={async () =>
-                    setResult(
-                      await api(`/connections/${connection.id}/oauth/start`, { method: 'POST' }),
-                    )
-                  }
-                >
-                  开始 / 重新授权
-                </Action>
+                <AuthorizationButton
+                  endpoint={`/connections/${connection.id}/oauth`}
+                  onResult={setResult}
+                />
                 <Action
                   danger
                   action={async () =>
@@ -77,7 +73,7 @@ export default function AuthorizationsPage() {
                   删除平台凭证
                 </Action>
               </div>
-              <Disclosure title="手动完成远程回调">
+              <Disclosure title="手动完成授权（仅自动回调不可用时）">
                 <Form
                   label="提交完整回调地址"
                   submit={async (data) =>
@@ -89,7 +85,10 @@ export default function AuthorizationsPage() {
                     )
                   }
                 >
-                  <Field label="完整回调 URL" hint="包含 code 和 state；Pi 远程授权使用此入口">
+                  <Field
+                    label="完整回调 URL"
+                    hint="包含 code 和 state；常规流程会自动接收回调，无需填写"
+                  >
                     <Input name="redirectUrl" type="url" required />
                   </Field>
                 </Form>

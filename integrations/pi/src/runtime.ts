@@ -18,6 +18,7 @@ import { isInputRequiredResult } from '@platform/mcp';
 type Tool = { name: string; description?: string; inputSchema: Record<string, unknown> };
 type Result = { content: { type: string; [key: string]: unknown }[]; [key: string]: unknown };
 export type Context = {
+  oauthRedirectUri?: string;
   id: string;
   ownerId: string;
   bindingId?: string;

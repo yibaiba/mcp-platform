@@ -16,7 +16,7 @@ export function ConnectorForm({
   onSaved,
 }: {
   preset: ConnectorPreset;
-  onSaved: (result: unknown) => void;
+  onSaved: (result: { id: string }, authentication: ConnectorAuthentication) => Promise<void>;
 }) {
   const [authentication, setAuthentication] = useState<ConnectorAuthentication>(
     preset.authentication[0]!,
@@ -24,11 +24,17 @@ export function ConnectorForm({
   const [adapter, setAdapter] = useState<'direct' | 'pi'>('direct');
   const oauthSteps =
     adapter === 'pi'
-      ? '发起授权后，由 Pi 管理注册、回调与刷新；预注册应用需登记授权结果中的 Pi 回调地址。远程部署可粘贴完整回调 URL 完成授权。'
+      ? 'Pi 管理注册、授权与刷新，平台自动接收回调。预注册应用需先登记平台回调地址。'
       : '保存后展开“上游授权绑定”，查看“授权状态”获取回调地址并填入应用设置，再发起授权。';
   return (
     <Form
-      label="保存连接"
+      label={
+        authentication === 'oauth'
+          ? preset.oauthRegistration
+            ? '保存并配置授权'
+            : '保存并授权'
+          : '保存并连接'
+      }
       submit={async (data) => {
         const config = presetConnection({
           preset,
@@ -39,7 +45,11 @@ export function ConnectorForm({
           clientId: value(data, 'clientId'),
           clientSecret: value(data, 'clientSecret'),
         });
-        onSaved(await api('/connections', { method: 'POST', body: json(config) }));
+        const created = await api<{ id: string }>('/connections', {
+          method: 'POST',
+          body: json(config),
+        });
+        await onSaved(created, authentication);
       }}
     >
       <Field label="连接名称">
@@ -94,8 +104,8 @@ export function ConnectorForm({
         {authentication === 'oauth' && preset.oauthRegistration
           ? oauthSteps
           : authentication === 'oauth'
-            ? '保存后点击“发起授权”，在供应商页面确认权限，再点击“连接 / 刷新目录”。'
-            : '保存后点击“连接 / 刷新目录”。'}{' '}
+            ? '保存后自动进入供应商授权页，确认权限后自动返回并发现工具。'
+            : '保存后自动连接并发现工具。'}{' '}
         Agent 的身份与工具权限在工作空间中单独配置。
       </p>
     </Form>

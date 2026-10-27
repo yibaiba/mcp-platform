@@ -27,7 +27,7 @@ patchedDependencies:
     hash: 5e065d5fe6cc9d23f2cc4fb9f32d2881452a179dad0dc2331cb73fd601afd42c
     path: patches/@modelcontextprotocol__server@2.3.1.patch
   pi-mcp-adapter@7.0.0:
-    hash: d3ef38d6807414802444c2cab2f23473c32362f9698c2c43630f00e7b1073a42
+    hash: 23b01a96340afa5b325fd00a648dafa841046e0313756429336255c5589aa32d
     path: patches/pi-mcp-adapter@7.0.0.patch
 
 importers:
@@ -266,7 +266,7 @@ importers:
         version: link:../../packages/mcp
       pi-mcp-adapter:
         specifier: 7.0.0
-        version: 7.0.0(patch_hash=d3ef38d6807414802444c2cab2f23473c32362f9698c2c43630f00e7b1073a42)(@earendil-works/pi-ai@1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(zod@4.6.7))(@smithy/signature-v4@5.7.4)(undici@8.10.2)(zod@4.6.7))(@earendil-works/pi-tui@1.4.0)(typebox@1.0.55)(zod@4.6.7)
+        version: 7.0.0(patch_hash=23b01a96340afa5b325fd00a648dafa841046e0313756429336255c5589aa32d)(@earendil-works/pi-ai@1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(zod@4.6.7))(@smithy/signature-v4@5.7.4)(undici@8.10.2)(zod@4.6.7))(@earendil-works/pi-tui@1.4.0)(typebox@1.0.55)(zod@4.6.7)
       tsx:
         specifier: 4.21.0
         version: 4.21.0
@@ -9395,7 +9395,7 @@ snapshots:
     dependencies:
       split2: 4.2.0
 
-  pi-mcp-adapter@7.0.0(patch_hash=d3ef38d6807414802444c2cab2f23473c32362f9698c2c43630f00e7b1073a42)(@earendil-works/pi-ai@1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(zod@4.6.7))(@smithy/signature-v4@5.7.4)(undici@8.10.2)(zod@4.6.7))(@earendil-works/pi-tui@1.4.0)(typebox@1.0.55)(zod@4.6.7):
+  pi-mcp-adapter@7.0.0(patch_hash=23b01a96340afa5b325fd00a648dafa841046e0313756429336255c5589aa32d)(@earendil-works/pi-ai@1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(zod@4.6.7))(@smithy/signature-v4@5.7.4)(undici@8.10.2)(zod@4.6.7))(@earendil-works/pi-tui@1.4.0)(typebox@1.0.55)(zod@4.6.7):
     dependencies:
       '@earendil-works/pi-tui': 1.4.0
       '@modelcontextprotocol/client': 2.3.1(patch_hash=afd406e18d2868e61eba7e0cd5e2503c17c6cee58f259d55af83d0a8d8e459d8)

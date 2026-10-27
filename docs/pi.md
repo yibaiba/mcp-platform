@@ -19,7 +19,7 @@ Pi 桥接支持 Streamable HTTP、旧版 HTTP+SSE 和 stdio。远程地址可用
 1. **MCP 桥接**：运行会话使用独立子进程；授权目录和文件按用户、连接和授权绑定共享同一身份，由 pi-mcp-adapter 持有授权与执行。通过适配器持有的官方 MCP Client 执行程序化请求，不构造模型消息、不请求模型。完整发现工具、Prompts、Resources 和模板；转发通知、进度与原始元数据，网关照常校验权限。工具使用单次底层请求，避免高层 helper 的恢复重放。
 2. **内置 Agent**：设置 `PI_MODEL_PROVIDER`、`PI_MODEL_ID` 和该供应商的环境凭证；在任务页选择配置执行真实模型推理。只注入该配置的 MCP 工具、目录/Prompt/Resource 访问工具及 Skill 版本，不继承主机的全局扩展、Skills 或内置 shell 工具。Skill 的 SKILL.md 通过 Pi loader 加载并注入任务指令；辅助文件会落盘，但不会额外授权任意宿主机文件访问或脚本执行。
 
-`pi-mcp-adapter@7.0.0` 的公开代理原先只暴露工具。项目用 [pnpm 补丁](../patches/pi-mcp-adapter@7.0.0.patch) 增加 `getMcpClient({pi, name})`，仅返回同一扩展实例中已经连接的官方 Client，并补充嵌入接口：授权键/会话键分离、客户端能力、托管 stdio、发现元数据、按绑定串行 OAuth 和工具派发 fetch。token 过期时在工具派发前由 Pi 自身 Provider 刷新；401/403 在一次派发后明确失败，不触发 SDK 隐式重放。
+`pi-mcp-adapter@7.0.0` 的公开代理原先只暴露工具。项目用 [pnpm 补丁](../patches/pi-mcp-adapter@7.0.0.patch) 增加 `getMcpClient({pi, name})`，仅返回同一扩展实例中已经连接的官方 Client，并补充嵌入接口：授权键/会话键分离、客户端能力、托管 stdio、发现元数据、按绑定串行 OAuth、平台托管 OAuth 回调和工具派发 fetch。token 过期时在工具派发前由 Pi 自身 Provider 刷新；401/403 在一次派发后明确失败，不触发 SDK 隐式重放。
 
 补丁由 `pnpm-workspace.yaml` 和锁文件锁定，普通 frozen install 自动应用，不需要用户手工安装或修改依赖。官方 MCP SDK 2.3.1 的两个小补丁允许外部协调 OAuth，以及 timeout=0 时关闭 SDK 网络计时，避免将用户交互等待误判超时；平台仍管理执行超时和取消。升级这些依赖时须复核补丁并运行 `pnpm test`、`pnpm test:pi`。
 
@@ -27,7 +27,7 @@ Pi 桥接支持 Streamable HTTP、旧版 HTTP+SSE 和 stdio。远程地址可用
 
 Pi OAuth 使用 `encrypted-file` store；按 pi-mcp-adapter 文档生成 `PI_MCP_ADAPTER_OAUTH_FILE_KEY`，妥善备份（32 字节密钥的 base64 表示）。凭证目录保存在持久化 DATA_DIR 下，进程之间隔离。平台 SQL 加密密钥与 Pi 文件密钥职责不同。
 
-UI 授权支持 auth-start、手工完整 redirectUrl 完成授权和 logout。自动授权关闭，错误明确返回；logout 后读取实际 token 状态，未清除或无法读取会报错。供应商侧授权仍需供应商账户撤销。供应商的登录、刷新和撤销需使用实际账号与回调配置验证。
+UI 主动发起 auth-start 后自动进入供应商页面；平台以绑定专属 HTTP 地址接收回调并交给适配器验证、交换凭证，然后发现目录并返回连接页。服务器不自行打开浏览器或另开回调监听端口。适配器的隐式自动授权保持关闭，错误明确返回；高级区域保留手工完整 redirectUrl 和 logout。logout 后读取实际 token 状态，未清除或无法读取会报错。供应商侧授权仍需供应商账户撤销。供应商的登录、刷新和撤销需使用实际账号与回调配置验证。
 
 ## 验证
 

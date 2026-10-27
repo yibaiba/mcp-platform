@@ -40,28 +40,30 @@ Schema 使用官方 AJV 按 `$schema` 选择 draft-07、2019-09、2020-12；无�
 
 ## 管理接口 `/api/v1`
 
-| 功能                    | 方法与路径                                                                                                                                                              |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 当前用户 / 可选模块状态 | `GET /me`                                                                                                                                                               |
-| 设备                    | `GET /devices`、`POST /devices/pairings`、`POST /devices/pair`、`DELETE /devices/:id`                                                                                   |
-| 连接                    | `GET/POST /connections`、`PATCH /connections/:id`、`POST /connections/:id/discover`、`POST /connections/:id/stop`、`POST .../wake`、`POST .../sleep`、`POST .../check`  |
-| 工具                    | `GET /tools`、`POST /tools/:id/call`（`{arguments:{...}}`）                                                                                                             |
-| 内容目录                | `GET /catalog`、`POST /catalog/prompts/:id/get`、`POST /catalog/resources/read`                                                                                         |
-| Agent 配置              | `GET/POST /profiles`、`PUT /profiles/:id`（name/instructions/toolIds/contentIds/skillVersionIds/artifactIds）、`GET /profiles/:id/export?client=预设名`                 |
-| 接入密钥                | `POST /profiles/:id/keys`、`GET /profiles/keys/all`、`DELETE /profiles/keys/:id`                                                                                        |
-| 上游授权                | `GET /connections/:id/oauth`、`POST .../start`、`GET .../callback`、`POST .../complete`（redirectUrl）、`DELETE .../oauth`                                              |
-| Agent OAuth             | `POST /oauth/register`、`GET /oauth/authorize`、`POST /oauth/consent`、`POST /oauth/token`、`POST /oauth/revoke`                                                        |
-| OAuth grants            | `GET /oauth/grants`、`DELETE /oauth/grants/:id`                                                                                                                         |
-| Skills                  | `GET/POST /skills`、`POST /skills/zip`、`POST /skills/git`、`GET /skills/:id/export`、`POST /skills/:id/install`                                                        |
-| 产物                    | `GET/POST /artifacts`、`GET /artifacts/:id/content`、`POST /artifacts/transfers`                                                                                        |
-| 记录                    | `GET /calls`、`POST /calls/:id/cancel`、`GET /transfers`、`GET /installations`                                                                                          |
-| Pi                      | `GET/POST /tasks`、`POST /tasks/:id/cancel`                                                                                                                             |
-| 导入                    | `POST /import/preview`、`POST /import/apply`（旧 mcpServers + 本地 deviceId；预览逐项返回 errors/warnings）                                                             |
-| 分身份上游授权          | `GET /connections/:id/bindings`；`/connections/:id/bindings/:bindingId/oauth` 的 status/start/complete/callback/revoke 与连接级操作相同                                 |
-| OpenAPI                 | `POST /openapi/preview`；`GET/DELETE /connections/:id/openapi/oauth/:scheme`、`POST .../start`、`GET .../callback`，也支持 `/bindings/:bindingId/openapi/oauth/:scheme` |
-| 交互与续传              | `GET /interactions`、`POST /interactions/:id/respond`；接受、拒绝或取消后由原调用续传，重复响应返回明确错误                                                             |
-| 事件流                  | `GET /calls/events`、`GET /tasks/events`，仅当前用户事件                                                                                                                |
-| Apps 运行视图           | `GET /apps`（可选 taskId）、`GET/DELETE /apps/:id`、`POST .../call`、`POST .../read`、`POST .../message`、`POST .../context`、`POST .../send`                           |
+| 功能                    | 方法与路径                                                                                                                                                                                   |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 当前用户 / 可选模块状态 | `GET /me`                                                                                                                                                                                    |
+| 设备                    | `GET /devices`、`POST /devices/pairings`、`POST /devices/pair`、`DELETE /devices/:id`                                                                                                        |
+| 连接                    | `GET/POST /connections`、`PATCH /connections/:id`、`POST /connections/:id/discover`、`POST /connections/:id/stop`、`POST .../wake`、`POST .../sleep`、`POST .../check`                       |
+| 工具                    | `GET /tools`、`POST /tools/:id/call`（`{arguments:{...}}`）                                                                                                                                  |
+| 内容目录                | `GET /catalog`、`POST /catalog/prompts/:id/get`、`POST /catalog/resources/read`                                                                                                              |
+| Agent 配置              | `GET/POST /profiles`、`PUT /profiles/:id`（name/instructions/toolIds/contentIds/skillVersionIds/artifactIds）、`GET /profiles/:id/export?client=预设名`                                      |
+| 接入密钥                | `POST /profiles/:id/keys`、`GET /profiles/keys/all`、`DELETE /profiles/keys/:id`                                                                                                             |
+| 上游授权                | `GET /connections/:id/oauth`、`POST .../start`、`POST .../discover`、`GET .../callback`、`POST .../complete`（redirectUrl）、`DELETE .../oauth`                                              |
+| Agent OAuth             | `POST /oauth/register`、`GET /oauth/authorize`、`POST /oauth/consent`、`POST /oauth/token`、`POST /oauth/revoke`                                                                             |
+| OAuth grants            | `GET /oauth/grants`、`DELETE /oauth/grants/:id`                                                                                                                                              |
+| Skills                  | `GET/POST /skills`、`POST /skills/zip`、`POST /skills/git`、`GET /skills/:id/export`、`POST /skills/:id/install`                                                                             |
+| 产物                    | `GET/POST /artifacts`、`GET /artifacts/:id/content`、`POST /artifacts/transfers`                                                                                                             |
+| 记录                    | `GET /calls`、`POST /calls/:id/cancel`、`GET /transfers`、`GET /installations`                                                                                                               |
+| Pi                      | `GET/POST /tasks`、`POST /tasks/:id/cancel`                                                                                                                                                  |
+| 导入                    | `POST /import/preview`、`POST /import/apply`（旧 mcpServers + 本地 deviceId；预览逐项返回 errors/warnings）                                                                                  |
+| 分身份上游授权          | `GET /connections/:id/bindings`；`/connections/:id/bindings/:bindingId/oauth` 的 status/start/discover/complete/callback/revoke 与连接级操作相同                                             |
+| OpenAPI                 | `POST /openapi/preview`；`GET/DELETE /connections/:id/openapi/oauth/:scheme`、`POST .../start`、`POST .../discover`、`GET .../callback`，也支持 `/bindings/:bindingId/openapi/oauth/:scheme` |
+| 交互与续传              | `GET /interactions`、`POST /interactions/:id/respond`；接受、拒绝或取消后由原调用续传，重复响应返回明确错误                                                                                  |
+| 事件流                  | `GET /calls/events`、`GET /tasks/events`，仅当前用户事件                                                                                                                                     |
+| Apps 运行视图           | `GET /apps`（可选 taskId）、`GET/DELETE /apps/:id`、`POST .../call`、`POST .../read`、`POST .../message`、`POST .../context`、`POST .../send`                                                |
+
+上游 OAuth 的浏览器 GET 回调在完成授权后只发现目录，再以 303 返回 WEB_ORIGIN 下对应的连接；平台直连、Pi 桥接及 OpenAPI 使用相同返回语义。POST complete 保留手动完成语义；POST discover 用于明确刷新当前身份的目录。回调需要当前账号会话，仍校验绑定、state 和重复提交，不执行业务工具。
 
 平台启动失败或数据库失败不会回退到假数据。输入错误返回 `VALIDATION`；业务错误返回可诊断的 `code/error`；非预期异常返回 500 并记录服务端错误。
 

@@ -6,7 +6,7 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
 
 export function authorizationResult(result: unknown) {
   const record = asRecord(result);
-  const details = record && ('authorizationUrl' in record ? record : asRecord(record.details));
+  const details = record && (asRecord(record.details) ?? record);
   const value = details?.authorizationUrl;
   const parsed = typeof value === 'string' && URL.canParse(value) ? new URL(value) : undefined;
   const url =
@@ -15,9 +15,14 @@ export function authorizationResult(result: unknown) {
       : undefined;
   return {
     url,
+    authorized:
+      record?.status === 'AUTHORIZED' ||
+      details?.authenticated === true ||
+      details?.authorized === true,
+    pending: record?.status === 'REDIRECT' || details?.pending === true,
     redirectUrl:
-      typeof details?.redirectUrl === 'string'
-        ? details.redirectUrl
+      typeof record?.redirectUrl === 'string'
+        ? record.redirectUrl
         : url?.searchParams.get('redirect_uri'),
   };
 }

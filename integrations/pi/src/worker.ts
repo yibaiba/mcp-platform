@@ -29,6 +29,7 @@ const { createMcpAdapter, getMcpClient, configurePlatformEmbedding } = (await im
   adapterPackage
 )) as {
   configurePlatformEmbedding(options: {
+    oauthRedirectUri?: string;
     authorize: (
       action: () => Promise<'AUTHORIZED' | 'REDIRECT'>,
     ) => Promise<'AUTHORIZED' | 'REDIRECT'>;
@@ -130,6 +131,7 @@ async function dispatch(
   if (method === 'initialize') {
     const context = params as Context;
     configurePlatformEmbedding({
+      oauthRedirectUri: context.oauthRedirectUri,
       authorize,
       wrapFetch: (delegate, authorization) =>
         toolDispatchFetch(delegate, async (): Promise<Record<string, string>> => {

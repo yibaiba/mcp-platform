@@ -2,7 +2,8 @@ import { ConnectionSettings } from './ConnectionSettings.js';
 import { OpenApiPanel } from './OpenApiPanel.js';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { ConnectorPreset } from '@platform/contracts';
+import type { ConnectorPreset, ConnectorAuthentication } from '@platform/contracts';
+import { useQueryClient } from '@tanstack/react-query';
 import { Plug, Plus } from 'lucide-react';
 import { Card } from '../../components/ui/card.js';
 import { Button } from '../../components/ui/button.js';
@@ -22,12 +23,55 @@ import { AuthorizationBindings } from './AuthorizationBindings.js';
 import { ConnectorCatalog } from './ConnectorCatalog.js';
 import { ConnectorForm } from './ConnectorForm.js';
 import { ConnectionResult } from './ConnectionResult.js';
+import { AuthorizationButton } from './AuthorizationButton.js';
+import { authorizeConnection } from './authorizationFlow.js';
+import { authorizationResult } from './authorizationResult.js';
 
 export default function ConnectionsPage() {
   const [editing, setEditing] = useState<Connection>();
   const [show, setShow] = useState(false);
   const [preset, setPreset] = useState<ConnectorPreset>();
   const [result, setResult] = useState<unknown>();
+  const [setupError, setSetupError] = useState<Error | null>(null);
+  const [setupMessage, setSetupMessage] = useState('');
+  const queryClient = useQueryClient();
+  async function connectCreated(created: { id: string }, authentication: ConnectorAuthentication) {
+    setShow(false);
+    setSetupError(null);
+    setSetupMessage(
+      authentication === 'oauth' ? '配置已保存，正在准备授权…' : '配置已保存，正在发现工具…',
+    );
+    try {
+      if (authentication === 'oauth' && preset?.oauthRegistration) {
+        setResult(await api(`/connections/${created.id}/oauth`));
+        setSetupMessage(
+          '配置已保存。GitHub 首次接入需将高级授权诊断中的回调地址登记到应用，再点击此连接的“发起授权”；之后自动返回并更新目录。',
+        );
+        return;
+      }
+      const connected =
+        authentication === 'oauth'
+          ? await authorizeConnection({
+              endpoint: `/connections/${created.id}/oauth`,
+              request: api,
+              navigate: (url) => window.location.assign(url),
+            })
+          : await api(`/connections/${created.id}/discover`, { method: 'POST' });
+      setResult(connected);
+      setSetupMessage(
+        authentication === 'oauth'
+          ? authorizationResult(connected).url
+            ? '正在前往供应商授权页，确认权限后会自动返回。'
+            : '授权已完成，工具目录已更新。'
+          : '连接成功，工具目录已更新。',
+      );
+    } catch (error) {
+      setSetupMessage('配置已保存，连接未完成。可在下方此连接中重新发起授权或刷新目录。');
+      setSetupError(error instanceof Error ? error : new Error(String(error)));
+    } finally {
+      await queryClient.invalidateQueries();
+    }
+  }
   const connections = useQuery({
     queryKey: ['connections'],
     queryFn: () => api<Connection[]>('/connections'),
@@ -56,17 +100,7 @@ export default function ConnectionsPage() {
               </DialogDescription>
             </DialogHeader>
             {preset ? (
-              <ConnectorForm
-                key={preset.id}
-                preset={preset}
-                onSaved={(created) => {
-                  setResult({
-                    message: '连接配置已保存。请按表单提示完成授权或直接连接 / 刷新目录。',
-                    connection: created,
-                  });
-                  setShow(false);
-                }}
-              />
+              <ConnectorForm key={preset.id} preset={preset} onSaved={connectCreated} />
             ) : (
               <ConnectionForm
                 devices={devices.data ?? []}
@@ -80,7 +114,10 @@ export default function ConnectionsPage() {
         </Dialog>
       </div>
       <Feedback error={connections.error ?? devices.error} />
+      {setupMessage ? <p role="status">{setupMessage}</p> : null}
+      <Feedback error={setupError} />
       <ConnectorCatalog
+        connections={connections.data ?? []}
         onSelect={(selected) => {
           setPreset(selected);
           setShow(true);
@@ -89,7 +126,11 @@ export default function ConnectionsPage() {
       <Card className="panel">
         {connections.data?.length ? (
           connections.data.map((connection) => (
-            <div className="connection-row" key={connection.id}>
+            <div
+              className="connection-row scroll-mt-6"
+              id={`connection-${connection.id}`}
+              key={connection.id}
+            >
               <div className="row">
                 <div className="item-icon">
                   <Plug size={20} />
@@ -160,15 +201,10 @@ export default function ConnectionsPage() {
                   停止连接
                 </Action>
                 {connection.transport !== 'stdio' && connection.source !== 'openapi' ? (
-                  <Action
-                    action={async () =>
-                      setResult(
-                        await api(`/connections/${connection.id}/oauth/start`, { method: 'POST' }),
-                      )
-                    }
-                  >
-                    发起授权
-                  </Action>
+                  <AuthorizationButton
+                    endpoint={`/connections/${connection.id}/oauth`}
+                    onResult={setResult}
+                  />
                 ) : null}
               </div>
               {connection.transport !== 'stdio' ? (

@@ -9,6 +9,7 @@ import type {
 } from '@modelcontextprotocol/client';
 import { secretToken, type Vault } from '../../shared/crypto.js';
 import { AppError } from '../../shared/errors.js';
+import { oauthCallbackUrl } from './browserFlow.js';
 import type { ConnectionContext } from '../mcp/adapter.js';
 interface Credentials {
   client?: StoredOAuthClientInformation;
@@ -55,9 +56,7 @@ export class PersistedProvider implements OAuthClientProvider {
     return pending;
   }
   get redirectUrl() {
-    if (this.context.identity && this.context.identity !== 'default')
-      return `${this.options.publicUrl}/api/v1/connections/${this.context.id}/bindings/${this.context.bindingId}/oauth/callback`;
-    return `${this.options.publicUrl}/api/v1/connections/${this.context.id}/oauth/callback`;
+    return oauthCallbackUrl(this.context, this.options.publicUrl);
   }
   get clientMetadataUrl() {
     return this.context.config.oauth?.clientMetadataUrl;

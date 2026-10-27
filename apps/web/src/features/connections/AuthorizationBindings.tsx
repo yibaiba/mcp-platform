@@ -7,6 +7,7 @@ import { SelectControl } from '../../components/shared/SelectControl.js';
 import { SelectItem } from '../../components/ui/select.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
 import { ConnectionResult } from './ConnectionResult.js';
+import { AuthorizationButton } from './AuthorizationButton.js';
 export function AuthorizationBindings({
   connectionId,
   source,
@@ -52,9 +53,7 @@ export function AuthorizationBindings({
       ) : null}
       <div className="row-actions">
         <Action action={async () => setResult(await api(endpoint))}>授权状态</Action>
-        <Action action={async () => setResult(await api(`${endpoint}/start`, { method: 'POST' }))}>
-          发起授权
-        </Action>
+        <AuthorizationButton endpoint={endpoint} onResult={setResult} />
         <Action
           action={async () => {
             if (selected === 'default') throw new Error('请选择具体绑定');
@@ -75,21 +74,23 @@ export function AuthorizationBindings({
         </Action>
       </div>
       {source !== 'openapi' ? (
-        <Form
-          label="完成授权"
-          submit={async (data) =>
-            setResult(
-              await api(`${endpoint}/complete`, {
-                method: 'POST',
-                body: json({ redirectUrl: value(data, 'redirectUrl') }),
-              }),
-            )
-          }
-        >
-          <Field label="授权后完整回调 URL">
-            <Input name="redirectUrl" type="url" required />
-          </Field>
-        </Form>
+        <Disclosure title="手动完成授权（仅自动回调不可用时）">
+          <Form
+            label="完成授权"
+            submit={async (data) =>
+              setResult(
+                await api(`${endpoint}/complete`, {
+                  method: 'POST',
+                  body: json({ redirectUrl: value(data, 'redirectUrl') }),
+                }),
+              )
+            }
+          >
+            <Field label="授权后完整回调 URL">
+              <Input name="redirectUrl" type="url" required />
+            </Field>
+          </Form>
+        </Disclosure>
       ) : null}
       {impact ? <Code value={impact} /> : null}
       {result ? <ConnectionResult result={result} /> : null}

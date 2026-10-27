@@ -8,6 +8,7 @@ import {
 import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import type { Config } from '../../config.js';
 import type { ConnectionAdapter, ConnectionContext } from '../mcp/adapter.js';
+import { oauthCallbackUrl } from '../authorizations/browserFlow.js';
 export interface PiBridge extends ConnectionAdapter {
   action(input: Record<string, unknown>): Promise<unknown>;
 }
@@ -20,7 +21,10 @@ export class PiBridges {
     if (!bridge) {
       bridge = this.deps.load().then(async (runtime) => {
         const adapter = await runtime.bridge({
-          context,
+          context: {
+            ...context,
+            oauthRedirectUri: oauthCallbackUrl(context, this.deps.config.PUBLIC_URL),
+          },
           authorizationKey: this.deps.config.PI_MCP_ADAPTER_OAUTH_FILE_KEY,
           directory: resolve(
             this.deps.config.DATA_DIR,

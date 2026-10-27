@@ -157,6 +157,85 @@ async function oauthFixture(options: { expiresIn?: number; multipleIdentities?: 
     },
   };
 }
+
+test.each([
+  { adapter: 'direct', scoped: false },
+  { adapter: 'pi', scoped: false },
+  { adapter: 'direct', scoped: true },
+  { adapter: 'pi', scoped: true },
+] as const)(
+  '$adapter browser callback (binding=$scoped) completes discovery without business dispatch',
+  async ({ adapter, scoped }) => {
+    const fixture = await oauthFixture();
+    let createdConnection: { ownerId: string; id: string } | undefined;
+    try {
+      const account = await h.signup();
+      const other = await h.signup();
+      const connection = await h.services.connections.create(account.ownerId, {
+        name: 'automatic OAuth',
+        adapter,
+        transport: 'http',
+        mode: 'existing',
+        url: `${fixture.origin}/mcp`,
+        oauth: { clientId: 'browser-test' },
+      });
+      const context = scoped
+        ? await withExecution(
+            {
+              identity: 'test-agent',
+              bindingIdentity: 'test-agent',
+              entry: 'dashboard',
+              sessionId: 'authorization',
+              capabilities: {},
+            },
+            () => h.services.connections.context(account.ownerId, connection.id),
+          )
+        : await h.services.connections.context(account.ownerId, connection.id);
+      const root = `/connections/${connection.id}${scoped ? `/bindings/${context.bindingId}` : ''}/oauth`;
+      createdConnection = { ownerId: account.ownerId, id: connection.id };
+      const started = await account.request(`${root}/start`, { method: 'POST' });
+      expect(started.status).toBe(200);
+      const result = (await started.json()) as {
+        authorizationUrl?: string;
+        details?: { authorizationUrl: string };
+      };
+      const authorization = new URL((result.authorizationUrl ?? result.details?.authorizationUrl)!);
+      const callback = new URL(authorization.searchParams.get('redirect_uri')!);
+      expect(callback.href).toBe(`${h.baseURL}/api/v1${root}/callback`);
+      callback.searchParams.set('state', authorization.searchParams.get('state')!);
+      callback.searchParams.set('code', 'browser-code');
+      const path = callback.pathname.replace('/api/v1', '') + callback.search;
+      expect((await other.request(path)).status).toBe(404);
+      const completed = await account.request(path);
+      expect(completed.status).toBe(303);
+      expect(completed.headers.get('Location')).toBe(
+        `${h.config.WEB_ORIGIN}/connections#connection-${connection.id}`,
+      );
+      expect((await h.services.connections.owned(account.ownerId, connection.id)).status).toBe(
+        'connected',
+      );
+      expect((await h.services.connections.bindings.snapshot(context))?.tools[0]?.name).toBe(
+        'echo',
+      );
+      expect(fixture.dispatches()).toBe(0);
+      if (scoped) {
+        const shared = await h.services.connections.context(account.ownerId, connection.id);
+        expect(shared.bindingId).not.toBe(context.bindingId);
+        expect(await h.services.connections.bindings.snapshot(shared)).toBeUndefined();
+        if (adapter === 'direct')
+          expect((await h.services.upstreamOAuth.status(shared)).authorized).toBe(false);
+      }
+      const replay = await account.request(path);
+      expect(replay.status).toBeGreaterThanOrEqual(400);
+      expect(fixture.dispatches()).toBe(0);
+    } finally {
+      if (createdConnection)
+        await h.services.connections.close(createdConnection.ownerId, createdConnection.id);
+      await h.services.pi.close();
+      await fixture.close();
+    }
+  },
+);
 test('device OAuth discovery, exchange and proactive refresh execute on the private Go authorization channel', async () => {
   const account = await h.signup();
   const device = await fixtureConnector(h, account.ownerId);

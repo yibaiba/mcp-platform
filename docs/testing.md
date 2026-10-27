@@ -16,16 +16,18 @@ pnpm test:pi
 
 ```sh
 pnpm test tests/upstreamOAuth.test.ts tests/openapiOAuth.test.ts
-pnpm test tests/connectorPresets.test.ts tests/upstreamOAuth.test.ts
+pnpm test tests/connectorPresets.test.ts tests/authorizationFlow.test.ts tests/upstreamOAuth.test.ts
 ```
 
 `pnpm test:pi` 通过真实 Pi SDK 和适配器对本地 MCP 服务发现与调用，不请求模型，硬超时为 60 秒。该检查需要依赖已经安装，不需要设置 `PI_ENABLED=true`。
 
 ## 内置连接器检查
 
-`connectorPresets.test.ts` 覆盖官方预设的配置校验、认证切换后旧凭证排除、空凭证与请求头换行错误、平台与 Pi 授权响应解析，以及 Token/Client Secret 的加密保存和管理接口脱敏。上游 OAuth 回归同时核对服务端返回的回调地址与真实授权请求一致。
+`connectorPresets.test.ts` 覆盖官方预设的配置校验、认证切换后旧凭证排除、空凭证与请求头换行错误、平台与 Pi 授权响应解析，以及 Token/Client Secret 的加密保存和管理接口脱敏。authorizationFlow.test.ts 覆盖浏览器自动跳转、已授权后发现、错误显式返回且不重试。上游 OAuth 与 OpenAPI 回归核对实际回调地址、账号归属、默认与独立绑定、303 返回、拒绝重复回调及授权期间业务派发为零。
 
 2026-10-27 在 macOS 本机 Chrome 验证了预设选择、GitHub Token/OAuth 切换、Pi 桥接选择、键盘选择与 Escape 关闭、手动添加入口，以及 390px 窄屏无页面横向溢出。通过界面保存 Cloudflare Docs 的 Pi 连接，实际连接官方远程服务并发现两个工具。此记录只覆盖公开文档服务的真实发现；未使用供应商账号完成 Cloudflare、GitHub、Notion 或 Linear 的登录、刷新、撤销，不代表这些授权流程已实机验收。
+
+本轮授权自动化与紧凑目录变更的分组回归合计 135 项通过（新增身份检查修正测试会话上下文后，该组单独重跑通过）。类型检查、ESLint、生产构建及真实无模型 Pi 检查通过。独立源文件副本完成冻结锁文件离线安装；macOS Chrome 检查分组目录、连接状态、多账号添加入口、Escape 关闭、手工回调默认折叠和 390px 窄屏，公开 Cloudflare Docs 的 Pi 目录刷新成功。此验收不包含真实供应商账号 OAuth。
 
 ## Go 与跨平台构建
 

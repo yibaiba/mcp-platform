@@ -6,7 +6,8 @@ import { previewOpenApi } from './importService.js';
 import { withExecution } from '../mcp/executionContext.js';
 import { AppError } from '../../shared/errors.js';
 import type { ConnectionContext } from '../mcp/adapter.js';
-export function openApiRoutes(services: Services) {
+import { finishBrowserAuthorization } from '../authorizations/browserFlow.js';
+export function openApiRoutes(services: Services, webOrigin: string) {
   const app = new Hono<ApiEnv>();
   async function identityChanged(context: ConnectionContext) {
     await services.connections.closeBinding(context);
@@ -71,9 +72,12 @@ export function openApiRoutes(services: Services) {
         await services.apiOAuth.start(context, z.string().min(1).parse(c.req.param('scheme'))),
       );
     });
+    app.post(`${prefix}/discover`, async (c) =>
+      c.json(await services.connections.discover(owner(c), paramId(c))),
+    );
     app.get(`${prefix}/callback`, async (c) => {
       const context = await services.connections.context(owner(c), paramId(c));
-      const result = await services.apiOAuth.complete(
+      await services.apiOAuth.complete(
         context,
         z.string().min(1).parse(c.req.param('scheme')),
         z
@@ -86,7 +90,7 @@ export function openApiRoutes(services: Services) {
           .parse(c.req.query()),
       );
       await identityChanged(context);
-      return c.json(result);
+      return finishBrowserAuthorization({ context, connections: services.connections, webOrigin });
     });
   }
   return app;

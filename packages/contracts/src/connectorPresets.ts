@@ -3,6 +3,7 @@ export type ConnectorAuthentication = 'oauth' | 'bearer' | 'none';
 export type ConnectorPreset = {
   readonly id: string;
   readonly name: string;
+  readonly category: 'development' | 'productivity';
   readonly description: string;
   readonly url: string;
   readonly documentationUrl: string;
@@ -17,6 +18,7 @@ const cloudflareDocs =
 export const connectorPresets: readonly ConnectorPreset[] = [
   {
     id: 'cloudflare',
+    category: 'development',
     name: 'Cloudflare',
     description: '搜索并调用 Cloudflare API，管理云端资源。',
     url: 'https://mcp.cloudflare.com/mcp',
@@ -26,6 +28,7 @@ export const connectorPresets: readonly ConnectorPreset[] = [
   },
   {
     id: 'github',
+    category: 'development',
     name: 'GitHub',
     description: '连接仓库、Issues、Pull Requests 与开发工作流。',
     url: 'https://api.githubcopilot.com/mcp/',
@@ -37,6 +40,7 @@ export const connectorPresets: readonly ConnectorPreset[] = [
   },
   {
     id: 'notion',
+    category: 'productivity',
     name: 'Notion',
     description: '搜索、读取与更新工作空间中的页面和数据库。',
     url: 'https://mcp.notion.com/mcp',
@@ -46,6 +50,7 @@ export const connectorPresets: readonly ConnectorPreset[] = [
   },
   {
     id: 'linear',
+    category: 'productivity',
     name: 'Linear',
     description: '查询与管理团队的任务、项目和开发进度。',
     url: 'https://mcp.linear.app/mcp',
@@ -55,12 +60,13 @@ export const connectorPresets: readonly ConnectorPreset[] = [
   },
   {
     id: 'cloudflare-docs',
+    category: 'productivity',
     name: 'Cloudflare Docs',
     description: '搜索 Cloudflare 官方开发文档，无需账号授权。',
     url: 'https://docs.mcp.cloudflare.com/mcp',
     documentationUrl: cloudflareDocs,
     authentication: ['none'],
-    hint: '保存后点击“连接 / 刷新目录”，再将需要的工具授予 Agent。',
+    hint: '保存后自动连接并发现目录，再将需要的工具授予 Agent。',
   },
 ];
 

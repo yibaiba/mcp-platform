@@ -45,13 +45,25 @@ index 0607163b14aeef959c49552c532b69a774253272..280cd01a5475bdc5db9b778e6deb79a3
    let initPromise: Promise<McpExtensionState> | null = null;
    let initStartedPromise: Promise<void> | null = null;
 diff --git a/mcp-auth-flow.ts b/mcp-auth-flow.ts
-index 9a22ee76ec66322c812afe86c1296ba14989afad..61a395e59006fef09e0d23509667f5961d895a47 100644
+index 9a22ee76ec66322c812afe86c1296ba14989afad..712293e017b2d1ef2ea711ef23b4e79429cb2532 100644
 --- a/mcp-auth-flow.ts
 +++ b/mcp-auth-flow.ts
-@@ -197,6 +197,10 @@ export function extractOAuthConfig(definition: ServerEntry): McpOAuthConfig {
+@@ -14,6 +14,7 @@ import {
+   type AuthOptions,
+ } from "@modelcontextprotocol/client"
+ import open from "open"
++import { platformEmbedding } from "./platform-embedding.ts"
+ import {
+   getOAuthCallbackPort,
+   McpOAuthProvider,
+@@ -196,7 +197,13 @@ export function extractOAuthConfig(definition: ServerEntry): McpOAuthConfig {
+     return {}
    }
  
-   const config: McpOAuthConfig = {}
+-  const config: McpOAuthConfig = {}
++  const config: McpOAuthConfig = platformEmbedding?.oauthRedirectUri
++    ? { redirectUri: platformEmbedding.oauthRedirectUri }
++    : {}
 +  if (definition.oauth?.tokenEndpointAuthMethod !== undefined) {
 +    if (!["none","client_secret_post","client_secret_basic"].includes(definition.oauth.tokenEndpointAuthMethod)) throw new Error("Unsupported OAuth token endpoint authentication method")
 +    config.tokenEndpointAuthMethod=definition.oauth.tokenEndpointAuthMethod
@@ -59,6 +71,17 @@ index 9a22ee76ec66322c812afe86c1296ba14989afad..61a395e59006fef09e0d23509667f596
    if (definition.oauth?.grantType !== undefined) config.grantType = definition.oauth.grantType
    if (definition.oauth?.clientId !== undefined) {
      if (typeof definition.oauth.clientId !== "string") throw new Error("OAuth clientId must be a string")
+@@ -515,7 +522,9 @@ export async function startAuth(
+     return { authorizationUrl: existingPendingAuth.authorizationUrl }
+   }
+ 
+-  const redirectTarget = config.redirectUri !== undefined ? parseOAuthRedirectUri(config.redirectUri) : undefined
++  const redirectTarget = platformEmbedding?.oauthRedirectUri
++    ? { mode: "manual" as const }
++    : config.redirectUri !== undefined ? parseOAuthRedirectUri(config.redirectUri) : undefined
+   const manualRedirect = redirectTarget?.mode === "manual"
+   const oauthState = generateState()
+ 
 diff --git a/mcp-oauth-provider.ts b/mcp-oauth-provider.ts
 index b724478bf4036c199d4574c87a200207706ceb29..aecd68cd4baad54dda49c42b0870984da0345043 100644
 --- a/mcp-oauth-provider.ts
@@ -138,15 +161,17 @@ index f160c06a4d60a8e1526967c0bdb7b402cfd7be9a..7d69f196b6610c874cfe65bfb4552fd5
      "index.ts",
 diff --git a/platform-embedding.ts b/platform-embedding.ts
 new file mode 100644
-index 0000000000000000000000000000000000000000..1be7f7b7e516abd7527d68136bb528bf6b4941ce
+index 0000000000000000000000000000000000000000..aec7bb0d2a15385dabd503594d2e3d6395996506
 --- /dev/null
 +++ b/platform-embedding.ts
-@@ -0,0 +1,14 @@
+@@ -0,0 +1,16 @@
 +import type { Client, ClientCapabilities, Transport, OAuthClientProvider } from "@modelcontextprotocol/client";
 +import type { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 +import type { Readable } from "node:stream";
 +
 +export type PlatformEmbedding = {
++  /** The embedding host owns the callback listener and forwards validated redirects. */
++  oauthRedirectUri?: string;
 +  authorize:(action:()=>Promise<'AUTHORIZED'|'REDIRECT'>)=>Promise<'AUTHORIZED'|'REDIRECT'>;
 +  wrapFetch: (fetch:typeof globalThis.fetch, authorization?: {provider:OAuthClientProvider;serverUrl:string})=>typeof globalThis.fetch;
 +  capabilities?: ClientCapabilities;
@@ -156,6 +181,29 @@ index 0000000000000000000000000000000000000000..1be7f7b7e516abd7527d68136bb528bf
 +export let platformEmbedding: PlatformEmbedding | undefined;
 +/** Each embedding worker owns its own adapter module and authorization directory. */
 +export function configurePlatformEmbedding(options: PlatformEmbedding) { platformEmbedding = options; }
+diff --git a/proxy-modes.ts b/proxy-modes.ts
+index 658f5f0a9aed84be4c79cb5206cd9755e5a2d34c..ecfdeb40ae18d47b817a9db5fc143eec914a7e78 100644
+--- a/proxy-modes.ts
++++ b/proxy-modes.ts
+@@ -1,6 +1,7 @@
+ import type { AgentToolResult, ToolInfo } from "@earendil-works/pi-coding-agent";
+ import { UrlElicitationRequiredError, type Client, type JsonSchemaType, type JsonSchemaValidator, type Progress, type RequestOptions } from "@modelcontextprotocol/client";
+ import { createRequire } from "node:module";
++import { platformEmbedding } from "./platform-embedding.ts";
+ import type { McpExtensionState } from "./state.ts";
+ import type { ToolMetadata } from "./types.ts";
+ import { getServerPrefix, getToolNameCandidates, isServerDisabled, parseUiPromptHandoff, resolveToolPrefix, type ServerEntry } from "./types.ts";
+@@ -666,7 +667,9 @@ export async function executeAuthStart(state: McpExtensionState, serverName: str
+       };
+     }
+ 
+-    if (getRedirectDetails(authorizationUrl).remote) {
++    if (platformEmbedding?.oauthRedirectUri) {
++      // The platform browser owns navigation and the HTTP callback listener.
++    } else if (getRedirectDetails(authorizationUrl).remote) {
+       try {
+         await state.openBrowser(authorizationUrl);
+       } catch (error) {
 diff --git a/server-manager.ts b/server-manager.ts
 index d7c6c033714fc97d8718cbdd06a5ce93f446e1d0..67ec54a5ab6121e3f008ece522fa13c4462fe99f 100644
 --- a/server-manager.ts

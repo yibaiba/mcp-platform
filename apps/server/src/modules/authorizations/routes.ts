@@ -7,11 +7,14 @@ import type { PiService } from '../pi-runtime/piService.js';
 import { withExecution } from '../mcp/executionContext.js';
 import { AppError } from '../../shared/errors.js';
 import type { ConnectionContext } from '../mcp/adapter.js';
+import { finishBrowserAuthorization, oauthCallbackUrl } from './browserFlow.js';
 export function authorizationRoutes(
   deps: {
     connections: ConnectionService;
     oauth: UpstreamOAuth;
     pi: PiService;
+    publicUrl: string;
+    webOrigin: string;
     changed?: () => Promise<void>;
   },
   binding = false,
@@ -54,11 +57,14 @@ export function authorizationRoutes(
   }
   app.get(`${prefix}`, async (c) => {
     const context = await httpContext(owner(c), paramId(c));
-    return Response.json(
-      context.config.adapter === 'pi'
-        ? await deps.pi.action(context, { action: 'status' })
-        : await deps.oauth.status(context),
-    );
+    if (context.config.adapter === 'pi') {
+      const status = (await deps.pi.action(context, { action: 'status' })) as Record<
+        string,
+        unknown
+      >;
+      return c.json({ ...status, redirectUrl: oauthCallbackUrl(context, deps.publicUrl) });
+    }
+    return c.json(await deps.oauth.status(context));
   });
   app.post(`${prefix}/start`, async (c) => {
     const context = await httpContext(owner(c), paramId(c));
@@ -68,6 +74,10 @@ export function authorizationRoutes(
         ? await deps.pi.action(context, { action: 'auth-start' })
         : await deps.oauth.start(context),
     );
+  });
+  app.post(`${prefix}/discover`, async (c) => {
+    await httpContext(owner(c), paramId(c));
+    return c.json(await deps.connections.discover(owner(c), paramId(c)));
   });
   app.post(`${prefix}/complete`, async (c) => {
     const context = await httpContext(owner(c), paramId(c));
@@ -97,11 +107,22 @@ export function authorizationRoutes(
       .object({ code: z.string().min(1), state: z.string().min(1), iss: z.string().optional() })
       .transform((v) => ({ code: v.code, state: v.state, issuer: v.iss }))
       .parse(c.req.query());
-    await deps.oauth.complete(context, input);
+    if (context.config.adapter === 'pi') {
+      const redirect = new URL(oauthCallbackUrl(context, deps.publicUrl));
+      redirect.search = new URL(c.req.url).search;
+      await deps.pi.action(context, {
+        action: 'auth-complete',
+        args: { redirectUrl: redirect.href },
+      });
+    } else {
+      await deps.oauth.complete(context, input);
+    }
     await identityChanged(context);
-    return c.html(
-      '<!doctype html><html lang="zh"><meta charset="utf-8"><title>授权完成</title><p>授权完成，请回到 MCP 平台刷新工具。</p></html>',
-    );
+    return finishBrowserAuthorization({
+      context,
+      connections: deps.connections,
+      webOrigin: deps.webOrigin,
+    });
   });
   app.delete(`${prefix}`, async (c) => {
     const context = await httpContext(owner(c), paramId(c));
