@@ -56,7 +56,7 @@ afterAll(async () => {
   for (const child of processes) child.kill('SIGINT');
   await Promise.all(
     processes.map((child) =>
-      child.exitCode !== null
+      child.exitCode !== null || child.signalCode !== null
         ? Promise.resolve()
         : new Promise<void>((resolve) => child.once('exit', () => resolve())),
     ),
@@ -64,6 +64,44 @@ afterAll(async () => {
   await h?.close();
   await fixture?.close();
   await sseFixture?.close();
+});
+test('connect pairs a new device, starts its channel and reuses its configuration on restart', async () => {
+  const pair = await h.services.devices.createPairing(account.ownerId, 'single-command-device');
+  const config = join(h.directory, 'single-command', 'connector.json');
+  const start = (code?: string) => {
+    const child = spawn(
+      resolve('connector/bin/connector'),
+      ['connect', '--server', h.baseURL, '--config', config],
+      { stdio: ['pipe', 'ignore', 'pipe'] },
+    );
+    processes.push(child);
+    child.stderr?.on('data', (data: Buffer) => process.stderr.write(data));
+    child.stdin?.end(code ? `${code}\n` : undefined);
+    return child;
+  };
+  const first = start(pair.code);
+  let deviceId: string;
+  await vi.waitFor(
+    async () => {
+      const saved = JSON.parse(await readFile(config, 'utf8')) as { deviceId: string };
+      deviceId = saved.deviceId;
+      expect(h.services.broker.online(deviceId)).toBe(true);
+    },
+    { timeout: 5000 },
+  );
+  const original = await readFile(config, 'utf8');
+  const exit = new Promise<void>((resolve) => first.once('exit', () => resolve()));
+  first.kill('SIGINT');
+  await exit;
+  await expect.poll(() => h.services.broker.online(deviceId!)).toBe(false);
+  start();
+  await expect.poll(() => h.services.broker.online(deviceId!), { timeout: 5000 }).toBe(true);
+  expect(await readFile(config, 'utf8')).toBe(original);
+  expect(
+    (await h.services.devices.list(account.ownerId)).filter(
+      (d) => d.name === 'single-command-device',
+    ),
+  ).toHaveLength(1);
 });
 test('one official client reaches remote MCP and two independent Go connector processes', async () => {
   const ids: string[] = [];

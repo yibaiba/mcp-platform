@@ -9,7 +9,7 @@ export default defineConfig({
   server: {
     port: 4301,
     proxy: {
-      '/api': 'http://localhost:4300',
+      '/api': { target: 'http://localhost:4300', ws: true },
       '/mcp': 'http://localhost:4300',
       '/.well-known': 'http://localhost:4300',
     },

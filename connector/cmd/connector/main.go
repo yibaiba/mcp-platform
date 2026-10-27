@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -16,7 +15,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -29,7 +27,7 @@ func main() {
 }
 func execute() error {
 	if len(os.Args) < 2 {
-		return fmt.Errorf("usage: connector pair|run|install|uninstall --config path [--server URL] [--scope user|system]")
+		return fmt.Errorf("usage: connector connect|pair|run|install|uninstall --config path [--server URL] [--scope user|system]")
 	}
 	action := os.Args[1]
 	flags := flag.NewFlagSet(action, flag.ContinueOnError)
@@ -44,19 +42,15 @@ func execute() error {
 		return processtree.Host(flags.Args(), *grace)
 	}
 	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	if action == "pair" {
-		fmt.Fprintln(os.Stderr, "Paste pairing code:")
-		line, err := bufio.NewReader(os.Stdin).ReadString('\n')
-		if err != nil {
+	if action == "pair" || action == "connect" {
+		options := pairingOptions{Path: *path, Server: *server, Client: client, Input: os.Stdin, Output: os.Stderr}
+		if err := prepareConnection(context.Background(), options, action == "connect"); err != nil {
 			return err
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
-		c, err := agent.Pair(ctx, client, *server, strings.TrimSpace(line))
-		if err != nil {
-			return err
+		if action == "pair" {
+			return nil
 		}
-		return config.Save(*path, c)
+		action = "run"
 	}
 	program := &install.Program{Run: func(ctx context.Context) error { return run(ctx, *path, client) }}
 	if action != "run" {

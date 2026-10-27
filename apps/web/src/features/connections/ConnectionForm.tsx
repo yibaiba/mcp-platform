@@ -10,12 +10,14 @@ import { api, json, type Device } from '../../lib/api.js';
 export function ConnectionForm({
   devices,
   onSaved,
+  initialDeviceId,
 }: {
   devices: Device[];
   onSaved: (result: unknown) => void;
+  initialDeviceId?: string;
 }) {
-  const [adapter, setAdapter] = useState('direct');
-  const [transport, setTransport] = useState('http');
+  const [adapter, setAdapter] = useState(initialDeviceId ? 'device' : 'direct');
+  const [transport, setTransport] = useState(initialDeviceId ? 'stdio' : 'http');
   async function submit(data: FormData) {
     const extra = JSON.parse(value(data, 'advanced') || '{}') as Record<string, unknown>;
     const created = await api('/connections', {
@@ -55,7 +57,7 @@ export function ConnectionForm({
         </Field>
         {adapter === 'device' ? (
           <Field label="执行设备">
-            <SelectControl name="deviceId" required>
+            <SelectControl name="deviceId" defaultValue={initialDeviceId} required>
               {devices
                 .filter((device) => !device.revoked)
                 .map((device) => (
