@@ -23,7 +23,7 @@ import { currentExecution, withExecution } from './executionContext.js';
 import { legacyToolDefinition, parseTool, isInputRequiredResult } from '@platform/mcp';
 
 export type GatewayHandlers = {
-  publicUrl: string;
+  webOrigin: string;
   access: AccessService;
   artifacts: ArtifactService;
   requests: RequestService;
@@ -110,7 +110,7 @@ export async function createGatewayServer(
             text: JSON.stringify(
               externalPermissionResult(
                 await input.requests.create(access(), request.params.arguments),
-                input.publicUrl,
+                input.webOrigin,
               ),
             ),
           },
@@ -124,7 +124,7 @@ export async function createGatewayServer(
             text: JSON.stringify(
               externalPermissionResult(
                 await input.requests.status(access(), z.uuid().parse(request.params.arguments?.id)),
-                input.publicUrl,
+                input.webOrigin,
               ),
             ),
           },

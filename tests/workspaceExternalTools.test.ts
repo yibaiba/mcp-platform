@@ -212,7 +212,7 @@ test.each([false, true])(
           },
         }),
       );
-      expect(request.approvalUrl).toBe(`${h.baseURL}/profiles?workspace=${profile.id}`);
+      expect(request.approvalUrl).toBe(`${h.config.WEB_ORIGIN}/profiles?workspace=${profile.id}`);
       expect(request.statusTool).toBe('platform_permissions_status');
       expect(request.next).toContain('当前业务尚未执行');
       await h.services.requests.decide(account.ownerId, request.id, {

@@ -132,7 +132,7 @@ export function createServices(db: Database, config: Config) {
     catalog: (access) => requestCatalog({ db, profiles, connections, content }, access),
   });
   const gateway: Gateway = new Gateway({
-    publicUrl: config.PUBLIC_URL,
+    webOrigin: config.WEB_ORIGIN,
     access,
     artifacts,
     profiles,

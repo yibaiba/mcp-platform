@@ -48,9 +48,9 @@ export async function availablePermissionTools(requests: RequestService, access:
 }
 export function externalPermissionResult(
   request: typeof permissionRequests.$inferSelect,
-  publicUrl: string,
+  webOrigin: string,
 ) {
-  const approval = new URL('/profiles', publicUrl);
+  const approval = new URL('/profiles', webOrigin);
   approval.searchParams.set('workspace', request.profileId);
   return {
     ...request,
