@@ -1,5 +1,14 @@
 import { connectorPresets, type ConnectorPreset } from '@platform/contracts';
-import { BookOpen, Check, ChevronDown, Cloud, Github, ListTodo, Notebook } from 'lucide-react';
+import {
+  BookOpen,
+  Check,
+  ChevronDown,
+  Cloud,
+  GitBranch,
+  Github,
+  ListTodo,
+  Notebook,
+} from 'lucide-react';
 import { Button } from '../../components/ui/button.js';
 import { Card } from '../../components/ui/card.js';
 import type { Connection } from '../../lib/api.js';
@@ -17,6 +26,7 @@ const groups = [
 const icons = {
   cloudflare: Cloud,
   github: Github,
+  gitee: GitBranch,
   notion: Notebook,
   linear: ListTodo,
   'cloudflare-docs': BookOpen,
@@ -32,7 +42,9 @@ function ConnectorRow({
   onSelect: (preset: ConnectorPreset) => void;
 }) {
   const matches = connections.filter(
-    (connection) => connection.url?.replace(/\/$/, '') === preset.url.replace(/\/$/, ''),
+    (connection) =>
+      connection.presetId === preset.id ||
+      connection.url?.replace(/\/$/, '') === preset.url.replace(/\/$/, ''),
   );
   const existing = matches.find((connection) => connection.status === 'connected') ?? matches[0];
   const Icon = icons[preset.id as keyof typeof icons];

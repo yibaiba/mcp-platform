@@ -22,6 +22,7 @@ export function ConnectorForm({
     preset.authentication[0]!,
   );
   const [adapter, setAdapter] = useState<'direct' | 'pi'>('direct');
+  const [transport, setTransport] = useState<'http' | 'stdio'>('http');
   const oauthSteps =
     adapter === 'pi'
       ? 'Pi 管理注册、授权与刷新，平台自动接收回调。预注册应用需先登记平台回调地址。'
@@ -40,6 +41,7 @@ export function ConnectorForm({
           preset,
           authentication,
           adapter,
+          transport,
           name: value(data, 'name'),
           token: value(data, 'token'),
           clientId: value(data, 'clientId'),
@@ -55,9 +57,32 @@ export function ConnectorForm({
       <Field label="连接名称">
         <Input name="name" defaultValue={preset.name} required />
       </Field>
-      <Field label="官方 MCP 地址" hint="连接官方远程服务，无需在设备上安装程序。">
-        <Input value={preset.url} readOnly />
-      </Field>
+      {preset.stdio ? (
+        <Field
+          label="运行方式"
+          hint="远程服务免安装；本地进程由平台主机执行，需要 Node.js / npx 和 npm 网络访问。"
+        >
+          <SelectControl
+            value={transport}
+            onValueChange={(method) => setTransport(method as 'http' | 'stdio')}
+          >
+            <SelectItem value="http">官方远程服务（免安装）</SelectItem>
+            <SelectItem value="stdio">本地进程（stdio）</SelectItem>
+          </SelectControl>
+        </Field>
+      ) : null}
+      {transport === 'stdio' && preset.stdio ? (
+        <Field
+          label="启动命令"
+          hint={`在平台主机执行；令牌通过 ${preset.stdio.tokenEnv} 环境变量传入，不放入命令参数。`}
+        >
+          <Input value={[preset.stdio.command, ...preset.stdio.args].join(' ')} readOnly />
+        </Field>
+      ) : (
+        <Field label="官方 MCP 地址" hint="连接官方远程服务，无需在设备上安装程序。">
+          <Input value={preset.url} readOnly />
+        </Field>
+      )}
       <Field label="连接方式" hint="两种方式均无需模型。Pi 桥接复用现有 MCP 管理与 OAuth 能力。">
         <SelectControl
           value={adapter}

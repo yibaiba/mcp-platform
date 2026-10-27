@@ -1,7 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { connections, profiles, catalogSnapshots, type Database } from '@platform/db';
-import { connectionInput, type ConnectionInput } from '@platform/contracts';
+import {
+  connectionInput,
+  connectorPresets,
+  matchesConnectorPreset,
+  type ConnectionInput,
+} from '@platform/contracts';
 import type { McpNotification } from '@platform/mcp';
 import { digest, type Vault } from '../../shared/crypto.js';
 import { AppError, requireValue } from '../../shared/errors.js';
@@ -259,6 +264,7 @@ export class ConnectionService {
           forwardHeaders: value.forwardHeaders ?? [],
           sessions: this.runtime.keys(row.id),
           mode: value.mode,
+          presetId: connectorPresets.find((preset) => matchesConnectorPreset(value, preset))?.id,
           url: value.url ? new URL(value.url).origin + new URL(value.url).pathname : undefined,
         };
       }),

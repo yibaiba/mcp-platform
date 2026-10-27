@@ -95,7 +95,7 @@ export default function ConnectionsPage() {
               <DialogTitle>{preset ? `添加 ${preset.name}` : '新建 MCP 连接'}</DialogTitle>
               <DialogDescription>
                 {preset
-                  ? '使用官方远程 MCP 服务。保存配置后完成认证，连接成功后再配置 Agent 权限。'
+                  ? '选择服务运行方式和认证信息，保存后自动连接，再配置 Agent 权限。'
                   : '选择执行位置和连接协议，再填写服务地址或启动命令。'}
               </DialogDescription>
             </DialogHeader>

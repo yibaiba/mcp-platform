@@ -2,6 +2,7 @@ import { z } from 'zod';
 export { clientPresets, type ClientPreset } from './clientPresets.js';
 export {
   connectorPresets,
+  matchesConnectorPreset,
   connectorAuthenticationLabels,
   type ConnectorPreset,
   type ConnectorAuthentication,

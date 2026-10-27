@@ -10,6 +10,11 @@ export type ConnectorPreset = {
   readonly authentication: readonly ConnectorAuthentication[];
   readonly hint: string;
   readonly oauthRegistration?: boolean;
+  readonly stdio?: {
+    readonly command: string;
+    readonly args: readonly string[];
+    readonly tokenEnv: string;
+  };
 };
 
 const cloudflareDocs =
@@ -37,6 +42,21 @@ export const connectorPresets: readonly ConnectorPreset[] = [
     authentication: ['bearer', 'oauth'],
     oauthRegistration: true,
     hint: '可使用 PAT；OAuth 需要自行注册 GitHub App 或 OAuth App，不支持动态客户端注册。实际访问范围由 Token、组织策略和平台授权共同决定。',
+  },
+  {
+    id: 'gitee',
+    category: 'development',
+    name: 'Gitee',
+    description: '管理 Gitee 仓库、Issue、Pull Request 和通知。',
+    url: 'https://api.gitee.com/mcp',
+    documentationUrl: 'https://help.gitee.com/ai-productivity/mcp-server',
+    authentication: ['bearer'],
+    stdio: {
+      command: 'npx',
+      args: ['-y', '@gitee/mcp-gitee@latest'],
+      tokenEnv: 'GITEE_ACCESS_TOKEN',
+    },
+    hint: '使用 Gitee 个人访问令牌，保存后自动连接。访问范围由令牌权限和 Agent 授权共同决定。',
   },
   {
     id: 'notion',
@@ -69,6 +89,22 @@ export const connectorPresets: readonly ConnectorPreset[] = [
     hint: '保存后自动连接并发现目录，再将需要的工具授予 Agent。',
   },
 ];
+
+export function matchesConnectorPreset(
+  connection: { transport: string; url?: string; command?: string; args?: readonly string[] },
+  preset: ConnectorPreset,
+) {
+  if (connection.transport === 'stdio') {
+    const stdio = preset.stdio;
+    return Boolean(
+      stdio &&
+        connection.command === stdio.command &&
+        connection.args?.length === stdio.args.length &&
+        connection.args.every((arg, index) => arg === stdio.args[index]),
+    );
+  }
+  return connection.url?.replace(/\/$/, '') === preset.url.replace(/\/$/, '');
+}
 
 export const connectorAuthenticationLabels: Readonly<Record<ConnectorAuthentication, string>> = {
   oauth: 'OAuth 授权',

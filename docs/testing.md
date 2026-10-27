@@ -29,6 +29,8 @@ pnpm test tests/connectorPresets.test.ts tests/authorizationFlow.test.ts tests/u
 
 本轮授权自动化与紧凑目录变更的分组回归合计 135 项通过（新增身份检查修正测试会话上下文后，该组单独重跑通过）。类型检查、ESLint、生产构建及真实无模型 Pi 检查通过。独立源文件副本完成冻结锁文件离线安装；macOS Chrome 检查分组目录、连接状态、多账号添加入口、Escape 关闭、手工回调默认折叠和 390px 窄屏，公开 Cloudflare Docs 的 Pi 目录刷新成功。此验收不包含真实供应商账号 OAuth。
 
+Gitee 专项覆盖远程及 stdio 配置、平台直连和 Pi 的凭证加密与管理接口脱敏、运行方式切换时的凭证排除，以及 stdio 预设识别。macOS 本机执行官方 `npx -y @gitee/mcp-gitee@latest --version` 成功，输出 `Version: 1.0.0`；官方远程服务完成匿名 MCP 初始化。未配置实际 Gitee 令牌，账号工具的发现与调用尚未验收。
+
 ## Go 与跨平台构建
 
 GitHub Actions 在 Node.js 22、24 和独立 PostgreSQL 上执行冻结安装、重复迁移、类型检查、ESLint、生产构建、分组后端测试、无模型 Pi 桥接与 Go test/vet；Node.js 24 任务同时交叉构建六个架构。这些 Linux CI 检查不能替代各客户端、供应商 OAuth 和物理设备验收。

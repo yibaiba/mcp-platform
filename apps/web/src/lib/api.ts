@@ -29,6 +29,7 @@ export type Device = {
   services: { id: string; status: string; error?: string }[];
 };
 export type Connection = {
+  presetId?: string;
   revision: number;
   identityMode?: string;
   sessions?: string[];

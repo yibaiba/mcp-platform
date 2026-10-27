@@ -1,6 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import { afterAll, beforeAll, expect, test } from 'vitest';
-import { connectionInput, connectorPresets } from '../packages/contracts/src/index.js';
+import {
+  connectionInput,
+  connectorPresets,
+  matchesConnectorPreset,
+} from '../packages/contracts/src/index.js';
 import { presetConnection } from '../apps/web/src/features/connections/presetConnection.js';
 import { authorizationResult } from '../apps/web/src/features/connections/authorizationResult.js';
 import { harness } from './harness.js';
@@ -66,6 +70,9 @@ test('missing credentials, unsupported authentication and header injection expos
     presetConnection({ ...base, authentication: 'oauth', clientId: 'registered' }),
   ).toThrow('Client Secret');
   expect(() => presetConnection({ ...base, authentication: 'none' })).toThrow('不支持');
+  expect(() =>
+    presetConnection({ ...base, authentication: 'bearer', token: 'test', transport: 'stdio' }),
+  ).toThrow('不支持本地');
 });
 
 test('Pi preset selection preserves registered OAuth settings and parses the Pi authorization response', () => {
@@ -103,14 +110,23 @@ test('authorization responses cannot create executable or credential-bearing lin
   expect(authorizationResult(null).url).toBeUndefined();
 });
 
-test.each(['bearer', 'oauth'] as const)(
-  '%s preset credentials persist encrypted and stay out of management responses',
-  async (authentication) => {
+test.each([
+  { id: 'github', adapter: 'direct', transport: 'http', authentication: 'bearer' },
+  { id: 'github', adapter: 'direct', transport: 'http', authentication: 'oauth' },
+  { id: 'gitee', adapter: 'direct', transport: 'http', authentication: 'bearer' },
+  { id: 'gitee', adapter: 'pi', transport: 'http', authentication: 'bearer' },
+  { id: 'gitee', adapter: 'direct', transport: 'stdio', authentication: 'bearer' },
+  { id: 'gitee', adapter: 'pi', transport: 'stdio', authentication: 'bearer' },
+] as const)(
+  '$id $adapter $transport $authentication credentials persist encrypted and stay out of management responses',
+  async ({ id, adapter, transport, authentication }) => {
     const account = await h.signup();
     const secret = randomBytes(24).toString('hex');
     const input = presetConnection({
-      preset: github,
-      name: github.name,
+      preset: connectorPresets.find((preset) => preset.id === id)!,
+      name: id,
+      adapter,
+      transport,
       authentication,
       token: secret,
       clientId: randomBytes(8).toString('hex'),
@@ -126,15 +142,49 @@ test.each(['bearer', 'oauth'] as const)(
     const stored = await h.services.connections.owned(account.ownerId, created.id);
     expect(JSON.stringify(stored)).not.toContain(secret);
     const context = await h.services.connections.context(account.ownerId, created.id);
-    expect(
-      authentication === 'bearer'
-        ? context.config.headers.Authorization
-        : context.config.oauth?.clientSecret,
-    ).toBe(authentication === 'bearer' ? `Bearer ${secret}` : secret);
+    const savedSecret =
+      transport === 'stdio'
+        ? context.config.env.GITEE_ACCESS_TOKEN
+        : authentication === 'bearer'
+          ? context.config.headers.Authorization
+          : context.config.oauth?.clientSecret;
+    expect(savedSecret).toBe(
+      authentication === 'bearer' && transport === 'http' ? `Bearer ${secret}` : secret,
+    );
     const listed = await account.request('/connections');
     expect(listed.status).toBe(200);
-    expect(await listed.text()).not.toContain(secret);
+    const body = await listed.text();
+    expect(body).not.toContain(secret);
+    expect(JSON.parse(body)).toContainEqual(
+      expect.objectContaining({ id: created.id, presetId: id }),
+    );
+    expect(body).not.toContain('GITEE_ACCESS_TOKEN');
     // Saving a preset does not contact the vendor or create an authorization session.
-    expect((await h.services.upstreamOAuth.status(context)).authorized).toBe(false);
+    expect(await h.services.connections.snapshot(account.ownerId, created.id)).toBeUndefined();
   },
 );
+
+test('Gitee transport changes keep the token in its selected credential field and match only the configured launcher', () => {
+  const preset = connectorPresets.find((preset) => preset.id === 'gitee')!;
+  const token = randomBytes(24).toString('hex');
+  const base = { preset, token, name: preset.name, authentication: 'bearer' as const };
+  const local = presetConnection({ ...base, transport: 'stdio' });
+  expect(local).toMatchObject({
+    transport: 'stdio',
+    mode: 'managed',
+    command: 'npx',
+    args: ['-y', '@gitee/mcp-gitee@latest'],
+    credentialEnv: ['GITEE_ACCESS_TOKEN'],
+  });
+  expect(local.url).toBeUndefined();
+  expect(local.oauth).toBeUndefined();
+  expect(local.headers).toEqual({});
+  expect(local.args).not.toContain(token);
+  expect(matchesConnectorPreset(local, preset)).toBe(true);
+  expect(matchesConnectorPreset({ ...local, args: ['-y', '@other/package'] }, preset)).toBe(false);
+  const remote = presetConnection({ ...base, transport: 'http' });
+  expect(remote.env).toEqual({});
+  expect(remote.credentialEnv).toEqual([]);
+  expect(remote.command).toBeUndefined();
+  expect(remote.headers.Authorization).toBe(`Bearer ${token}`);
+});
