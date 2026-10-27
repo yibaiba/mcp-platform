@@ -1,0 +1,64 @@
+name: mcp-platform
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: platform
+      POSTGRES_DB: platform
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U platform -d platform]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+  server:
+    build:
+      context: .
+      target: server
+    environment:
+      DATABASE_URL: postgresql://platform:${POSTGRES_PASSWORD}@db:5432/platform
+      PUBLIC_URL: ${PUBLIC_URL:?Set PUBLIC_URL}
+      WEB_ORIGIN: ${WEB_ORIGIN:?Set WEB_ORIGIN}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY}
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
+      PORT: 4300
+      APPS_PORT: 4302
+      APPS_ORIGIN: ${APPS_ORIGIN:-https://apps.${DOMAIN}}
+      DATA_DIR: /app/.data
+      PI_ENABLED: ${PI_ENABLED:-false}
+      PI_MODEL_PROVIDER: ${PI_MODEL_PROVIDER:-}
+      PI_MODEL_ID: ${PI_MODEL_ID:-}
+      PI_MCP_ADAPTER_OAUTH_FILE_KEY: ${PI_MCP_ADAPTER_OAUTH_FILE_KEY:-}
+    volumes:
+      - files:/app/.data
+    depends_on:
+      db:
+        condition: service_healthy
+    init: true
+    restart: unless-stopped
+  web:
+    build:
+      context: .
+      target: web
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN}
+      APPS_DOMAIN: ${APPS_DOMAIN:-apps.${DOMAIN}}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - caddy:/data
+      - caddy-config:/config
+    depends_on:
+      - server
+    restart: unless-stopped
+volumes:
+  postgres:
+  files:
+  caddy:
+  caddy-config:

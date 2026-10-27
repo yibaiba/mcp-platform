@@ -1,0 +1,26 @@
+diff --git a/dist/src-BhnGYybN.cjs b/dist/src-BhnGYybN.cjs
+index 97f739ffe6d74259bbbb06f0b3170a842d9e4053..1204cb0ddf7420602f9f76412f99726effe61488 100644
+--- a/dist/src-BhnGYybN.cjs
++++ b/dist/src-BhnGYybN.cjs
+@@ -6340,6 +6340,8 @@ var Protocol = class {
+ 		this._requestHandlerAbortControllers.get(notification.params.requestId)?.abort(notification.params.reason);
+ 	}
+ 	_setupTimeout(messageId, timeout, maxTotalTimeout, onTimeout, resetTimeoutOnProgress = false) {
++		// Embedded hosts can leave user interaction waiting without imposing a network deadline.
++		if (timeout === 0) return;
+ 		this._timeoutInfo.set(messageId, {
+ 			timeoutId: setTimeout(onTimeout, timeout),
+ 			startTime: Date.now(),
+diff --git a/dist/src-Cqbh3MYc.mjs b/dist/src-Cqbh3MYc.mjs
+index cfc1240813f8a9377ce7a009f2336eadb036928d..ab111961a1ecf0bc49594be13833e0ae366f3405 100644
+--- a/dist/src-Cqbh3MYc.mjs
++++ b/dist/src-Cqbh3MYc.mjs
+@@ -6339,6 +6339,8 @@ var Protocol = class {
+ 		this._requestHandlerAbortControllers.get(notification.params.requestId)?.abort(notification.params.reason);
+ 	}
+ 	_setupTimeout(messageId, timeout, maxTotalTimeout, onTimeout, resetTimeoutOnProgress = false) {
++		// Embedded hosts can leave user interaction waiting without imposing a network deadline.
++		if (timeout === 0) return;
+ 		this._timeoutInfo.set(messageId, {
+ 			timeoutId: setTimeout(onTimeout, timeout),
+ 			startTime: Date.now(),

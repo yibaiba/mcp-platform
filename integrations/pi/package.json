@@ -1,0 +1,26 @@
+{
+  "name": "@platform/pi-runtime",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@earendil-works/pi-ai": "1.4.0",
+    "@earendil-works/pi-coding-agent": "1.4.0",
+    "@platform/mcp": "workspace:*",
+    "pi-mcp-adapter": "7.0.0",
+    "tsx": "4.21.0",
+    "typebox": "1.0.55"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.0",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit"
+  },
+  "exports": {
+    ".": "./src/runtime.ts"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  }
+}

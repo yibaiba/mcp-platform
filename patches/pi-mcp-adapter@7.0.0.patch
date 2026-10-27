@@ -1,0 +1,236 @@
+diff --git a/config.ts b/config.ts
+index 8cace7a1b82f9899e526d1236f89b3d6f9afcdc1..13c66d36945ddc52d92a497a4bb6a0335a8e7096 100644
+--- a/config.ts
++++ b/config.ts
+@@ -1729,6 +1729,7 @@ function extractServers(config: unknown, kind: ImportKind): Record<string, Serve
+           mapped.oauth = {
+             ...(typeof clientId === "string" ? { clientId } : {}),
+             ...(typeof clientSecret === "string" ? { clientSecret } : {}),
++            ...(["none","client_secret_post","client_secret_basic"].includes(String(oauth.tokenEndpointAuthMethod)) ? { tokenEndpointAuthMethod: oauth.tokenEndpointAuthMethod as "none" | "client_secret_post" | "client_secret_basic" } : {}),
+             ...(typeof oauth.clientMetadataUrl === "string" ? { clientMetadataUrl: oauth.clientMetadataUrl } : {}),
+             ...(typeof oauth.scope === "string" ? { scope: oauth.scope } : {}),
+             ...(typeof authServerMetadataUrl === "string" ? { authServerMetadataUrl } : {}),
+diff --git a/index.ts b/index.ts
+index 0607163b14aeef959c49552c532b69a774253272..280cd01a5475bdc5db9b778e6deb79a3d5801043 100644
+--- a/index.ts
++++ b/index.ts
+@@ -1,4 +1,15 @@
+ import { registerProtocolBridge } from "./runtime-protocol.ts";
++export { configurePlatformEmbedding } from "./platform-embedding.ts";
++import type { Client } from "@modelcontextprotocol/client";
++
++const platformClientAccess = new WeakMap<ExtensionAPI, (name: string) => Client>();
++
++/** Embedding API: borrow the live client; Pi retains credentials and lifecycle ownership. */
++export function getMcpClient(options: { pi: ExtensionAPI; name: string }): Client {
++  const access = platformClientAccess.get(options.pi);
++  if (!access) throw new Error("MCP adapter is not installed for this Pi instance");
++  return access(options.name);
++}
+ export { registerMcpProtocol, MCP_PROTOCOL_EVENT, type McpProtocolDefinition, type McpProtocol, type McpProtocolSession, type McpProtocolStream, type McpProtocolWatch, type McpProtocolEnd } from "./runtime-protocol.ts";
+ import { withFileMutationQueue, type AgentToolResult, type AgentToolUpdateCallback, type ExtensionAPI, type ExtensionContext, type ExtensionToolContext, type RegisteredMcpServer, type ToolInfo } from "@earendil-works/pi-coding-agent";
+ import { resolve } from "node:path";
+@@ -262,6 +273,13 @@ function installMcpAdapter(pi: ExtensionAPI, options: McpAdapterOptions) {
+   // Before the first config load, so every load in this process agrees.
+   if (!programmaticConfig) setPiMcpConfigEnabled(piSupportsMcp(pi));
+   let state: McpExtensionState | null = null;
++  platformClientAccess.set(pi, (name) => {
++    const connection = state?.manager.getConnection(name);
++    if (!connection || connection.status !== "connected") {
++      throw new Error(`MCP connection ${name} is not connected`);
++    }
++    return connection.client;
++  });
+   let sessionCtx: ExtensionContext | null = null;
+   let initPromise: Promise<McpExtensionState> | null = null;
+   let initStartedPromise: Promise<void> | null = null;
+diff --git a/mcp-auth-flow.ts b/mcp-auth-flow.ts
+index 9a22ee76ec66322c812afe86c1296ba14989afad..61a395e59006fef09e0d23509667f5961d895a47 100644
+--- a/mcp-auth-flow.ts
++++ b/mcp-auth-flow.ts
+@@ -197,6 +197,10 @@ export function extractOAuthConfig(definition: ServerEntry): McpOAuthConfig {
+   }
+ 
+   const config: McpOAuthConfig = {}
++  if (definition.oauth?.tokenEndpointAuthMethod !== undefined) {
++    if (!["none","client_secret_post","client_secret_basic"].includes(definition.oauth.tokenEndpointAuthMethod)) throw new Error("Unsupported OAuth token endpoint authentication method")
++    config.tokenEndpointAuthMethod=definition.oauth.tokenEndpointAuthMethod
++  }
+   if (definition.oauth?.grantType !== undefined) config.grantType = definition.oauth.grantType
+   if (definition.oauth?.clientId !== undefined) {
+     if (typeof definition.oauth.clientId !== "string") throw new Error("OAuth clientId must be a string")
+diff --git a/mcp-oauth-provider.ts b/mcp-oauth-provider.ts
+index b724478bf4036c199d4574c87a200207706ceb29..aecd68cd4baad54dda49c42b0870984da0345043 100644
+--- a/mcp-oauth-provider.ts
++++ b/mcp-oauth-provider.ts
+@@ -36,6 +36,7 @@ import { OAuthMetadataSchema, OpenIdProviderDiscoveryMetadataSchema } from "@mod
+ import { createOAuthFetch, type OAuthFetch } from "./mcp-auth-fetch.ts"
+ import { resolveCommandSecret } from "./utils.ts"
+ import { getAppClientUri, getAppName } from "./agent-dir.ts"
++import {platformEmbedding} from "./platform-embedding.ts"
+ 
+ /**
+  * Client name advertised during Dynamic Client Registration.
+@@ -133,6 +134,7 @@ export interface McpOAuthConfig {
+   clientId?: string
+   clientSecret?: string
+   clientMetadataUrl?: string
++  tokenEndpointAuthMethod?: "none" | "client_secret_post" | "client_secret_basic"
+   scope?: string
+   authorizationParams?: Record<string, string>
+   redirectUri?: string
+@@ -368,7 +370,7 @@ export class McpOAuthProvider implements OAuthClientProvider {
+         ...(this.config.logoUri !== undefined ? { logo_uri: this.config.logoUri } : {}),
+         redirect_uris: [],
+         grant_types: ["client_credentials"],
+-        token_endpoint_auth_method: this.config.clientSecret ? "client_secret_post" : "none",
++        token_endpoint_auth_method: this.config.tokenEndpointAuthMethod ?? (this.config.clientSecret ? "client_secret_post" : "none"),
+       }
+     }
+ 
+@@ -384,10 +386,23 @@ export class McpOAuthProvider implements OAuthClientProvider {
+       ...(this.config.logoUri !== undefined ? { logo_uri: this.config.logoUri } : {}),
+       grant_types: ["authorization_code", "refresh_token"],
+       response_types: ["code"],
+-      token_endpoint_auth_method: this.config.clientSecret ? "client_secret_post" : "none",
++      token_endpoint_auth_method: this.config.tokenEndpointAuthMethod ?? (this.config.clientSecret ? "client_secret_post" : "none"),
+       ...(this.config.scope !== undefined ? { scope: this.config.scope } : {}),
+     }
+   }
++  get platformAuthorize() {
++    const authorize=platformEmbedding?.authorize
++    if (!authorize) return undefined
++    return async(action:()=>Promise<'AUTHORIZED'|'REDIRECT'>,options:{authorizationCode?:string;forceReauthorization?:boolean})=>{
++      const before=(await this.tokens())?.access_token
++      return authorize(async()=>{
++        invalidateAuthEntryCache(this.serverName)
++        const after=(await this.tokens())?.access_token
++        if (!options.authorizationCode && !options.forceReauthorization && after && before!==after) return 'AUTHORIZED'
++        return action()
++      })
++    }
++  }
+ 
+   /**
+    * Get client information (for pre-registered or dynamically registered clients).
+@@ -789,6 +804,10 @@ export class McpOAuthProvider implements OAuthClientProvider {
+       authMethod = hasClientSecret ? "client_secret_post" : "none"
+     }
+ 
++    if (this.config.tokenEndpointAuthMethod !== undefined) {
++      authMethod=this.config.tokenEndpointAuthMethod
++      if (supportedMethods.length && !supportedMethods.includes(authMethod)) throw new Error(`Configured OAuth authentication method is not supported: ${authMethod}`)
++    }
+     if (authMethod === "client_secret_basic") {
+       if (!clientInfo.client_secret) {
+         throw new Error("client_secret_basic authentication requires a client_secret")
+diff --git a/package.json b/package.json
+index f160c06a4d60a8e1526967c0bdb7b402cfd7be9a..7d69f196b6610c874cfe65bfb4552fd5ca9dc5c7 100644
+--- a/package.json
++++ b/package.json
+@@ -80,6 +80,7 @@
+     "video": "https://github.com/nicobailon/pi-mcp-adapter/raw/refs/heads/main/pi-mcp.mp4"
+   },
+   "files": [
++    "platform-embedding.ts",
+     "cli.js",
+     "agent-dir.ts",
+     "index.ts",
+diff --git a/platform-embedding.ts b/platform-embedding.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..1be7f7b7e516abd7527d68136bb528bf6b4941ce
+--- /dev/null
++++ b/platform-embedding.ts
+@@ -0,0 +1,14 @@
++import type { Client, ClientCapabilities, Transport, OAuthClientProvider } from "@modelcontextprotocol/client";
++import type { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
++import type { Readable } from "node:stream";
++
++export type PlatformEmbedding = {
++  authorize:(action:()=>Promise<'AUTHORIZED'|'REDIRECT'>)=>Promise<'AUTHORIZED'|'REDIRECT'>;
++  wrapFetch: (fetch:typeof globalThis.fetch, authorization?: {provider:OAuthClientProvider;serverUrl:string})=>typeof globalThis.fetch;
++  capabilities?: ClientCapabilities;
++  createStdio: (options: ConstructorParameters<typeof StdioClientTransport>[0]) => Transport & { stderr: Readable | null };
++  onClient: (client: Client) => void;
++};
++export let platformEmbedding: PlatformEmbedding | undefined;
++/** Each embedding worker owns its own adapter module and authorization directory. */
++export function configurePlatformEmbedding(options: PlatformEmbedding) { platformEmbedding = options; }
+diff --git a/server-manager.ts b/server-manager.ts
+index d7c6c033714fc97d8718cbdd06a5ce93f446e1d0..67ec54a5ab6121e3f008ece522fa13c4462fe99f 100644
+--- a/server-manager.ts
++++ b/server-manager.ts
+@@ -28,6 +28,7 @@ import {
+   type VersionNegotiationOptions,
+ } from "@modelcontextprotocol/client";
+ import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
++import { platformEmbedding } from "./platform-embedding.ts";
+ import { UnixSocketClientTransport } from "./unix-socket-transport.ts";
+ import { probeMcpEndpoint } from "./mcp-probe.ts";
+ import {
+@@ -1229,7 +1230,7 @@ export class McpServerManager {
+       }
+       throwIfAborted(signal);
+ 
+-      const stdioTransport = new StdioClientTransport({
++      const stdioOptions = {
+         command,
+         args,
+         env: resolveEnv(
+@@ -1239,8 +1240,9 @@ export class McpServerManager {
+           definition.inheritEnv !== false,
+         ),
+         ...(cwd !== undefined ? { cwd } : {}),
+-        stderr: definition.debug ? "inherit" : "pipe",
+-      });
++        stderr: definition.debug ? "inherit" as const : "pipe" as const,
++      };
++      const stdioTransport = platformEmbedding ? platformEmbedding.createStdio(stdioOptions) : new StdioClientTransport(stdioOptions);
+       // Keep non-debug child diagnostics available for connection failures without
+       // retaining an unbounded stream or changing the existing debug behavior.
+       if (stdioTransport.stderr) {
+@@ -1533,13 +1535,14 @@ export class McpServerManager {
+   }
+ 
+   private createClient(serverName: string, definition: ServerDefinition): Client {
+-    const capabilities = this.buildClientCapabilities(definition);
++    const capabilities = platformEmbedding?.capabilities ?? this.buildClientCapabilities(definition);
+     const versionNegotiation = resolveVersionNegotiation(definition);
+     let client: Client;
+     client = new AdapterClient(
+       { name: `pi-mcp-${serverName}`, version: "1.0.0" },
+       {
+         jsonSchemaValidator: createJsonSchemaValidator(),
++        ...(platformEmbedding ? { inputRequired: { autoFulfill: false } } : {}),
+         ...(versionNegotiation ? { versionNegotiation } : {}),
+         ...(Object.keys(capabilities).length > 0 ? { capabilities } : {}),
+         listChanged: {
+@@ -1561,6 +1564,7 @@ export class McpServerManager {
+         },
+       },
+     );
++    platformEmbedding?.onClient(client);
+     clientMetadata.set(client, () => (client as AdapterClient).requestMetadata());
+     const roots = this.rootsFor(definition);
+     if (roots) client.setRequestHandler("roots/list", () => ({ roots }));
+@@ -1833,7 +1837,7 @@ export class McpServerManager {
+         : requestFetch;
+       const transportOptions = {
+         ...(requestInit !== undefined ? { requestInit } : {}),
+-        ...(transportFetch !== undefined ? { fetch: transportFetch } : {}),
++        ...(platformEmbedding ? {fetch:platformEmbedding.wrapFetch((transportFetch ?? globalThis.fetch) as typeof globalThis.fetch, authProvider ? {provider:authProvider,serverUrl} : undefined)} : transportFetch !== undefined ? { fetch: transportFetch } : {}),
+         ...(authProvider !== undefined ? { authProvider } : {}),
+         ...(authProvider !== undefined
+           && definition.oauth !== false
+diff --git a/types.ts b/types.ts
+index 38ec720d95d539cf64b2fbc6b06799253c690f30..df0447d3f3c475f1009cb8d962c702027509e04a 100644
+--- a/types.ts
++++ b/types.ts
+@@ -395,6 +395,7 @@ export type ContentBlock = TextContent | ImageContent;
+ 
+ // OAuth configuration (SDK handles auto-discovery and dynamic registration)
+ export interface OAuthConfig {
++  tokenEndpointAuthMethod?: "none" | "client_secret_post" | "client_secret_basic";
+   /** OAuth grant type (defaults to authorization_code) */
+   grantType?: "authorization_code" | "client_credentials";
+   /** Pre-registered client ID (optional, dynamic registration used if not provided) */

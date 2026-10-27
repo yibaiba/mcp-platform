@@ -1,0 +1,39 @@
+import { Children, isValidElement, type ReactNode } from 'react';
+import { Select, SelectContent, SelectTrigger, SelectValue } from '../ui/select.js';
+type SelectControlProps = {
+  id?: string;
+  name?: string;
+  value?: string;
+  defaultValue?: string;
+  required?: boolean;
+  onValueChange?: (value: string) => void;
+  children: ReactNode;
+  'aria-describedby'?: string;
+};
+export function SelectControl({
+  id,
+  children,
+  onValueChange,
+  'aria-describedby': description,
+  ...props
+}: SelectControlProps) {
+  const items = Children.toArray(children)
+    .filter(isValidElement<{ value: string; children: ReactNode }>)
+    .map((item) => ({ value: item.props.value, label: item.props.children }));
+  return (
+    <Select
+      items={items}
+      {...props}
+      onValueChange={(value) => {
+        if (value !== null) onValueChange?.(value);
+      }}
+    >
+      <SelectTrigger id={id} aria-describedby={description} className="w-full">
+        <SelectValue>
+          {(value: string | null) => items.find((item) => item.value === value)?.label ?? '请选择'}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>{children}</SelectContent>
+    </Select>
+  );
+}

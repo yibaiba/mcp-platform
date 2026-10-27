@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ADD COLUMN "artifact_ids" jsonb DEFAULT '[]'::jsonb NOT NULL;

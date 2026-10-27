@@ -1,0 +1,50 @@
+diff --git a/dist/index.cjs b/dist/index.cjs
+index 71cf63076b073284aa14f63cd41efa653e8def0f..0d94b4d05421a114ca477c3009bdebd0a0b8dba3 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -643,6 +643,7 @@ function warnCredentialInvalidation(provider, error, invalidated) {
+ * instead of linking together the other lower-level functions in this module.
+ */
+ async function auth(provider, options) {
++	if (typeof provider.platformAuthorize === "function") return provider.platformAuthorize(() => authInternal(provider, options), options);
+ 	try {
+ 		return await authInternal(provider, options);
+ 	} catch (error) {
+diff --git a/dist/index.mjs b/dist/index.mjs
+index c1a09a82b8121d6a1b038ccc6d02bae46d55dbcf..b6ac3219490f692df3e991cc6a8731a4f8366958 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -640,6 +640,7 @@ function warnCredentialInvalidation(provider, error, invalidated) {
+ * instead of linking together the other lower-level functions in this module.
+ */
+ async function auth(provider, options) {
++	if (typeof provider.platformAuthorize === "function") return provider.platformAuthorize(() => authInternal(provider, options), options);
+ 	try {
+ 		return await authInternal(provider, options);
+ 	} catch (error) {
+diff --git a/dist/src-DpAS0jfg.cjs b/dist/src-DpAS0jfg.cjs
+index e2ffe6482e0d8eed88082215547ccde7b5ef2d37..32499f072280f1bd8d26d421fc9586dc6f9aabe5 100644
+--- a/dist/src-DpAS0jfg.cjs
++++ b/dist/src-DpAS0jfg.cjs
+@@ -5792,6 +5792,8 @@ var Protocol = class {
+ 		this._requestHandlerAbortControllers.get(notification.params.requestId)?.abort(notification.params.reason);
+ 	}
+ 	_setupTimeout(messageId, timeout, maxTotalTimeout, onTimeout, resetTimeoutOnProgress = false) {
++		// Embedded hosts own network deadlines and pause them while waiting for user input.
++		if (timeout === 0) return;
+ 		this._timeoutInfo.set(messageId, {
+ 			timeoutId: setTimeout(onTimeout, timeout),
+ 			startTime: Date.now(),
+diff --git a/dist/src-WCy6ifGf.mjs b/dist/src-WCy6ifGf.mjs
+index 7a40fb418c402ffc6cac3e71192313a79c63be27..6f91a836bb00e8a8a874c140a4a4b439cf81efc3 100644
+--- a/dist/src-WCy6ifGf.mjs
++++ b/dist/src-WCy6ifGf.mjs
+@@ -5791,6 +5791,8 @@ var Protocol = class {
+ 		this._requestHandlerAbortControllers.get(notification.params.requestId)?.abort(notification.params.reason);
+ 	}
+ 	_setupTimeout(messageId, timeout, maxTotalTimeout, onTimeout, resetTimeoutOnProgress = false) {
++		// Embedded hosts own network deadlines and pause them while waiting for user input.
++		if (timeout === 0) return;
+ 		this._timeoutInfo.set(messageId, {
+ 			timeoutId: setTimeout(onTimeout, timeout),
+ 			startTime: Date.now(),

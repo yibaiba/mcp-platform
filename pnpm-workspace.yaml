@@ -1,0 +1,18 @@
+packages:
+  - apps/*
+  - packages/*
+  - integrations/*
+
+catalog:
+  dotenv: 17.2.3
+  zod: 4.4.3
+  typescript: 5.9.3
+  better-auth: 1.6.19
+
+onlyBuiltDependencies:
+  - esbuild
+
+patchedDependencies:
+  pi-mcp-adapter@7.0.0: patches/pi-mcp-adapter@7.0.0.patch
+  '@modelcontextprotocol/client@2.3.1': patches/@modelcontextprotocol__client@2.3.1.patch
+  '@modelcontextprotocol/server@2.3.1': patches/@modelcontextprotocol__server@2.3.1.patch
