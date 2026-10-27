@@ -16,9 +16,16 @@ pnpm test:pi
 
 ```sh
 pnpm test tests/upstreamOAuth.test.ts tests/openapiOAuth.test.ts
+pnpm test tests/connectorPresets.test.ts tests/upstreamOAuth.test.ts
 ```
 
 `pnpm test:pi` 通过真实 Pi SDK 和适配器对本地 MCP 服务发现与调用，不请求模型，硬超时为 60 秒。该检查需要依赖已经安装，不需要设置 `PI_ENABLED=true`。
+
+## 内置连接器检查
+
+`connectorPresets.test.ts` 覆盖官方预设的配置校验、认证切换后旧凭证排除、空凭证与请求头换行错误、平台与 Pi 授权响应解析，以及 Token/Client Secret 的加密保存和管理接口脱敏。上游 OAuth 回归同时核对服务端返回的回调地址与真实授权请求一致。
+
+2026-10-27 在 macOS 本机 Chrome 验证了预设选择、GitHub Token/OAuth 切换、Pi 桥接选择、键盘选择与 Escape 关闭、手动添加入口，以及 390px 窄屏无页面横向溢出。通过界面保存 Cloudflare Docs 的 Pi 连接，实际连接官方远程服务并发现两个工具。此记录只覆盖公开文档服务的真实发现；未使用供应商账号完成 Cloudflare、GitHub、Notion 或 Linear 的登录、刷新、撤销，不代表这些授权流程已实机验收。
 
 ## Go 与跨平台构建
 

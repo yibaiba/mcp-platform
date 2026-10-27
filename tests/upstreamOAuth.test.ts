@@ -30,8 +30,12 @@ test('official SDK upstream OAuth callback, refresh, restart persistence and rev
     oauth: { clientId: 'registered-test' },
   });
   const context = await h.services.connections.context(account.ownerId, connection.id);
+  const callback = `${h.baseURL}/api/v1/connections/${connection.id}/oauth/callback`;
+  expect((await h.services.upstreamOAuth.status(context)).redirectUrl).toBe(callback);
   const start = await h.services.upstreamOAuth.start(context);
   expect(start.status).toBe('REDIRECT');
+  expect(start.redirectUrl).toBe(callback);
+  expect(new URL(start.authorizationUrl!).searchParams.get('redirect_uri')).toBe(callback);
   const state = new URL(start.authorizationUrl!).searchParams.get('state')!;
   await expect(
     h.services.upstreamOAuth.complete(context, { code: 'test-code', state: 'wrong' }),

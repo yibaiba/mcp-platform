@@ -6,7 +6,6 @@ import { useQuery } from '@tanstack/react-query';
 import { api, json, type Connection } from '../../lib/api.js';
 import {
   Action,
-  Code,
   date,
   Empty,
   Feedback,
@@ -14,6 +13,7 @@ import {
   Form,
   value,
 } from '../../components/shared/Controls.js';
+import { ConnectionResult } from '../connections/ConnectionResult.js';
 export default function AuthorizationsPage() {
   const connections = useQuery({
     queryKey: ['connections'],
@@ -101,8 +101,7 @@ export default function AuthorizationsPage() {
       {result ? (
         <Card className="panel padded">
           <h2>授权响应</h2>
-          <Code value={result} />
-          <p>若返回 authorizationUrl，请复制到浏览器完成授权。</p>
+          <ConnectionResult result={result} />
         </Card>
       ) : null}
       <Card className="panel">

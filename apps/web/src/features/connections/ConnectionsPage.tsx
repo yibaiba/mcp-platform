@@ -2,6 +2,7 @@ import { ConnectionSettings } from './ConnectionSettings.js';
 import { OpenApiPanel } from './OpenApiPanel.js';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import type { ConnectorPreset } from '@platform/contracts';
 import { Plug, Plus } from 'lucide-react';
 import { Card } from '../../components/ui/card.js';
 import { Button } from '../../components/ui/button.js';
@@ -14,14 +15,18 @@ import {
   DialogTrigger,
 } from '../../components/ui/dialog.js';
 import { api, type Connection, type Device } from '../../lib/api.js';
-import { Action, Code, Empty, Feedback, Status } from '../../components/shared/Controls.js';
+import { Action, Empty, Feedback, Status } from '../../components/shared/Controls.js';
 import { ConnectionForm } from './ConnectionForm.js';
 import { ImportPanel } from './ImportPanel.js';
 import { AuthorizationBindings } from './AuthorizationBindings.js';
+import { ConnectorCatalog } from './ConnectorCatalog.js';
+import { ConnectorForm } from './ConnectorForm.js';
+import { ConnectionResult } from './ConnectionResult.js';
 
 export default function ConnectionsPage() {
   const [editing, setEditing] = useState<Connection>();
   const [show, setShow] = useState(false);
+  const [preset, setPreset] = useState<ConnectorPreset>();
   const [result, setResult] = useState<unknown>();
   const connections = useQuery({
     queryKey: ['connections'],
@@ -37,28 +42,50 @@ export default function ConnectionsPage() {
           <p>连接、授权和调用 MCP 工具无需配置模型；选择执行位置、连接方式和凭证归属。</p>
         </div>
         <Dialog open={show} onOpenChange={setShow}>
-          <DialogTrigger render={<Button />}>
+          <DialogTrigger render={<Button onClick={() => setPreset(undefined)} />}>
             <Plus size={17} />
             添加连接
           </DialogTrigger>
           <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
             <DialogHeader>
-              <DialogTitle>新建 MCP 连接</DialogTitle>
+              <DialogTitle>{preset ? `添加 ${preset.name}` : '新建 MCP 连接'}</DialogTitle>
               <DialogDescription>
-                选择执行位置和连接协议，再填写服务地址或启动命令。
+                {preset
+                  ? '使用官方远程 MCP 服务。保存配置后完成认证，连接成功后再配置 Agent 权限。'
+                  : '选择执行位置和连接协议，再填写服务地址或启动命令。'}
               </DialogDescription>
             </DialogHeader>
-            <ConnectionForm
-              devices={devices.data ?? []}
-              onSaved={(created) => {
-                setResult(created);
-                setShow(false);
-              }}
-            />
+            {preset ? (
+              <ConnectorForm
+                key={preset.id}
+                preset={preset}
+                onSaved={(created) => {
+                  setResult({
+                    message: '连接配置已保存。请按表单提示完成授权或直接连接 / 刷新目录。',
+                    connection: created,
+                  });
+                  setShow(false);
+                }}
+              />
+            ) : (
+              <ConnectionForm
+                devices={devices.data ?? []}
+                onSaved={(created) => {
+                  setResult(created);
+                  setShow(false);
+                }}
+              />
+            )}
           </DialogContent>
         </Dialog>
       </div>
       <Feedback error={connections.error ?? devices.error} />
+      <ConnectorCatalog
+        onSelect={(selected) => {
+          setPreset(selected);
+          setShow(true);
+        }}
+      />
       <Card className="panel">
         {connections.data?.length ? (
           connections.data.map((connection) => (
@@ -159,7 +186,7 @@ export default function ConnectionsPage() {
       {result ? (
         <Card className="panel padded">
           <h2>操作结果</h2>
-          <Code value={result} />
+          <ConnectionResult result={result} />
         </Card>
       ) : null}
       <Dialog

@@ -38,6 +38,7 @@ pnpm dev
 - Skills ZIP/固定 Git commit 导入、内容哈希不可变版本、工具依赖检查、设备分发、指定版本回滚和本地修改冲突保护。
 - 文件流式上传/下载、SHA-256 校验、设备间转交；Agent 通过同一配置授权的下载接口获取结果。
 - `mcpServers` 配置预览与导入；OAuth 凭证需单独授权。
+- 内置 Cloudflare、GitHub、Notion、Linear 与 Cloudflare Docs 官方远程 MCP 预设，提供 Token 配置与 OAuth 授权入口；[使用说明](docs/builtin-connectors.md)。
 - 分身份授权绑定、按入口/客户端能力隔离的运行会话和目录快照、显式动态请求头转发；账号间不共享 Cookie。
 - 托管进程树退出、按需启动、闲置休眠、健康检查和显式恢复；默认不开启休眠、探测或恢复。
 - 14 种客户端配置导出、适用的 CLI 命令、上游服务说明与配置说明透传。
@@ -55,7 +56,7 @@ pnpm dev
 pnpm check-types
 pnpm lint
 pnpm build
-pnpm test                   # 使用真实 PostgreSQL；六组顺序执行，每个进程硬超时 60 秒
+pnpm test                   # 使用真实 PostgreSQL；七组顺序执行，每个进程硬超时 60 秒
 cd connector
 go test -timeout 60s ./...
 go vet ./...

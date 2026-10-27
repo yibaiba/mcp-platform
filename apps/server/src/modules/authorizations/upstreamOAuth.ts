@@ -62,7 +62,11 @@ export class UpstreamOAuth {
       scope: context.config.oauth?.scope,
       fetchFn: this.options.fetchFor?.(context) ?? this.options.fetch,
     });
-    return { status: result, authorizationUrl: (await provider.read()).url };
+    return {
+      status: result,
+      authorizationUrl: (await provider.read()).url,
+      redirectUrl: provider.redirectUrl,
+    };
   }
   async complete(
     context: ConnectionContext,
@@ -94,6 +98,7 @@ export class UpstreamOAuth {
       pending: Boolean(data.state && data.expiresAt && data.expiresAt > Date.now()),
       scope: data.tokens?.scope,
       authorizationUrl: data.url,
+      redirectUrl: this.provider(context).redirectUrl,
     };
   }
   async revoke(context: ConnectionContext) {

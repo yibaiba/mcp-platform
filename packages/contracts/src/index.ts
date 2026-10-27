@@ -1,5 +1,11 @@
 import { z } from 'zod';
 export { clientPresets, type ClientPreset } from './clientPresets.js';
+export {
+  connectorPresets,
+  connectorAuthenticationLabels,
+  type ConnectorPreset,
+  type ConnectorAuthentication,
+} from './connectorPresets.js';
 export const PROTOCOL_VERSION = 1;
 export const CALL_TIMEOUT_MS = 60_000;
 export const HEARTBEAT_MS = 15_000;

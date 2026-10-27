@@ -6,6 +6,7 @@ import { Input } from '../../components/ui/input.js';
 import { SelectControl } from '../../components/shared/SelectControl.js';
 import { SelectItem } from '../../components/ui/select.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
+import { ConnectionResult } from './ConnectionResult.js';
 export function AuthorizationBindings({
   connectionId,
   source,
@@ -91,7 +92,7 @@ export function AuthorizationBindings({
         </Form>
       ) : null}
       {impact ? <Code value={impact} /> : null}
-      {result ? <Code value={result} /> : null}
+      {result ? <ConnectionResult result={result} /> : null}
     </Disclosure>
   );
 }
