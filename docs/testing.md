@@ -76,7 +76,7 @@ node scripts/check.mjs 900 docker compose build
 node scripts/check.mjs 600 node scripts/verify-compose.mjs
 ```
 
-需要 Docker、支持 `!override` 的 Compose，并空出 54330/54332。脚本使用独立项目、临时凭证和新建卷，检查迁移、重复迁移、非 root 用户禁网执行 pnpm、页面、认证/API、连接器安装脚本和六种下载文件校验、Apps 隔离源与无模型 Pi 桥接，结束后清理该项目及卷。公网 DNS、证书和实际 iframe/CSP 行为需在部署环境验证。备份与恢复流程见 [部署说明](deployment.md)。
+需要 Docker、支持 `!override` 的 Compose，并空出 54330/54332。脚本使用独立项目、临时凭证和新建卷，仅在临时测试覆盖配置中为源码构建版添加 PostgreSQL 服务；`compose.yaml` 不包含数据库，直接镜像部署的 `docker-compose.yml` 则自带 PostgreSQL。检查迁移、重复迁移、非 root 用户禁网执行 pnpm、页面、认证/API、连接器安装脚本和六种下载文件校验、Apps 隔离源与无模型 Pi 桥接，结束后清理该项目及卷。公网 DNS、证书和实际 iframe/CSP 行为需在部署环境验证。备份与恢复流程见 [部署说明](deployment.md)。
 
 ## Apps 浏览器检查
 

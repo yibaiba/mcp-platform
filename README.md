@@ -29,6 +29,8 @@ pnpm dev
 
 开发启动从仓库根目录 `.env` 读取配置；源代码生产启动 `pnpm start`，不依赖工作目录。`pnpm build` 验证后端编译并产出前端静态文件。后端部署使用 `tsx` 源码入口，以支持按需加载内置 Pi 运行时；不要直接运行 `apps/server/dist`。
 
+直接部署远端统一镜像使用独立的 `docker-compose.yml` 和 `.env.docker.example`，包含应用和 PostgreSQL，无需本地构建，仅映射应用端口 4300。源码构建使用 `compose.yaml`，通过 `DATABASE_URL` 连接外部 PostgreSQL，不附带数据库服务。镜像版本、源码版本区别和启动步骤见[部署说明](docs/deployment.md)。
+
 目标电脑无需构建项目或预装 `connector`。在设备页复制安装连接命令，自动下载对应系统/架构的二进制并校验后配对；Docker 服务端镜像自带六种安装文件。其他电脑需使用可访问的平台 HTTPS 地址，详见[设备安装说明](docs/connector.md)。
 
 ## 已实现

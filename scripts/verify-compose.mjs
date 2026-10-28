@@ -15,6 +15,7 @@ const directory = await mkdtemp(resolve(cwd, '.data/compose-acceptance-'));
 const project = `platform-acceptance-${Date.now()}`;
 const origin = 'http://localhost:54330';
 const sandboxOrigin = 'http://localhost:54332';
+const databasePassword = randomBytes(24).toString('hex');
 const environment = {
   ...process.env,
   DOMAIN: 'http://localhost:80',
@@ -22,7 +23,8 @@ const environment = {
   PUBLIC_URL: origin,
   WEB_ORIGIN: origin,
   APPS_ORIGIN: sandboxOrigin,
-  POSTGRES_PASSWORD: randomBytes(24).toString('hex'),
+  DATABASE_URL: `postgresql://platform:${databasePassword}@db:5432/platform`,
+  POSTGRES_PASSWORD: databasePassword,
   BETTER_AUTH_SECRET: randomBytes(32).toString('hex'),
   ENCRYPTION_KEY: randomBytes(32).toString('base64'),
   PI_MCP_ADAPTER_OAUTH_FILE_KEY: randomBytes(32).toString('hex'),
@@ -35,13 +37,31 @@ const override = resolve(directory, 'compose.yaml');
 await writeFile(
   override,
   `services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: platform
+      POSTGRES_DB: platform
+      POSTGRES_PASSWORD: \${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U platform -d platform]
+      interval: 5s
+      timeout: 3s
+      retries: 12
   server:
     image: mcp-platform-server:latest
+    depends_on:
+      db:
+        condition: service_healthy
   web:
     image: mcp-platform-web:latest
     ports: !override
       - '127.0.0.1:54330:80'
       - '127.0.0.1:54332:4302'
+volumes:
+  postgres:
 `,
 );
 async function compose(args, timeout = 120_000) {
