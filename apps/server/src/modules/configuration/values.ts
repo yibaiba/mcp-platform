@@ -93,8 +93,18 @@ export function validateDeclaration(input: ManifestApply) {
     });
   }
   for (const profile of Object.values(input.declaration.profiles)) {
+    if (profile.discoveryMode === 'search' && !profile.embedding)
+      throw new AppError('EMBEDDING_CONFIG', '搜索模式需要 Embedding 配置');
+    if (
+      profile.pinnedTools.some(
+        (pin) =>
+          !profile.tools.some((ref) => pin.connection === ref.connection && pin.name === ref.name),
+      )
+    )
+      throw new AppError('DISCOVERY_PIN', '钉选工具必须在声明授权中');
     const refs = [
       ...profile.tools,
+      ...profile.pinnedTools,
       ...profile.content,
       ...profile.requestable.tools,
       ...profile.requestable.content,

@@ -47,7 +47,7 @@ const groups = requested.length
         '--exclude',
         'tests/interactions.test.ts',
         '--exclude',
-        'tests/openapi.test.ts',
+        'tests/openapi*.test.ts',
         '--exclude',
         'tests/sessionIsolation.test.ts',
         '--exclude',
@@ -97,6 +97,7 @@ const groups = requested.length
         'tests/activityLegacy.test.ts',
       ],
       ['tests/shares.test.ts'],
+      ['tests/market.test.ts', 'tests/discovery.test.ts', 'tests/rest.test.ts'],
       ['tests/sharesSurfaces.test.ts'],
       ['tests/sharesOAuth.test.ts'],
       ['tests/connectionBudget.test.ts'],
@@ -109,7 +110,12 @@ const groups = requested.length
       ['tests/catalogProjection.test.ts', 'tests/projection.test.ts'],
       ['tests/catalog.test.ts', 'tests/catalogAdapters.test.ts'],
       ['tests/apps.test.ts', 'tests/interactions.test.ts', 'tests/legacyInteractions.test.ts'],
-      ['tests/openapi.test.ts', 'tests/sessionIsolation.test.ts', 'tests/lifecycle.test.ts'],
+      [
+        'tests/openapi.test.ts',
+        'tests/openapiSchemas.test.ts',
+        'tests/sessionIsolation.test.ts',
+        'tests/lifecycle.test.ts',
+      ],
     ];
 for (const [index, args] of groups.entries()) {
   console.log(`Backend test group ${index + 1}/${groups.length}: ${args.join(' ')}`);

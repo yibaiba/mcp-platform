@@ -5,6 +5,7 @@ import type { ApiDocument } from './types.js';
 import { compileDocument } from './compile.js';
 import type { ArtifactService } from '../artifacts/artifactService.js';
 import { AppError } from '../../shared/errors.js';
+import { schemaDataMatcher } from './schemaData.js';
 const inputSchema = z
   .object({
     url: httpUrl.optional(),
@@ -17,6 +18,7 @@ const inputSchema = z
   .refine((v) => Boolean(v.url) !== Boolean(v.artifactId), '选择文档 URL 或产物 ID');
 export async function validateOpenApiDocument(document: Record<string, unknown>) {
   const source = 'https://platform-inline.invalid/openapi.json';
+  const excludedPathMatcher = schemaDataMatcher();
   try {
     return await new SwaggerParser().validate(source, {
       resolve: {
@@ -28,7 +30,8 @@ export async function validateOpenApiDocument(document: Record<string, unknown>)
           read: () => JSON.stringify(document),
         },
       },
-      dereference: { circular: false },
+      resolveExcludedPathMatcher: excludedPathMatcher,
+      dereference: { circular: false, excludedPathMatcher },
     });
   } catch (error) {
     throw new AppError(
@@ -70,6 +73,7 @@ export async function previewOpenApi(input: {
     ? await read(options.url)
     : await (await input.artifacts.download(input.ownerId, options.artifactId!)).text();
   const parser = new SwaggerParser();
+  const excludedPathMatcher = schemaDataMatcher();
   const document = await parser.validate(source, {
     resolve: {
       file: false,
@@ -80,7 +84,8 @@ export async function previewOpenApi(input: {
         read: (file) => (file.url === source ? text : read(file.url)),
       },
     },
-    dereference: { circular: false },
+    resolveExcludedPathMatcher: excludedPathMatcher,
+    dereference: { circular: false, excludedPathMatcher },
   });
   const api = document as unknown as ApiDocument;
   const operations = compileDocument(api);

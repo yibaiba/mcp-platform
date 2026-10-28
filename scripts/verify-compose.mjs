@@ -1,3 +1,4 @@
+import { verifyRestRestart } from './verify-rest-restart.mjs';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
@@ -187,6 +188,12 @@ try {
   const cookie = await verifyManagement();
   await verifyConnectorDownloads();
   await verifyDeviceChannel({ directory, origin, cookie, request });
+  await verifyRestRestart({
+    origin,
+    headers: { Cookie: cookie, Origin: origin, 'Content-Type': 'application/json' },
+    compose,
+    waitForHealth,
+  });
   await verifySandbox();
   await compose(['exec', '-T', 'server', 'node', 'scripts/check.mjs', '60', 'pnpm', 'test:pi']);
   console.log('PASS: fresh Compose migrations, repeat migration and actual no-model Pi bridge');

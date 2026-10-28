@@ -131,9 +131,7 @@ export class PiService {
     });
     try {
       const profile = await this.deps.profiles.owned(ownerId, input.profileId);
-      const catalog = (await this.deps.profiles.potentialCatalog(ownerId, input.profileId)).map(
-        (row) => row.definition,
-      );
+      const catalog = await this.deps.profiles.discovery.exposed(ownerId, input.profileId, true);
       const permissionTools = await availablePermissionTools(this.requests, {
         ownerId,
         profileId: input.profileId,
@@ -172,8 +170,7 @@ export class PiService {
           ...permissionTools.map((t) => t.name),
           ...content.tools.map((t) => t.name),
           ...artifacts.tools.map((t) => t.name),
-          ...(await this.deps.profiles.catalog(ownerId, input.profileId))
-            .map((row) => row.definition)
+          ...(await this.deps.profiles.discovery.exposed(ownerId, input.profileId))
             .filter((definition) => modelVisible({ definition }))
             .map((tool) => tool.name),
         ],
@@ -196,11 +193,20 @@ export class PiService {
               next: '授权审批不执行业务，请发起新的工具调用',
             });
           }
-          const toolId = await this.deps.profiles.resolveName(ownerId, {
+          const discovered = await this.deps.profiles.discovery.read(ownerId, {
             profileId: input.profileId,
             name,
+            arguments: args,
           });
-          return this.deps.invocations.call({ ...access, toolId, arguments: args, signal });
+          if (discovered !== undefined) return textResult(discovered);
+          if (content.handles(name)) return content.call(name, args, signal);
+          if (artifacts.handles(name)) return artifacts.call(name, args, signal);
+          const invocation = await this.deps.profiles.discovery.resolveCall(ownerId, {
+            profileId: input.profileId,
+            name,
+            arguments: args,
+          });
+          return this.deps.invocations.call({ ...access, ...invocation, signal });
         },
         onText: (text) => {
           output += text;

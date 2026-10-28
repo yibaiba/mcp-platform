@@ -1,3 +1,4 @@
+import type { DiscoveryService } from '../discovery/discoveryService.js';
 import type { AccessService } from '../permissions/accessService.js';
 import { describeTools } from './toolPresentation.js';
 import { describeSharedTools } from './sharedToolPresentation.js';
@@ -24,6 +25,7 @@ export type Principal = { ownerId: string; profileId: string; credentialId: stri
 import type { ConnectionService } from '../mcp/connectionService.js';
 export class ProfileService {
   access?: AccessService;
+  discovery!: DiscoveryService;
   constructor(
     private readonly db: Database,
     private readonly connections: ConnectionService,
@@ -43,6 +45,9 @@ export class ProfileService {
         ? {
             requestable: previous.requestable,
             catalog: previous.catalog,
+            discoveryMode: previous.discoveryMode,
+            pinnedTools: previous.pinnedTools,
+            embedding: previous.embedding,
             connectionIdentities: previous.connectionIdentities,
             ...(input as object),
           }
@@ -50,6 +55,12 @@ export class ProfileService {
     );
     if (previous && value.revision !== undefined && value.revision !== previous.revision)
       throw new AppError('REVISION_CONFLICT', '配置已改变，请重新加载', 409);
+    if (previous && !Object.hasOwn(input as object, 'pinnedTools'))
+      value.pinnedTools = value.pinnedTools.filter((id) => value.toolIds.includes(id));
+    if (value.pinnedTools.some((id) => !value.toolIds.includes(id)))
+      throw new AppError('DISCOVERY_PIN', '钉选工具必须包含在 Profile 的工具授权中');
+    if (value.discoveryMode === 'search' && !value.embedding)
+      throw new AppError('EMBEDDING_CONFIG', '搜索模式需要独立配置 Embedding 服务');
     await this.validateRequestable(ownerId, value);
     await validateCatalogOptions(
       { db: this.db, shares: this.shares, previous: previous?.catalog },
@@ -213,11 +224,17 @@ export class ProfileService {
     }
     throw new AppError('UNAUTHORIZED', 'Agent 凭证无效、已过期或已撤销', 401);
   }
-  private async scopedCatalog(ownerId: string, rows: (typeof tools.$inferSelect)[]) {
+  private async scopedCatalog(
+    ownerId: string,
+    rows: (typeof tools.$inferSelect)[],
+    cached = false,
+  ) {
     const snapshots = new Map(
       await Promise.all(
         [...new Set(rows.map((row) => row.connectionId))].map(async (id) => {
-          const snapshot = await this.connections.catalogForAccess(ownerId, id);
+          const snapshot = await (cached
+            ? this.connections.catalogForSearch(ownerId, id)
+            : this.connections.catalogForAccess(ownerId, id));
           return [id, snapshot] as const;
         }),
       ),
@@ -240,6 +257,7 @@ export class ProfileService {
   }
   async instructions(ownerId: string, profileId: string) {
     const profile = await this.owned(ownerId, profileId);
+    if (profile.discoveryMode === 'search') return profile.instructions;
     const catalog = await this.catalog(ownerId, profileId);
     const content = profile.contentIds.length
       ? await this.db
@@ -276,8 +294,16 @@ export class ProfileService {
     return projectTools(await this.presentedCatalog(ownerId, profileId, rows), profile.catalog);
   }
   async hasArtifactOutputs(ownerId: string, profileId: string) {
-    const catalog = await this.potentialCatalog(ownerId, profileId);
-    for (const id of new Set(catalog.map((row) => row.connectionId))) {
+    const profile = await this.owned(ownerId, profileId);
+    assertDeploymentReady(profile);
+    const ids = [...new Set([...profile.toolIds, ...profile.requestable.toolIds])];
+    if (!ids.length) return false;
+    // Inspect configured sources only: catalog discovery would wake sleeping search connections.
+    const rows = await this.db
+      .select({ connectionId: tools.connectionId })
+      .from(tools)
+      .where(and(await this.shares.resourceFilter(ownerId, 'toolIds'), inArray(tools.id, ids)));
+    for (const id of new Set(rows.map((row) => row.connectionId))) {
       const context = await this.connections?.context(ownerId, id);
       if (context?.config.source === 'openapi') return true;
     }
@@ -291,7 +317,13 @@ export class ProfileService {
     profileId: string | undefined,
     rows: (typeof tools.$inferSelect)[],
   ) {
-    const catalog = await this.scopedCatalog(ownerId, rows);
+    return this.describeCatalog(ownerId, profileId, await this.scopedCatalog(ownerId, rows));
+  }
+  private async describeCatalog(
+    ownerId: string,
+    profileId: string | undefined,
+    catalog: (typeof tools.$inferSelect)[],
+  ) {
     if (!profileId) return catalog;
     const [owned, shared] = await Promise.all([
       describeTools({
@@ -328,6 +360,22 @@ export class ProfileService {
         profileId,
         rows.filter((tool) => (effective ?? profile).toolIds.includes(tool.id)),
       ),
+      profile.catalog,
+    );
+  }
+  async searchCatalog(ownerId: string, profileId: string) {
+    const profile = await this.owned(ownerId, profileId);
+    assertDeploymentReady(profile);
+    const effective = await this.access?.effective({ ownerId, profileId });
+    const ids = (effective ?? profile).toolIds;
+    const rows = ids.length
+      ? await this.db
+          .select()
+          .from(tools)
+          .where(and(await this.shares.resourceFilter(ownerId, 'toolIds'), inArray(tools.id, ids)))
+      : [];
+    return projectTools(
+      await this.describeCatalog(ownerId, profileId, await this.scopedCatalog(ownerId, rows, true)),
       profile.catalog,
     );
   }

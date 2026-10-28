@@ -292,3 +292,34 @@ test('an unanswered challenge closes at the 30-second deadline', async () => {
     vi.useRealTimers();
   }
 });
+
+test('legacy connector errors at the deadline remain outcome unknown before the local timer runs', async () => {
+  const device = await paired();
+  const live = await peer();
+  live.send(authResponse(device, live.challenge, h.baseURL));
+  await live.next();
+  vi.useFakeTimers({ toFake: ['Date'] });
+  try {
+    for (const expired of [false, true]) {
+      const call = h.services.broker.request(device.deviceId, {
+        method: 'call',
+        params: {},
+        executionTimeoutMs: 60_000,
+      });
+      const assertion = expect(call).rejects.toMatchObject({
+        code: expired ? 'RESULT_UNKNOWN' : 'EXECUTION_FAILED',
+      });
+      const request = (await live.next()) as { id: string; deadline: string };
+      if (expired) vi.setSystemTime(Date.parse(request.deadline));
+      live.send({
+        v: 1,
+        type: 'result',
+        id: request.id,
+        error: { code: 'EXECUTION_FAILED', message: 'context deadline exceeded' },
+      });
+      await assertion;
+    }
+  } finally {
+    vi.useRealTimers();
+  }
+});

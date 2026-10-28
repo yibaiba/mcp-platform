@@ -101,6 +101,8 @@ export async function harness(
     config,
     signup,
     async close() {
+      await services.rest.close();
+      await services.discovery.close();
       await services.manifests.close();
       services.broker.close();
       sockets.close();

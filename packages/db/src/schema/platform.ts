@@ -83,6 +83,9 @@ export const tools = pgTable(
   ],
 );
 export const profiles = pgTable('profiles', {
+  discoveryMode: text('discovery_mode').$type<'direct' | 'search'>().notNull().default('direct'),
+  pinnedTools: jsonb('pinned_tools').$type<string[]>().notNull().default([]),
+  embedding: jsonb('embedding').$type<import('@platform/contracts').EmbeddingConfig>(),
   deploymentState: text('deployment_state')
     .$type<'pending' | 'ready' | 'error'>()
     .notNull()

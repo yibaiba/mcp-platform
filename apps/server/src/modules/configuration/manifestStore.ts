@@ -8,10 +8,18 @@ import {
   type Database,
   type ManifestEntryState,
 } from '@platform/db';
-import type { ManifestApply } from '@platform/contracts';
+import { configManifest, manifestMappings, type ManifestApply } from '@platform/contracts';
 import { AppError, requireValue } from '../../shared/errors.js';
 import { fingerprint } from './values.js';
 export type StoredManifest = typeof configManifests.$inferSelect;
+// Stored declarations may predate optional fields added to the same manifest version.
+function normalizeStored(row: StoredManifest): StoredManifest {
+  return {
+    ...row,
+    declaration: configManifest.parse(row.declaration),
+    mappings: manifestMappings.parse(row.mappings),
+  };
+}
 export const entryKey = (entry: Pick<ManifestEntryState, 'kind' | 'name'>) =>
   `${entry.kind}:${entry.name}`;
 export function declaredEntries(input: ManifestApply): ManifestEntryState[] {
@@ -27,15 +35,19 @@ export function declaredEntries(input: ManifestApply): ManifestEntryState[] {
 }
 export class ManifestStore {
   constructor(readonly db: Database) {}
-  list(ownerId: string) {
-    return this.db.select().from(configManifests).where(eq(configManifests.ownerId, ownerId));
+  async list(ownerId: string) {
+    const rows = await this.db
+      .select()
+      .from(configManifests)
+      .where(eq(configManifests.ownerId, ownerId));
+    return rows.map(normalizeStored);
   }
   async find(ownerId: string, name: string) {
     const [row] = await this.db
       .select()
       .from(configManifests)
       .where(and(eq(configManifests.ownerId, ownerId), eq(configManifests.name, name)));
-    return row;
+    return row ? normalizeStored(row) : undefined;
   }
   async conflicts(ownerId: string, entries: readonly ManifestEntryState[]) {
     const conflicts: string[] = [];
@@ -172,6 +184,6 @@ export class ManifestStore {
       .returning();
     if (!saved.length)
       throw new AppError('REVISION_CONFLICT', 'Manifest 版本已改变，旧解析已终止', 409);
-    return requireValue(saved[0]);
+    return normalizeStored(requireValue(saved[0]));
   }
 }

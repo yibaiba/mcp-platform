@@ -115,6 +115,12 @@ export class ConfigExportService {
         ...(await capability(row)),
         name: row.name,
         instructions: row.instructions,
+        discoveryMode: row.discoveryMode,
+        embedding: row.embedding,
+        pinnedTools: row.pinnedTools.map((id) => {
+          const ref = toolRef(id);
+          return { connection: ref.connection, name: ref.name };
+        }),
         skills: await this.skillRefs(ownerId, row.skillVersionIds),
         requestable: await capability(row.requestable),
         toolNaming: row.catalog.toolNaming,
@@ -170,7 +176,9 @@ export class ConfigExportService {
     });
     return {
       ...config,
-      args: config.args,
+      args: config.args.map((value, index) =>
+        config.sensitiveArguments?.includes(index) ? secret(`args.${index}`) : value,
+      ),
       ...(config.url && new URL(config.url).search ? { url: secret('url') } : {}),
       ...(config.cwd ? { cwd: { directoryRef: `cwd-${name}` } } : {}),
       env: Object.fromEntries(Object.keys(config.env).map((key) => [key, secret(`env.${key}`)])),

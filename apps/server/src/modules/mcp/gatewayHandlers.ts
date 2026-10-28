@@ -1,4 +1,3 @@
-import { scopeToolDefinition } from './catalogEntries.js';
 import type { DiagnosticLogger } from '../activity/systemLogger.js';
 import { z } from 'zod';
 import { artifactToolset, isArtifactTool } from '../artifacts/artifactTools.js';
@@ -21,7 +20,7 @@ import type { InvocationService } from './invocationService.js';
 import type { ContentService } from './contentService.js';
 import type { ResourceSubscriptions } from './resourceSubscriptions.js';
 import { currentExecution, withExecution } from './executionContext.js';
-import { legacyToolDefinition, parseTool, isInputRequiredResult } from '@platform/mcp';
+import { legacyToolDefinition, isInputRequiredResult } from '@platform/mcp';
 
 export type GatewayHandlers = {
   webOrigin: string;
@@ -78,18 +77,18 @@ export async function createGatewayServer(
   }
   setHandler('tools/list', async () => {
     await input.profiles.authenticate(principal.profileId, principal.token);
-    const rows = await input.profiles.describedCatalog(principal.ownerId, principal.profileId);
+    const definitions = await input.profiles.discovery.exposed(
+      principal.ownerId,
+      principal.profileId,
+    );
     const artifacts = await artifactToolset(input, access());
     return {
       tools: [
         ...(await availablePermissionTools(input.requests, access())),
         ...artifacts.tools,
-        ...rows.map((row) => {
-          const definition = {
-            ...parseTool(scopeToolDefinition(row.connectionId, row.definition)),
-          };
-          return input.era === 'legacy' ? legacyToolDefinition(definition) : definition;
-        }),
+        ...definitions.map((definition) =>
+          input.era === 'legacy' ? legacyToolDefinition(definition) : definition,
+        ),
       ],
     };
   });
@@ -131,10 +130,19 @@ export async function createGatewayServer(
           },
         ],
       };
-    const toolId = await input.profiles.resolveName(principal.ownerId, {
+    const discovered = await input.profiles.discovery.read(principal.ownerId, {
       profileId: principal.profileId,
       name,
+      arguments: request.params.arguments ?? {},
     });
+    if (discovered !== undefined)
+      return { content: [{ type: 'text', text: JSON.stringify(discovered) }] };
+    const invocation = await input.profiles.discovery.resolveCall(principal.ownerId, {
+      profileId: principal.profileId,
+      name,
+      arguments: request.params.arguments ?? {},
+    });
+    const toolId = invocation.toolId;
     const state = context.mcpReq.requestState();
     if (typeof state === 'string')
       return input.interactions.respond({
@@ -150,7 +158,7 @@ export async function createGatewayServer(
     let result = await input.invocations.dispatch({
       ...access(),
       toolId,
-      arguments: request.params.arguments ?? {},
+      arguments: invocation.arguments,
       ...(input.era === 'legacy'
         ? { signal: context.mcpReq.signal }
         : { requestSignal: context.mcpReq.signal }),

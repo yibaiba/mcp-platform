@@ -1,3 +1,4 @@
+import { DiscoveryEditor } from './DiscoveryEditor.js';
 import { CatalogEditor } from './CatalogEditor.js';
 import { WorkspacePage } from './WorkspacePage.js';
 import { Card } from '../../components/ui/card.js';
@@ -57,6 +58,7 @@ export default function ProfilesPage() {
   });
   const { workspace } = useSearch({ from: '/profiles' });
   const navigate = useNavigate({ from: '/profiles' });
+  const [discoveryEditing, setDiscoveryEditing] = useState<Profile>();
   const [catalogEditing, setCatalogEditing] = useState<Profile>();
   const [editing, setEditing] = useState<Profile>();
   const [key, setKey] = useState<unknown>();
@@ -89,6 +91,14 @@ export default function ProfilesPage() {
         <strong className="text-foreground">在这里把工具交给 Agent：</strong>{' '}
         填写名称、勾选工具并保存，然后在“已创建配置”中生成接入密钥。首次生成后，点击“复制完整客户端配置”即可带上密钥，无需手动拼接。
       </div>
+      {discoveryEditing ? (
+        <DiscoveryEditor
+          key={discoveryEditing.id}
+          profile={discoveryEditing}
+          tools={tools.data ?? []}
+          close={() => setDiscoveryEditing(undefined)}
+        />
+      ) : null}
       {catalogEditing ? (
         <CatalogEditor
           key={catalogEditing.id}
@@ -227,6 +237,7 @@ export default function ProfilesPage() {
                     编辑权限
                   </Button>
                   <Button onClick={() => setCatalogEditing(profile)}>目录展示</Button>
+                  <Button onClick={() => setDiscoveryEditing(profile)}>智能发现</Button>
                   <ClientExport profileId={profile.id} />
                   <Action
                     action={async () =>
