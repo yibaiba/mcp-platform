@@ -27,6 +27,7 @@ const navigation = [
   ['/devices', '设备', Monitor],
   ['/tools', '工具目录', Wrench],
   ['/profiles', 'Agent 配置', KeyRound],
+  ['/configuration', '配置模板', BookOpen],
   ['/authorizations', '授权连接', ShieldCheck],
   ['/skills', 'Skills', BookOpen],
   ['/artifacts', '产物', FolderOpen],

@@ -17,6 +17,7 @@ import { Route as SkillsRouteImport } from './routes/skills'
 import { Route as ProfilesRouteImport } from './routes/profiles'
 import { Route as DevicesRouteImport } from './routes/devices'
 import { Route as ConnectionsRouteImport } from './routes/connections'
+import { Route as ConfigurationRouteImport } from './routes/configuration'
 import { Route as AuthorizeRouteImport } from './routes/authorize'
 import { Route as AuthorizationsRouteImport } from './routes/authorizations'
 import { Route as ArtifactsRouteImport } from './routes/artifacts'
@@ -64,6 +65,11 @@ const ConnectionsRoute = ConnectionsRouteImport.update({
   path: '/connections',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConfigurationRoute = ConfigurationRouteImport.update({
+  id: '/configuration',
+  path: '/configuration',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthorizeRoute = AuthorizeRouteImport.update({
   id: '/authorize',
   path: '/authorize',
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/artifacts': typeof ArtifactsRoute
   '/authorizations': typeof AuthorizationsRoute
   '/authorize': typeof AuthorizeRoute
+  '/configuration': typeof ConfigurationRoute
   '/connections': typeof ConnectionsRoute
   '/devices': typeof DevicesRoute
   '/profiles': typeof ProfilesRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   '/artifacts': typeof ArtifactsRoute
   '/authorizations': typeof AuthorizationsRoute
   '/authorize': typeof AuthorizeRoute
+  '/configuration': typeof ConfigurationRoute
   '/connections': typeof ConnectionsRoute
   '/devices': typeof DevicesRoute
   '/profiles': typeof ProfilesRoute
@@ -135,6 +143,7 @@ export interface FileRoutesById {
   '/artifacts': typeof ArtifactsRoute
   '/authorizations': typeof AuthorizationsRoute
   '/authorize': typeof AuthorizeRoute
+  '/configuration': typeof ConfigurationRoute
   '/connections': typeof ConnectionsRoute
   '/devices': typeof DevicesRoute
   '/profiles': typeof ProfilesRoute
@@ -153,6 +162,7 @@ export interface FileRouteTypes {
     | '/artifacts'
     | '/authorizations'
     | '/authorize'
+    | '/configuration'
     | '/connections'
     | '/devices'
     | '/profiles'
@@ -169,6 +179,7 @@ export interface FileRouteTypes {
     | '/artifacts'
     | '/authorizations'
     | '/authorize'
+    | '/configuration'
     | '/connections'
     | '/devices'
     | '/profiles'
@@ -185,6 +196,7 @@ export interface FileRouteTypes {
     | '/artifacts'
     | '/authorizations'
     | '/authorize'
+    | '/configuration'
     | '/connections'
     | '/devices'
     | '/profiles'
@@ -202,6 +214,7 @@ export interface RootRouteChildren {
   ArtifactsRoute: typeof ArtifactsRoute
   AuthorizationsRoute: typeof AuthorizationsRoute
   AuthorizeRoute: typeof AuthorizeRoute
+  ConfigurationRoute: typeof ConfigurationRoute
   ConnectionsRoute: typeof ConnectionsRoute
   DevicesRoute: typeof DevicesRoute
   ProfilesRoute: typeof ProfilesRoute
@@ -270,6 +283,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConnectionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/configuration': {
+      id: '/configuration'
+      path: '/configuration'
+      fullPath: '/configuration'
+      preLoaderRoute: typeof ConfigurationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/authorize': {
       id: '/authorize'
       path: '/authorize'
@@ -322,6 +342,7 @@ const rootRouteChildren: RootRouteChildren = {
   ArtifactsRoute: ArtifactsRoute,
   AuthorizationsRoute: AuthorizationsRoute,
   AuthorizeRoute: AuthorizeRoute,
+  ConfigurationRoute: ConfigurationRoute,
   ConnectionsRoute: ConnectionsRoute,
   DevicesRoute: DevicesRoute,
   ProfilesRoute: ProfilesRoute,

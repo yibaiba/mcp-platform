@@ -1,8 +1,16 @@
 import { config as loadEnv } from 'dotenv';
 import { serve } from '@hono/node-server';
 import { createAuth } from '@platform/auth';
-import { calls, connections, connectionShares, createDatabase, transfers } from '@platform/db';
-import { eq, inArray } from 'drizzle-orm';
+import {
+  calls,
+  connections,
+  connectionShares,
+  createDatabase,
+  transfers,
+  configManifests,
+  user,
+} from '@platform/db';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { Server } from 'node:http';
 import { resolve } from 'node:path';
 import { envSchema, platformRoot } from './config.js';
@@ -10,6 +18,9 @@ import { createServices } from './services.js';
 import { createApp } from './app.js';
 import { attachDeviceSocket } from './deviceSocket.js';
 import { mountWeb } from './web.js';
+import { readFile } from 'node:fs/promises';
+import { applyStartupManifest } from './modules/configuration/startup.js';
+import { startManifestReconciliation } from './modules/configuration/lifecycle.js';
 import { startRetention } from './modules/activity/retention.js';
 loadEnv({ path: resolve(platformRoot, '.env') });
 const parsedConfig = envSchema.parse(process.env);
@@ -49,6 +60,31 @@ await db
 await services.pi.recover();
 await services.requests.recover();
 await services.interactions.recover();
+await applyStartupManifest({
+  file: config.CONFIG_MANIFEST_FILE,
+  ownerEmail: config.CONFIG_MANIFEST_OWNER,
+  read: (path) => readFile(resolve(platformRoot, path), 'utf8'),
+  owner: async (email) =>
+    (
+      await db
+        .select({ id: user.id })
+        .from(user)
+        .where(and(eq(user.email, email.toLowerCase()), eq(user.enabled, true)))
+    )[0]?.id,
+  manifests: services.manifests,
+});
+const stopManifests = startManifestReconciliation({
+  manifests: services.manifests,
+  logger: services.logger,
+  owners: async () =>
+    (
+      await db
+        .selectDistinct({ ownerId: configManifests.ownerId })
+        .from(configManifests)
+        .innerJoin(user, eq(user.id, configManifests.ownerId))
+        .where(eq(user.enabled, true))
+    ).map((row) => row.ownerId),
+});
 const app = createApp({ db, auth, config, services });
 if (process.env.NODE_ENV === 'production')
   await mountWeb(app, resolve(platformRoot, 'apps/web/dist'));
@@ -60,6 +96,7 @@ console.log(
 );
 async function shutdown() {
   await stopRetention();
+  await stopManifests();
   server.close();
   services.broker.close();
   sockets.close();

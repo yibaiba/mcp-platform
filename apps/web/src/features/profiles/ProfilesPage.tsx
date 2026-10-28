@@ -1,3 +1,4 @@
+import { CatalogEditor } from './CatalogEditor.js';
 import { WorkspacePage } from './WorkspacePage.js';
 import { Card } from '../../components/ui/card.js';
 import { CheckChoice } from '../../components/shared/CheckChoice.js';
@@ -56,6 +57,7 @@ export default function ProfilesPage() {
   });
   const { workspace } = useSearch({ from: '/profiles' });
   const navigate = useNavigate({ from: '/profiles' });
+  const [catalogEditing, setCatalogEditing] = useState<Profile>();
   const [editing, setEditing] = useState<Profile>();
   const [key, setKey] = useState<unknown>();
   const connectionNames = new Map(
@@ -87,6 +89,16 @@ export default function ProfilesPage() {
         <strong className="text-foreground">在这里把工具交给 Agent：</strong>{' '}
         填写名称、勾选工具并保存，然后在“已创建配置”中生成接入密钥。首次生成后，点击“复制完整客户端配置”即可带上密钥，无需手动拼接。
       </div>
+      {catalogEditing ? (
+        <CatalogEditor
+          key={catalogEditing.id}
+          profile={catalogEditing}
+          tools={tools.data ?? []}
+          entries={catalog.data ?? []}
+          connections={connections.data ?? []}
+          close={() => setCatalogEditing(undefined)}
+        />
+      ) : null}
       <div className="overview-grid">
         <Card id="create-profile" className="panel padded scroll-mt-6">
           <h2>{editing ? `编辑：${editing.name}` : '创建配置'}</h2>
@@ -191,6 +203,9 @@ export default function ProfilesPage() {
             profiles.data.map((profile) => (
               <div className="connection-row" key={profile.id}>
                 <h3>{profile.name}</h3>
+                {profile.deploymentState !== 'ready' ? (
+                  <p>配置模板尚未就绪；请到配置模板页面检查待配置条目。</p>
+                ) : null}
                 <small>
                   {profile.toolIds.length} 个工具 · {profile.skillVersionIds.length} 个 Skills
                 </small>
@@ -211,6 +226,7 @@ export default function ProfilesPage() {
                   >
                     编辑权限
                   </Button>
+                  <Button onClick={() => setCatalogEditing(profile)}>目录展示</Button>
                   <ClientExport profileId={profile.id} />
                   <Action
                     action={async () =>

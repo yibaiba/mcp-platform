@@ -37,6 +37,11 @@ export class ConnectionService {
   private readonly catalogs: CatalogRepository;
   readonly bindings: BindingService;
   private readonly runtime: ConnectionRuntime;
+  private readonly catalogListeners = new Set<(ownerId: string) => void>();
+  watchCatalog(listener: (ownerId: string) => void) {
+    this.catalogListeners.add(listener);
+    return () => this.catalogListeners.delete(listener);
+  }
   private readonly listeners = new Set<(event: ConnectionEvent) => Promise<void>>();
   private readonly closingListeners = new Set<(context: ConnectionContext) => Promise<void>>();
   private readonly waking = new Map<
@@ -192,6 +197,21 @@ export class ConnectionService {
   async create(ownerId: string, input: unknown) {
     return requireValue((await this.createMany(ownerId, [input]))[0]);
   }
+  async createIdentified(ownerId: string, input: { id: string; config: unknown }) {
+    const config = await this.validate(ownerId, input.config);
+    await this.deps.db
+      .insert(connections)
+      .values({
+        id: input.id,
+        ownerId,
+        name: config.name,
+        adapter: config.adapter,
+        deviceId: config.deviceId,
+        config: this.deps.vault.seal(config, `${ownerId}:${input.id}`),
+      })
+      .onConflictDoNothing();
+    return this.owned(ownerId, input.id);
+  }
   async createMany(ownerId: string, inputs: unknown[]) {
     const configs = await Promise.all(inputs.map((input) => this.validate(ownerId, input)));
     if (!configs.length) return [];
@@ -328,6 +348,7 @@ export class ConnectionService {
       const saved = await this.runtime.write(slot, () => this.catalogs.save(context, catalog));
       if (!saved)
         throw new AppError('CONNECTION_SUPERSEDED', '连接已停止或被替换，旧发现结果未保存', 409);
+      for (const listener of this.catalogListeners) listener(ownerId);
       return discovered.map((tool) => ({ ...tool, id: toolId(id, tool.name) }));
     } catch (error) {
       if (signal?.aborted)
@@ -364,6 +385,21 @@ export class ConnectionService {
   }
   async snapshot(ownerId: string, id: string) {
     return this.bindings.snapshot(await this.context(ownerId, id));
+  }
+  async catalogForSearch(ownerId: string, id: string) {
+    const context = await this.context(ownerId, id);
+    const snapshot = await this.bindings.snapshot(context);
+    if (snapshot) return snapshot;
+    const active = this.runtime.keysForOwner(ownerId).filter((key) => key.startsWith(`${id}:`));
+    const statuses = await Promise.all(active.map((key) => this.runtime.status(key)));
+    if (!statuses.includes('connected'))
+      throw new AppError(
+        'SEARCH_CATALOG_PENDING',
+        '当前身份尚无目录缓存；请先连接并完成授权，搜索不会唤醒连接',
+        409,
+      );
+    await this.discoverContext(context);
+    return this.bindings.snapshot(context);
   }
   async catalogForAccess(ownerId: string, id: string) {
     const context = await this.context(ownerId, id);

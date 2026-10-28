@@ -2,10 +2,10 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { connections, devices, type Database, type profiles, type tools } from '@platform/db';
 import { requireValue } from '../../shared/errors.js';
 
-export async function describeTools(input: {
+export async function describeTools<T extends typeof tools.$inferSelect>(input: {
   db: Database;
   profile: typeof profiles.$inferSelect;
-  catalog: (typeof tools.$inferSelect)[];
+  catalog: T[];
 }) {
   if (!input.catalog.length) return [];
   const rows = await input.db

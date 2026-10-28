@@ -1,3 +1,9 @@
+import { ConfigExportService } from './modules/configuration/exportService.js';
+import { ManifestService } from './modules/configuration/manifestService.js';
+import { ConfigSecrets } from './modules/configuration/secretService.js';
+import { DeploymentPending } from './modules/configuration/values.js';
+import { stat } from 'node:fs/promises';
+import { isAbsolute } from 'node:path';
 import { RequestService } from './modules/permissions/requestService.js';
 import { requestCatalog } from './modules/permissions/requestCatalog.js';
 import { HandoffService } from './modules/handoffs/handoffService.js';
@@ -11,7 +17,7 @@ import { InteractionService } from './modules/interactions/interactionService.js
 import { AppSessionService } from './modules/apps/appSessionService.js';
 import { resolve } from 'node:path';
 import type { Database } from '@platform/db';
-import { connectionShares } from '@platform/db';
+import { connectionShares, devices as deviceRows } from '@platform/db';
 import { eq } from 'drizzle-orm';
 import type { Config } from './config.js';
 import { Vault } from './shared/crypto.js';
@@ -62,7 +68,19 @@ export function createServices(db: Database, config: Config) {
     },
   });
   const events = new RuntimeEvents();
-  const broker = new DeviceBroker((id, message) => reportDevice(db, id, message), logger);
+  const broker = new DeviceBroker(async (id, message) => {
+    await reportDevice(db, id, message);
+    if (message.type === 'hello') {
+      const [device] = await db
+        .select({ ownerId: deviceRows.ownerId })
+        .from(deviceRows)
+        .where(eq(deviceRows.id, id));
+      if (device)
+        void manifests
+          .deviceReady(device.ownerId, id)
+          .catch(() => logger.report('MANIFEST_DEVICE_READY_FAILED', device.ownerId));
+    }
+  }, logger);
   const devices = new DeviceService({
     db,
     broker,
@@ -196,7 +214,39 @@ export function createServices(db: Database, config: Config) {
     publicUrl: config.PUBLIC_URL,
     start: (ownerId, input, id) => pi.start(ownerId, input, id),
   });
+  const secrets = new ConfigSecrets({
+    db,
+    vault,
+    changed: (ownerId) => manifests.refresh(ownerId).then(() => undefined),
+  });
+  const manifests: ManifestService = new ManifestService({
+    db,
+    connections,
+    profiles,
+    shares,
+    secrets,
+    logger,
+    directory: async (path) => {
+      if (!isAbsolute(path)) throw new DeploymentPending('目录映射必须使用执行位置的绝对路径');
+      try {
+        if ((await stat(path)).isDirectory()) return;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      }
+      throw new DeploymentPending('映射目录不存在或不是目录');
+    },
+    changed: async (id) => {
+      await access.changed();
+      await connections.closeProfile(id);
+      await gateway.profileChanged(id);
+      await pi.revokeProfile(id);
+    },
+  });
+  connections.watchCatalog((ownerId) => manifests.schedule(ownerId));
   return {
+    manifests,
+    secrets,
+    configExport: new ConfigExportService({ db, vault }),
     shares,
     activity: new ActivityService({ db, vault }),
     logs: new LogService({ db, vault }),

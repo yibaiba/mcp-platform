@@ -83,6 +83,14 @@ export const tools = pgTable(
   ],
 );
 export const profiles = pgTable('profiles', {
+  deploymentState: text('deployment_state')
+    .$type<'pending' | 'ready' | 'error'>()
+    .notNull()
+    .default('ready'),
+  catalog: jsonb('catalog')
+    .$type<import('@platform/contracts').CatalogOptions>()
+    .notNull()
+    .default({ toolNaming: 'stable', connectionAliases: {}, tools: {}, content: {} }),
   id: uuid('id').primaryKey().defaultRandom(),
   ownerId: owner(),
   name: text('name').notNull(),

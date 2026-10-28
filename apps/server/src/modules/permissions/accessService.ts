@@ -1,3 +1,4 @@
+import { assertDeploymentReady } from '../configuration/readiness.js';
 import type { DiagnosticLogger } from '../activity/systemLogger.js';
 import { and, eq, gt, isNull, or } from 'drizzle-orm';
 import {
@@ -46,6 +47,7 @@ export class AccessService {
       .from(profiles)
       .where(and(eq(profiles.id, access.profileId!), eq(profiles.ownerId, access.ownerId)));
     const current = requireValue(profile);
+    assertDeploymentReady(current);
     return current;
   }
   async assertSubject(access: Access) {
