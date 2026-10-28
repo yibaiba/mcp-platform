@@ -11,7 +11,7 @@ export type ExecutionContext = {
   readonly taskId?: string;
   readonly appId?: string;
   readonly signal?: AbortSignal;
-  readonly entry: 'gateway' | 'dashboard' | 'pi';
+  readonly entry: 'gateway' | 'dashboard' | 'pi' | 'rest';
   readonly sessionId: string;
   readonly capabilities: Record<string, unknown>;
   readonly headers?: Readonly<Record<string, string>>;

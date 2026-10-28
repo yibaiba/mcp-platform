@@ -155,6 +155,9 @@ export class ManifestReconciler {
       declaration: {
         name: entry.name,
         instructions: '',
+        discoveryMode: 'direct',
+        embedding: null,
+        pinnedTools: [],
         tools: value.tools.map((name) => ({
           connection: value.connection,
           name,

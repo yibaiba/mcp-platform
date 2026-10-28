@@ -60,6 +60,7 @@ await db
 await services.pi.recover();
 await services.requests.recover();
 await services.interactions.recover();
+await services.rest.recover();
 await applyStartupManifest({
   file: config.CONFIG_MANIFEST_FILE,
   ownerEmail: config.CONFIG_MANIFEST_OWNER,
@@ -102,8 +103,10 @@ async function shutdown() {
   sockets.close();
   await services.gateway.close();
   await services.connections.shutdown();
+  await services.rest.close();
   await services.pi.close();
   await services.logger.write({ level: 'info', event: 'server_stopped' });
+  await services.discovery.close();
   await services.logger.drain();
   await pool.end();
 }

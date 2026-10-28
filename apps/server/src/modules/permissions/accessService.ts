@@ -72,7 +72,7 @@ export class AccessService {
         throw new AppError('TASK_ENDED', '任务已结束或中断', 403);
     }
     const credentialId = context?.credentialId;
-    if (!credentialId || context?.entry !== 'gateway') return;
+    if (!credentialId || !['gateway', 'rest'].includes(context?.entry ?? '')) return;
     const now = new Date();
     const [key] = await this.deps.db
       .select()

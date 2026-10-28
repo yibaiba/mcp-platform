@@ -1,3 +1,4 @@
+import { embeddingConfig } from './discovery.js';
 export * from './deviceAuth.js';
 import { z } from 'zod';
 import { catalogOptions } from './catalogOptions.js';
@@ -29,6 +30,18 @@ export const httpUrl = z
   );
 export const connectionInput = z
   .object({
+    registry: z
+      .object({
+        provider: z.literal('official-registry'),
+        serverName: z.string().min(1),
+        version: z.string().min(1),
+        distribution: z.enum(['package', 'remote']),
+        index: z.number().int().nonnegative(),
+        identifier: z.string().optional(),
+        packageVersion: z.string().optional(),
+      })
+      .strict()
+      .optional(),
     name: z.string().trim().min(1),
     connectTimeoutMs: z.number().int().positive().default(CALL_TIMEOUT_MS),
     requestOptions: requestOptions.default({
@@ -70,6 +83,7 @@ export const connectionInput = z
     url: httpUrl.optional(),
     command: z.string().min(1).optional(),
     args: z.array(z.string()).default([]),
+    sensitiveArguments: z.array(z.number().int().nonnegative()).default([]),
     env: z.record(z.string(), z.string()).default({}),
     headers: z.record(z.string(), z.string()).default({}),
     cwd: z.string().optional(),
@@ -162,6 +176,9 @@ export const permissionSet = z
 export type PermissionSet = z.infer<typeof permissionSet>;
 export const profileInput = z
   .object({
+    discoveryMode: z.enum(['direct', 'search']).default('direct'),
+    pinnedTools: z.array(z.string()).default([]),
+    embedding: embeddingConfig.nullable().default(null),
     catalog: catalogOptions.default(() => catalogOptions.parse({})),
     name: z.string().trim().min(1),
     instructions: z.string().default(''),
@@ -261,3 +278,7 @@ export { connectorTargets } from './connectorDistribution.js';
 export { catalogOptions, type CatalogOptions } from './catalogOptions.js';
 
 export * from './manifest.js';
+
+export * from './registry.js';
+
+export * from './discovery.js';

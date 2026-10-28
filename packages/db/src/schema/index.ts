@@ -5,3 +5,6 @@ export * from './observability.js';
 export * from './sharing.js';
 
 export * from './manifests.js';
+
+export * from './discovery.js';
+export * from './rest.js';

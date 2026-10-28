@@ -64,6 +64,13 @@
       "when": 1793200823267,
       "tag": "0008_steady_marten_broadcloak",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793202335666,
+      "tag": "0009_serious_eternals",
+      "breakpoints": true
     }
   ]
 }

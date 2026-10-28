@@ -17,6 +17,7 @@ export async function resolveProfile(input: {
   const required = new Set(
     [
       ...value.tools,
+      ...value.pinnedTools,
       ...value.content,
       ...value.requestable.tools,
       ...value.requestable.content,
@@ -81,6 +82,9 @@ export async function resolveProfile(input: {
   return {
     name: value.name,
     instructions: value.instructions,
+    discoveryMode: value.discoveryMode,
+    embedding: value.embedding,
+    pinnedTools: value.pinnedTools.map((ref) => toolId(sources.get(ref.connection)!.id, ref.name)),
     toolIds: tools(value.tools),
     contentIds: content(value.content),
     artifactIds: value.artifacts.map((name) => external(input.mappings, 'artifacts', name)),

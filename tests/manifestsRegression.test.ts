@@ -1,3 +1,5 @@
+import { eq } from 'drizzle-orm';
+import { configManifests } from '../packages/db/src/index.js';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { harness } from './harness.js';
 import { fixtureMcp } from './fixtureMcp.js';
@@ -61,19 +63,17 @@ test.each([false, true])(
       alias: 'safe_echo',
       hiddenParameters: ['delay'],
     });
-    const invoke = (args: Record<string, unknown>) =>
-      h.services.invocations.call({
-        ownerId: owner.ownerId,
-        profileId,
-        toolId,
-        arguments: args,
+    const key = await h.services.profiles.issue(owner.ownerId, profileId);
+    const invoke = (args: unknown) =>
+      h.app.request(`/mcp/${profileId}/rest/tools/${toolId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(args),
       });
     const before = upstream.count();
-    await expect(invoke({ message: 'denied', delay: 0 })).rejects.toMatchObject({
-      code: 'HIDDEN_PARAMETER',
-    });
+    expect((await invoke({ message: 'denied', delay: 0 })).status).toBe(400);
     expect(upstream.count()).toBe(before);
-    await expect(invoke({ message: 'allowed' })).resolves.toBeDefined();
+    expect((await invoke({ message: 'allowed' })).status).toBe(200);
     expect(upstream.count()).toBe(before + 1);
   },
 );
@@ -136,4 +136,33 @@ test('pending exports fail explicitly and never substitute old permissions or om
   await expect(h.services.configExport.export(missing.ownerId, 'copy')).rejects.toMatchObject({
     code: 'DEPLOYMENT_PENDING',
   });
+});
+
+test('stored version-one manifests acquire discovery defaults without a second apply', async () => {
+  const { ownerId } = await h.signup();
+  const applied = await h.services.manifests.apply(ownerId, { declaration: declaration() });
+  const stored = structuredClone(applied.declaration);
+  for (const profile of Object.values(stored.profiles)) {
+    Reflect.deleteProperty(profile, 'discoveryMode');
+    Reflect.deleteProperty(profile, 'pinnedTools');
+    Reflect.deleteProperty(profile, 'embedding');
+  }
+  await h.db
+    .update(configManifests)
+    .set({ declaration: stored })
+    .where(eq(configManifests.id, applied.id));
+  await h.services.manifests.refresh(ownerId);
+  const ready = await h.services.manifests.status(ownerId, applied.name);
+  expect(ready.status).toBe('ready');
+  expect(ready.revision).toBe(applied.revision);
+  expect(ready.entries.map((entry) => entry.objectId)).toEqual(
+    applied.entries.map((entry) => entry.objectId),
+  );
+  expect(ready.declaration.profiles.agent).toMatchObject({
+    discoveryMode: 'direct',
+    pinnedTools: [],
+  });
+  expect((await h.services.manifests.apply(ownerId, { declaration: declaration() })).revision).toBe(
+    applied.revision,
+  );
 });

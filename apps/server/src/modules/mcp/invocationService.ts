@@ -20,6 +20,7 @@ import { assertVisibleArguments } from '../catalog/projection.js';
 import { scopeResult } from './catalogEntries.js';
 import type { RuntimeEvents } from '../../shared/runtimeEvents.js';
 type CallInput = {
+  callId?: string;
   ownerId: string;
   profileId?: string;
   principal?: Principal;
@@ -85,7 +86,7 @@ export class InvocationService {
     const connection = await this.deps.connections.accessible(input.ownerId, tool.connectionId);
     if (connection.status === 'stopped')
       throw new AppError('CONNECTION_STOPPED', '连接已停止，请先启动', 409);
-    const id = randomUUID();
+    const id = input.callId ?? randomUUID();
     const abort = new AbortController();
     const deadline = input.interactionDeadline ? Date.parse(input.interactionDeadline) : undefined;
     if (deadline !== undefined && (!Number.isFinite(deadline) || deadline <= Date.now()))
@@ -235,6 +236,7 @@ export class InvocationService {
             value: result.structuredContent,
           });
         await this.finish(id, result.isError ? 'tool_error' : 'succeeded');
+        if (execution?.entry === 'rest') return scopeResult(connection.id, result);
         return this.deps.onResult({
           ownerId: input.ownerId,
           connectionId: connection.id,

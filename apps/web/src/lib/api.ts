@@ -95,6 +95,9 @@ export type ContentEntry = {
   };
 };
 export type Profile = {
+  discoveryMode: 'direct' | 'search';
+  pinnedTools: string[];
+  embedding: import('@platform/contracts').EmbeddingConfig | null;
   deploymentState: string;
   catalog: import('@platform/contracts').CatalogOptions;
   revision: number;

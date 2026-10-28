@@ -1,3 +1,5 @@
+import { artifactToolset } from '../artifacts/artifactTools.js';
+import { availablePermissionTools } from '../permissions/tools.js';
 import type { Services } from '../../services.js';
 import { z } from 'zod';
 import { clientPresets, exportClient } from './clientExport.js';
@@ -9,6 +11,7 @@ import type { Gateway } from '../mcp/gateway.js';
 import type { PiService } from '../pi-runtime/piService.js';
 export function profileRoutes(deps: {
   profiles: ProfileService;
+  artifacts: Services['artifacts'];
   connections: Services['connections'];
   access: Services['access'];
   requests: Services['requests'];
@@ -30,6 +33,25 @@ export function profileRoutes(deps: {
     await deps.pi.revokeProfile(paramId(c));
     return c.json(profile);
   });
+  app.get('/:id/context-footprint', async (c) =>
+    c.json(
+      await deps.profiles.discovery.footprint(owner(c), {
+        profileId: paramId(c),
+        extra: [
+          ...(await availablePermissionTools(deps.requests, {
+            ownerId: owner(c),
+            profileId: paramId(c),
+          })),
+          ...(
+            await artifactToolset(deps, {
+              ownerId: owner(c),
+              profileId: paramId(c),
+            })
+          ).tools,
+        ],
+      }),
+    ),
+  );
   app.get('/:id/export', async (c) => {
     await deps.profiles.owned(owner(c), paramId(c));
     const preset = z

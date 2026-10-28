@@ -4,6 +4,7 @@ import { errorMessage } from '../../shared/errors.js';
 export function redactConnectionText(message: string, config: ConnectionInput) {
   let result = message;
   const secrets = [
+    ...(config.sensitiveArguments ?? []).map((index) => config.args[index]),
     ...Object.values(config.headers),
     ...Object.values(config.env),
     config.oauth?.clientSecret,

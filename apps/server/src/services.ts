@@ -1,3 +1,11 @@
+import { RestService } from './modules/rest/restService.js';
+import { RestCallStore } from './modules/rest/callStore.js';
+import { EncryptedResultStore } from './modules/rest/resultStore.js';
+import { DiscoveryService } from './modules/discovery/discoveryService.js';
+import { EmbeddingClient } from './modules/discovery/embeddingClient.js';
+import { VectorStore } from './modules/discovery/vectorStore.js';
+import { MarketService } from './modules/market/marketService.js';
+import { RegistryClient, OFFICIAL_REGISTRY } from './modules/market/registryClient.js';
 import { ConfigExportService } from './modules/configuration/exportService.js';
 import { ManifestService } from './modules/configuration/manifestService.js';
 import { ConfigSecrets } from './modules/configuration/secretService.js';
@@ -242,11 +250,32 @@ export function createServices(db: Database, config: Config) {
       await pi.revokeProfile(id);
     },
   });
+  profiles.discovery = new DiscoveryService({
+    profiles,
+    connections,
+    secrets,
+    embeddings: new EmbeddingClient(fetch),
+    vectors: new VectorStore(db),
+  });
   connections.watchCatalog((ownerId) => manifests.schedule(ownerId));
+  const rest = new RestService({
+    profiles,
+    invocations,
+    interactions,
+    logger,
+    store: new RestCallStore(db, vault),
+    results: new EncryptedResultStore(resolve(config.DATA_DIR, 'rest-results'), vault),
+  });
   return {
+    rest,
     manifests,
+    discovery: profiles.discovery,
     secrets,
     configExport: new ConfigExportService({ db, vault }),
+    market: new MarketService({
+      registry: new RegistryClient({ fetch, baseUrl: OFFICIAL_REGISTRY }),
+      connections,
+    }),
     shares,
     activity: new ActivityService({ db, vault }),
     logs: new LogService({ db, vault }),
