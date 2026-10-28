@@ -1,4 +1,5 @@
 import type { DiagnosticLogger } from '../activity/systemLogger.js';
+import { projectContent } from '../catalog/projection.js';
 import { currentExecution } from './executionContext.js';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -40,12 +41,15 @@ export class ContentService {
       .select()
       .from(mcpEntries)
       .where(await this.deps.shares.resourceFilter(access.ownerId, 'contentIds'));
-    return (
-      await this.scopedCatalog(
-        access.ownerId,
-        rows.filter((row) => ids.includes(row.id)),
-      )
-    ).filter((row) => ids.includes(row.id));
+    return projectContent(
+      (
+        await this.scopedCatalog(
+          access.ownerId,
+          rows.filter((row) => ids.includes(row.id)),
+        )
+      ).filter((row) => ids.includes(row.id)),
+      profile.catalog,
+    );
   }
   async catalog(access: ContentAccess, connectionId?: string) {
     if (access.principal)
@@ -71,7 +75,7 @@ export class ContentService {
     const filtered = permissions
       ? visible.filter((row) => permissions.contentIds.includes(row.id))
       : visible;
-    return filtered;
+    return profile ? projectContent(filtered, profile.catalog) : filtered;
   }
   private async scopedCatalog(ownerId: string, rows: ContentEntry[]) {
     const scoped = await Promise.all(

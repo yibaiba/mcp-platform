@@ -87,7 +87,6 @@ export async function createGatewayServer(
         ...rows.map((row) => {
           const definition = {
             ...parseTool(scopeToolDefinition(row.connectionId, row.definition)),
-            name: row.id,
           };
           return input.era === 'legacy' ? legacyToolDefinition(definition) : definition;
         }),
@@ -132,7 +131,10 @@ export async function createGatewayServer(
           },
         ],
       };
-    const toolId = name;
+    const toolId = await input.profiles.resolveName(principal.ownerId, {
+      profileId: principal.profileId,
+      name,
+    });
     const state = context.mcpReq.requestState();
     if (typeof state === 'string')
       return input.interactions.respond({

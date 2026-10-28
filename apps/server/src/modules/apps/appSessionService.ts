@@ -133,7 +133,7 @@ export class AppSessionService {
       const tool = catalog.find(
         (row) =>
           row.connectionId === session.connectionId &&
-          (row.id === input.name || row.name === input.name),
+          (row.id === input.name || row.name === input.name || row.exposedName === input.name),
       );
       const visibility = (tool?.definition._meta as { ui?: { visibility?: string[] } } | undefined)
         ?.ui?.visibility;

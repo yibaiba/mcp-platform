@@ -101,6 +101,12 @@ const groups = requested.length
       ['tests/sharesOAuth.test.ts'],
       ['tests/connectionBudget.test.ts'],
       ['tests/upstreamOAuth.test.ts'],
+      [
+        'tests/manifests.test.ts',
+        'tests/manifestsLifecycle.test.ts',
+        'tests/manifestsRegression.test.ts',
+      ],
+      ['tests/catalogProjection.test.ts', 'tests/projection.test.ts'],
       ['tests/catalog.test.ts', 'tests/catalogAdapters.test.ts'],
       ['tests/apps.test.ts', 'tests/interactions.test.ts', 'tests/legacyInteractions.test.ts'],
       ['tests/openapi.test.ts', 'tests/sessionIsolation.test.ts', 'tests/lifecycle.test.ts'],

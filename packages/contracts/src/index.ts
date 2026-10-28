@@ -1,5 +1,6 @@
 export * from './deviceAuth.js';
 import { z } from 'zod';
+import { catalogOptions } from './catalogOptions.js';
 import { DEFAULT_REQUEST_TIMEOUT_MS, requestOptions } from './requestOptions.js';
 export * from './requestOptions.js';
 export { clientPresets, type ClientPreset } from './clientPresets.js';
@@ -161,6 +162,7 @@ export const permissionSet = z
 export type PermissionSet = z.infer<typeof permissionSet>;
 export const profileInput = z
   .object({
+    catalog: catalogOptions.default(() => catalogOptions.parse({})),
     name: z.string().trim().min(1),
     instructions: z.string().default(''),
     toolIds: z.array(z.string()).default([]),
@@ -256,3 +258,6 @@ export const skillPackage = z
   .strict();
 export type SkillPackage = z.infer<typeof skillPackage>;
 export { connectorTargets } from './connectorDistribution.js';
+export { catalogOptions, type CatalogOptions } from './catalogOptions.js';
+
+export * from './manifest.js';

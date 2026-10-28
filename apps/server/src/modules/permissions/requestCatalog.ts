@@ -55,6 +55,7 @@ export async function requestCatalog(
         id: tool.id,
         connectionId: tool.connectionId,
         name: tool.name,
+        exposedName: tool.exposedName,
         description: tool.definition.description,
       })),
       content: content.map((entry) => ({

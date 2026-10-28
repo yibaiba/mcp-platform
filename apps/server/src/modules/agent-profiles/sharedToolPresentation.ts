@@ -2,10 +2,10 @@ import type { tools } from '@platform/db';
 import type { ConnectionService } from '../mcp/connectionService.js';
 
 /** Resolve only the recipient's effective context; never expose the owner's device metadata. */
-export async function describeSharedTools(input: {
+export async function describeSharedTools<T extends typeof tools.$inferSelect>(input: {
   ownerId: string;
   connections: ConnectionService;
-  catalog: (typeof tools.$inferSelect)[];
+  catalog: T[];
 }) {
   const ids = [...new Set(input.catalog.map((tool) => tool.connectionId))];
   const contexts = new Map(

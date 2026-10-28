@@ -1,6 +1,7 @@
 import type { AccessService } from '../permissions/accessService.js';
 import { describeTools } from './toolPresentation.js';
 import { describeSharedTools } from './sharedToolPresentation.js';
+import { assertDeploymentReady } from '../configuration/readiness.js';
 import { activeUser } from '../users/userAccess.js';
 import type { ShareService } from '../shares/shareService.js';
 import { and, eq, inArray, gt, isNull, or, sql } from 'drizzle-orm';
@@ -14,7 +15,9 @@ import {
   skillVersions,
   type Database,
 } from '@platform/db';
-import { profileInput } from '@platform/contracts';
+import { catalogOptions, profileInput } from '@platform/contracts';
+import { validateCatalogOptions } from '../catalog/validation.js';
+import { projectTools } from '../catalog/projection.js';
 import { digest, secretToken } from '../../shared/crypto.js';
 import { AppError, requireValue } from '../../shared/errors.js';
 export type Principal = { ownerId: string; profileId: string; credentialId: string; token: string };
@@ -39,6 +42,7 @@ export class ProfileService {
       previous
         ? {
             requestable: previous.requestable,
+            catalog: previous.catalog,
             connectionIdentities: previous.connectionIdentities,
             ...(input as object),
           }
@@ -47,6 +51,11 @@ export class ProfileService {
     if (previous && value.revision !== undefined && value.revision !== previous.revision)
       throw new AppError('REVISION_CONFLICT', '配置已改变，请重新加载', 409);
     await this.validateRequestable(ownerId, value);
+    await validateCatalogOptions(
+      { db: this.db, shares: this.shares, previous: previous?.catalog },
+      ownerId,
+      value,
+    );
     const contentIds = [...new Set(value.contentIds)];
     const entries = contentIds.length
       ? await this.db
@@ -183,6 +192,7 @@ export class ProfileService {
       );
     if (key) {
       await activeUser(this.db, key.ownerId);
+      assertDeploymentReady(await this.owned(key.ownerId, profileId));
       return { ownerId: key.ownerId, profileId, credentialId: key.id, token };
     }
     const [grant] = await this.db
@@ -198,6 +208,7 @@ export class ProfileService {
       );
     if (grant) {
       await activeUser(this.db, grant.ownerId);
+      assertDeploymentReady(await this.owned(grant.ownerId, profileId));
       return { ownerId: grant.ownerId, profileId, credentialId: grant.id, token };
     }
     throw new AppError('UNAUTHORIZED', 'Agent 凭证无效、已过期或已撤销', 401);
@@ -254,6 +265,7 @@ export class ProfileService {
   }
   async potentialCatalog(ownerId: string, profileId: string) {
     const profile = await this.owned(ownerId, profileId);
+    assertDeploymentReady(profile);
     const ids = [...new Set([...profile.toolIds, ...profile.requestable.toolIds])];
     const rows = ids.length
       ? await this.db
@@ -261,7 +273,7 @@ export class ProfileService {
           .from(tools)
           .where(and(await this.shares.resourceFilter(ownerId, 'toolIds'), inArray(tools.id, ids)))
       : [];
-    return this.scopedCatalog(ownerId, rows);
+    return projectTools(await this.presentedCatalog(ownerId, profileId, rows), profile.catalog);
   }
   async hasArtifactOutputs(ownerId: string, profileId: string) {
     const catalog = await this.potentialCatalog(ownerId, profileId);
@@ -271,8 +283,16 @@ export class ProfileService {
     }
     return false;
   }
-  async describedCatalog(ownerId: string, profileId: string) {
-    const catalog = await this.catalog(ownerId, profileId);
+  describedCatalog(ownerId: string, profileId: string) {
+    return this.catalog(ownerId, profileId);
+  }
+  private async presentedCatalog(
+    ownerId: string,
+    profileId: string | undefined,
+    rows: (typeof tools.$inferSelect)[],
+  ) {
+    const catalog = await this.scopedCatalog(ownerId, rows);
+    if (!profileId) return catalog;
     const [owned, shared] = await Promise.all([
       describeTools({
         db: this.db,
@@ -298,13 +318,25 @@ export class ProfileService {
           connectionId ? eq(tools.connectionId, connectionId) : undefined,
         ),
       );
-    if (!profileId) return this.scopedCatalog(ownerId, rows);
+    if (!profileId)
+      return projectTools(await this.scopedCatalog(ownerId, rows), catalogOptions.parse({}));
     const profile = await this.owned(ownerId, profileId);
     const effective = await this.access?.effective({ ownerId, profileId });
-    return this.scopedCatalog(
-      ownerId,
-      rows.filter((tool) => (effective ?? profile).toolIds.includes(tool.id)),
+    return projectTools(
+      await this.presentedCatalog(
+        ownerId,
+        profileId,
+        rows.filter((tool) => (effective ?? profile).toolIds.includes(tool.id)),
+      ),
+      profile.catalog,
     );
+  }
+  async resolveName(ownerId: string, input: { profileId: string; name: string }) {
+    const row = (await this.catalog(ownerId, input.profileId)).find(
+      (tool) => tool.exposedName === input.name,
+    );
+    if (!row) throw new AppError('TOOL_FORBIDDEN', '该工具展示名不存在或未授权', 403);
+    return row.id;
   }
   async tool(ownerId: string, input: { toolId: string; profileId?: string }) {
     if (input.profileId) {
@@ -316,6 +348,9 @@ export class ProfileService {
       .select()
       .from(tools)
       .where(and(await this.shares.resourceFilter(ownerId, 'toolIds'), eq(tools.id, input.toolId)));
-    return (await this.scopedCatalog(ownerId, rows))[0];
+    const config = input.profileId
+      ? (await this.owned(ownerId, input.profileId)).catalog
+      : catalogOptions.parse({});
+    return projectTools(await this.presentedCatalog(ownerId, input.profileId, rows), config)[0];
   }
 }

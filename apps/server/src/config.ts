@@ -24,6 +24,8 @@ export const envSchema = z
     METRICS_TOKEN: optionalSetting(z.string().min(32)),
     CALL_RETENTION_DAYS: optionalSetting(z.coerce.number().int().positive()),
     LOG_RETENTION_DAYS: optionalSetting(z.coerce.number().int().positive()),
+    CONFIG_MANIFEST_FILE: optionalSetting(z.string().min(1)),
+    CONFIG_MANIFEST_OWNER: optionalSetting(z.email()),
     AUTH_PROVIDERS: optionalSetting(
       z
         .string()
@@ -43,7 +45,10 @@ export const envSchema = z
     PI_MODEL_ID: z.string().optional(),
     PI_MCP_ADAPTER_OAUTH_FILE_KEY: z.string().optional(),
   })
-
+  .refine(
+    (value) => !value.CONFIG_MANIFEST_FILE || Boolean(value.CONFIG_MANIFEST_OWNER),
+    '启动模板必须明确设置 CONFIG_MANIFEST_OWNER',
+  )
   .refine(
     (value) => value.METRICS_ENABLED !== 'true' || Boolean(value.METRICS_TOKEN),
     '启用 metrics 时必须配置独立 METRICS_TOKEN',

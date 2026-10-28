@@ -16,6 +16,7 @@ import {
 } from '@platform/mcp';
 import type { InteractionService, PendingResult } from '../interactions/interactionService.js';
 import { currentExecution, withExecution, PLATFORM_CAPABILITIES } from './executionContext.js';
+import { assertVisibleArguments } from '../catalog/projection.js';
 import { scopeResult } from './catalogEntries.js';
 import type { RuntimeEvents } from '../../shared/runtimeEvents.js';
 type CallInput = {
@@ -80,6 +81,7 @@ export class InvocationService {
       await this.deps.profiles.authenticate(input.principal.profileId, input.principal.token);
     const tool = await this.deps.profiles.tool(input.ownerId, input);
     if (!tool) throw new AppError('TOOL_FORBIDDEN', '该工具不存在或未授权', 403);
+    assertVisibleArguments(tool, input.arguments);
     const connection = await this.deps.connections.accessible(input.ownerId, tool.connectionId);
     if (connection.status === 'stopped')
       throw new AppError('CONNECTION_STOPPED', '连接已停止，请先启动', 409);
@@ -169,6 +171,7 @@ export class InvocationService {
           await this.deps.profiles.authenticate(input.principal.profileId, input.principal.token);
         const current = await this.deps.profiles.tool(input.ownerId, input);
         if (!current) throw new AppError('GRANT_REVOKED', '请求期间工具权限已撤销', 403);
+        assertVisibleArguments(current, input.arguments);
         const definition = parseTool(current.definition);
         validateToolValue({ tool: definition, field: 'inputSchema', value: input.arguments });
         budget.resume();

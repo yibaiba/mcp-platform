@@ -132,7 +132,7 @@ export class PiService {
     try {
       const profile = await this.deps.profiles.owned(ownerId, input.profileId);
       const catalog = (await this.deps.profiles.potentialCatalog(ownerId, input.profileId)).map(
-        (row) => ({ ...row.definition, name: row.id }),
+        (row) => row.definition,
       );
       const permissionTools = await availablePermissionTools(this.requests, {
         ownerId,
@@ -173,7 +173,7 @@ export class PiService {
           ...content.tools.map((t) => t.name),
           ...artifacts.tools.map((t) => t.name),
           ...(await this.deps.profiles.catalog(ownerId, input.profileId))
-            .map((row) => ({ ...row.definition, name: row.id }))
+            .map((row) => row.definition)
             .filter((definition) => modelVisible({ definition }))
             .map((tool) => tool.name),
         ],
@@ -196,7 +196,11 @@ export class PiService {
               next: '授权审批不执行业务，请发起新的工具调用',
             });
           }
-          return this.deps.invocations.call({ ...access, toolId: name, arguments: args, signal });
+          const toolId = await this.deps.profiles.resolveName(ownerId, {
+            profileId: input.profileId,
+            name,
+          });
+          return this.deps.invocations.call({ ...access, toolId, arguments: args, signal });
         },
         onText: (text) => {
           output += text;

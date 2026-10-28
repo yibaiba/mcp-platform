@@ -357,10 +357,11 @@ test('request catalog contains only opened capabilities with sources and explici
   const s = await setup();
   const directory = (await s.run(() => h.services.requests.catalog(s.access))) as {
     toolIds: string[];
-    entries: { tools: { name: string }[]; connections: { id: string }[] };
+    entries: { tools: { name: string; exposedName: string }[]; connections: { id: string }[] };
   };
   expect(directory.toolIds).toEqual([s.tool.id]);
   expect(directory.entries.tools[0]!.name).toBe('echo');
+  expect(directory.entries.tools[0]!.exposedName).toBe(s.tool.id);
   expect(directory.entries.connections[0]!.id).toBe(s.connection.id);
   const request = await s.run(() =>
     h.services.requests.create(s.access, {

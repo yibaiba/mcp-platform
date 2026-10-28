@@ -95,6 +95,8 @@ export type ContentEntry = {
   };
 };
 export type Profile = {
+  deploymentState: string;
+  catalog: import('@platform/contracts').CatalogOptions;
   revision: number;
   requestable: { toolIds: string[]; contentIds: string[]; artifactIds: string[] };
   connectionIdentities: Record<string, string>;
