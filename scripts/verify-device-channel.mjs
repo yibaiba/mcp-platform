@@ -24,10 +24,11 @@ export async function verifyDeviceChannel({ directory, origin, cookie, request }
     body: JSON.stringify({ name: 'Compose channel acceptance' }),
   });
   assert.equal(pairing.status, 201);
+  const { code } = await pairing.json();
   const pair = await request(`${origin}/api/v1/devices/pair`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(await pairing.json()),
+    body: JSON.stringify({ code }),
   });
   assert.equal(pair.status, 201);
   const device = await pair.json();
