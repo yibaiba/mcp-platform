@@ -26,3 +26,21 @@
 累计指标、CLI、结果节选、整体回归和 amd64/arm64 镜像验证正在实施。真实 SSO、浏览器交互、Embedding 供应商、模型任务和物理设备尚未验收。
 
 未合并、未运行远程 CI、未发布。升级前必须备份数据库、数据目录和加密密钥；回退恢复配套备份，不能假定旧程序兼容新授权数据。
+
+## 累计指标
+
+保留历史 gauge，增加进程级 `platform_calls_total`、`platform_active_calls`、`platform_call_total_duration_seconds`、`platform_call_execution_duration_seconds`、`platform_searches_total` 和 `platform_search_duration_seconds`。后三个 duration 指标为 histogram，固定秒桶为 0.01、0.025、0.05、0.1、0.25、0.5、1、2.5、5、10、30、60、120、300、+Inf。
+
+业务调用仅在统一生命周期终态累计一次；交互续答属于同一逻辑调用。总耗时包含等待，执行耗时只累计 adapter 调用轮次。取消标签为 cancelled，表示取消请求且上游结果可能未知，不能解读为上游未执行。指标不读取历史来累计，清理历史不会重置；进程重启重置。搜索另行计数，代理转发实际工具只有一次业务计数。标签只包含 entry、adapter、status、strategy，不包含工具名、账号、查询或错误文本。/metrics 仍使用独立凭据。
+
+PromQL：
+
+```promql
+sum(rate(platform_calls_total[5m]))
+sum(rate(platform_calls_total{status=~"tool_error|failed"}[5m])) / sum(rate(platform_calls_total[5m]))
+histogram_quantile(0.95, sum by (le) (rate(platform_call_total_duration_seconds_bucket[5m])))
+histogram_quantile(0.99, sum by (le) (rate(platform_call_execution_duration_seconds_bucket[5m])))
+histogram_quantile(0.95, sum by (le, strategy) (rate(platform_search_duration_seconds_bucket[5m])))
+```
+
+2026-10-29 同一隔离环境的 runtimeMetrics、interactions、legacyInteractions 12 项通过，包括真实 HTTP REST 幂等调用及历史清理。使用每进程 60 秒硬超时。第一轮数据库性能基准：精确 P95 3749 ms，未达标；HNSW P95 29.9 ms、Recall@10 100%。正在优化精确数组计算，未降低验收规模或放宽阈值。

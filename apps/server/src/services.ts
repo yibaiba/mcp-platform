@@ -1,3 +1,4 @@
+import { RuntimeMetrics } from './modules/activity/runtimeMetrics.js';
 import { HnswStore } from './modules/discovery/hnswStore.js';
 import { RestService } from './modules/rest/restService.js';
 import { RestCallStore } from './modules/rest/callStore.js';
@@ -51,6 +52,7 @@ import { LogService } from './modules/activity/logService.js';
 import { databaseLogger } from './modules/activity/systemLogger.js';
 import { ShareService } from './modules/shares/shareService.js';
 export function createServices(db: Database, config: Config) {
+  const metrics = new RuntimeMetrics();
   const vault = new Vault(config.ENCRYPTION_KEY);
   const logger = databaseLogger(db);
   const shares: ShareService = new ShareService({
@@ -165,6 +167,7 @@ export function createServices(db: Database, config: Config) {
   });
   const interactions = new InteractionService({ db, vault, logger });
   const invocations: InvocationService = new InvocationService({
+    metrics,
     logger,
     db,
     profiles,
@@ -252,6 +255,7 @@ export function createServices(db: Database, config: Config) {
     },
   });
   profiles.discovery = new DiscoveryService({
+    metrics,
     profiles,
     connections,
     secrets,
@@ -269,6 +273,7 @@ export function createServices(db: Database, config: Config) {
     results: new EncryptedResultStore(resolve(config.DATA_DIR, 'rest-results'), vault),
   });
   return {
+    metrics,
     rest,
     manifests,
     discovery: profiles.discovery,

@@ -1,3 +1,4 @@
+import type { RuntimeMetrics } from '../activity/runtimeMetrics.js';
 import type { DiagnosticLogger } from '../activity/systemLogger.js';
 import { CallToolResultSchema, type CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { randomUUID } from 'node:crypto';
@@ -44,6 +45,7 @@ export class InvocationService {
   constructor(
     private readonly deps: {
       db: Database;
+      metrics: RuntimeMetrics;
       logger: DiagnosticLogger;
       profiles: ProfileService;
       connections: ConnectionService;
@@ -78,6 +80,7 @@ export class InvocationService {
     );
   }
   private async execute(input: CallInput): Promise<McpToolResult> {
+    const started = performance.now();
     if (input.principal)
       await this.deps.profiles.authenticate(input.principal.profileId, input.principal.token);
     const tool = await this.deps.profiles.tool(input.ownerId, input);
@@ -128,6 +131,10 @@ export class InvocationService {
       lease.release();
       throw error;
     }
+    this.deps.metrics.begin(id, {
+      started,
+      labels: { entry: execution?.entry ?? 'dashboard', adapter: context.config.adapter },
+    });
     this.active.set(id, {
       ownerId: input.ownerId,
       profileId: input.profileId,
@@ -176,6 +183,7 @@ export class InvocationService {
         const definition = parseTool(current.definition);
         validateToolValue({ tool: definition, field: 'inputSchema', value: input.arguments });
         budget.resume();
+        this.deps.metrics.resume(id);
         const network = AbortSignal.any([
           signal,
           budget.signal,
@@ -201,6 +209,7 @@ export class InvocationService {
           })
           .finally(() => {
             budget.pause();
+            this.deps.metrics.pause(id);
             network.removeEventListener('abort', forwardAbort);
           });
         signal.throwIfAborted();
@@ -287,6 +296,8 @@ export class InvocationService {
       })
       .where(and(eq(calls.id, id), inArray(calls.status, ['running', 'waiting'])))
       .returning({ ownerId: calls.ownerId, revision: calls.revision });
+    if (row && status !== 'waiting')
+      this.deps.metrics.finish(id, status as 'succeeded' | 'tool_error' | 'failed' | 'unknown');
     if (row)
       this.deps.events.publish({
         ownerId: row.ownerId,
@@ -301,6 +312,7 @@ export class InvocationService {
     const current = this.active.get(id);
     if (!current || current.ownerId !== ownerId)
       throw new AppError('CALL_NOT_RUNNING', '调用不在当前进程中运行', 404);
+    this.deps.metrics.cancel(id);
     current.abort.abort();
     this.active.delete(id);
   }

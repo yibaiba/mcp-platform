@@ -1,3 +1,4 @@
+import type { RuntimeMetrics } from './runtimeMetrics.js';
 import { timingSafeEqual } from 'node:crypto';
 import { Hono } from 'hono';
 import { count, sql } from 'drizzle-orm';
@@ -8,6 +9,7 @@ import { durationMs } from './query.js';
 
 export function metricsRoutes(deps: {
   db: Database;
+  runtime: RuntimeMetrics;
   config: Config;
   online: (id: string) => boolean;
 }) {
@@ -66,6 +68,7 @@ export function metricsRoutes(deps: {
     );
     for (const [status, count] of Object.entries(statesByDevice))
       lines.push(`platform_devices{status="${status}"} ${count}`);
+    lines.push(...deps.runtime.render());
     c.header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
     return c.body(`${lines.join('\n')}\n`);
   });

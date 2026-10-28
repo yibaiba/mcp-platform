@@ -210,13 +210,13 @@ export class RestService {
     const row = await this.row(principal, id);
     if (!['running', 'waiting'].includes(row.status))
       throw new AppError('CALL_NOT_RUNNING', '调用已结束', 409);
-    this.active.get(id)?.abort.abort(new Error('REST 调用已取消'));
     try {
       this.deps.invocations.cancel(principal.ownerId, id);
     } catch (error) {
       if (!(error instanceof AppError && error.code === 'CALL_NOT_RUNNING' && this.active.has(id)))
         throw error;
     }
+    this.active.get(id)?.abort.abort(new Error('REST 调用已取消'));
     await this.deps.store.update(id, {
       status: 'unknown',
       errorCode: 'CANCELLED_RESULT_UNKNOWN',

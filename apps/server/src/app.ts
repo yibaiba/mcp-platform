@@ -60,7 +60,10 @@ export function createApp(deps: {
   app.all('/_apps/*', (c) => c.notFound());
   app.use('/api/v1/*', requestLogging(s.logger));
   app.use('/mcp/*', requestLogging(s.logger));
-  app.route('/', metricsRoutes({ db, config, online: (id) => s.broker.online(id) }));
+  app.route(
+    '/',
+    metricsRoutes({ db, config, runtime: s.metrics, online: (id) => s.broker.online(id) }),
+  );
   app.use(
     '*',
     cors({

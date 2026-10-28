@@ -1,3 +1,4 @@
+import type { RuntimeMetrics } from '../activity/runtimeMetrics.js';
 import type { HnswStore } from './hnswStore.js';
 import { parseTool, type Tool } from '@platform/mcp';
 import type { ProfileService } from '../agent-profiles/profileService.js';
@@ -19,6 +20,7 @@ export class DiscoveryService {
   constructor(
     private readonly deps: {
       profiles: ProfileService;
+      metrics: RuntimeMetrics;
       connections: ConnectionService;
       secrets: ConfigSecrets;
       embeddings: EmbeddingClient;
@@ -236,6 +238,25 @@ export class DiscoveryService {
     return this.status(ownerId, profileId);
   }
   async search(ownerId: string, input: { profileId: string; query: string; limit: number }) {
+    const started = performance.now();
+    const profile = await this.deps.profiles.owned(ownerId, input.profileId);
+    let status: 'succeeded' | 'failed' = 'failed';
+    try {
+      const result = await this.retrieve(ownerId, input);
+      status = 'succeeded';
+      return result;
+    } finally {
+      this.deps.metrics.search({
+        strategy: profile.searchOptions.strategy,
+        status,
+        durationMs: performance.now() - started,
+      });
+    }
+  }
+  private async retrieve(
+    ownerId: string,
+    input: { profileId: string; query: string; limit: number },
+  ) {
     const { initial, scope, embed } = await this.index(ownerId, input.profileId);
     const [query] = await embed([input.query]);
     const ids = initial.rows.map((row) => row.id);
