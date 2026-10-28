@@ -8,8 +8,8 @@
 | ---- | -------------------------------- | ------------------- |
 | 1    | Python、调用预算、后台恢复       | 本地与双架构 CI 通过，已合并 |
 | 2    | 用户、共享、日志和指标           | 本地与双架构 CI 通过，已合并 |
-| 3    | 生效目录、声明式模板             | 本地通过，CI 待验收 |
-| 4    | Registry、语义发现、OpenAPI/REST | 本地回归通过，容器及浏览器待验收 |
+| 3    | 生效目录、声明式模板             | 本地与双架构 CI 通过，已合并 |
+| 4    | Registry、语义发现、OpenAPI/REST | 本地、浏览器与双架构 CI 通过，已合并 |
 
 每个后端测试进程保留 60 秒硬超时。验证使用独立测试数据库；供应商账号、Embedding 服务及物理设备尚未提供，不以本地协议夹具替代真实环境联调。
 
@@ -47,7 +47,7 @@ Chrome 检查模板缺少 secretRef 时显示待配置；配置秘密后无需�
 
 本机 PostgreSQL 17、1536 维合成向量、三次查询的中位数：1 千工具约 2538.7 ms，1 万约 20757.4 ms；初次写入约 10.8 秒和 96.4 秒。包含数据库读取、反序列化、余弦和排序，不含 Embedding 推理及 MCP 目录投影。纯内存五次查询中位数分别约 25.5 ms、33.7 ms。不据此增加硬上限。
 
-当前 Chrome 工具报告页面响应暂停，Apps 内层 iframe 未完成加载；这次浏览器隔离回归尚未通过，不能借用此前其他仓库的结论。SSO、真实 Embedding 供应商和远端物理设备仍未实机联调。容器重启结果持久化与双架构验收由本阶段 CI 执行。
+最初 Chrome 工具将 Apps 内层文档的 HTTP 200 响应保持在暂停状态，未能完成隔离回归。用户明确允许运行独立 Chrome 的 Playwright 脚本后，完成了下述浏览器验收。SSO、真实 Embedding 供应商和远端物理设备仍未实机联调。
 
 ### 官方包运行补验
 
@@ -55,4 +55,12 @@ Chrome 检查模板缺少 secretRef 时显示待配置；配置秘密后无需�
 
 最初 npm 2.11.0 被本机 npm 发布年龄策略拒绝，验收改选已满足该策略的 2.9.1，没有关闭策略。一次 macOS 进程组探测出现 EPERM，后续诊断运行及最终完整运行未复现，原因尚未确定。PyPI 首次依赖编译超过默认 60 秒，后续协议握手失败；验收连接明确配置 120 秒并完整通过，生产默认仍为 60 秒。这些初次失败不计为成功。
 
-Apps 新标签页诊断确认内层文档已返回 HTTP 200，但 Chrome 工具将该 Document 响应保持在暂停状态；没有绕过拦截或降低沙箱配置，已请求本机人工核验。
+## 最终验收与合并
+
+2026-10-29 使用本仓库 `scripts/verify-apps-browser.mjs`、独立 Chrome 和隔离测试数据库，通过两层 iframe 的不透明源、DOM/Cookie/存储隔离、初始化与真实结果传递、App 专用工具调用、全屏尺寸与 iframe 状态连续性、关闭清理检查；没有浏览器错误。Chromium 沙箱保持开启，验收截图已检查。临时进程、测试数据库和浏览器标签页已清理，已有业务环境未改动。
+
+[第三阶段 CI](https://github.com/yibaiba/mcp-platform/actions/runs/40720733960)与[第四阶段 CI](https://github.com/yibaiba/mcp-platform/actions/runs/40723074457)均通过 Node.js 22/24 验证和原生 Linux amd64/arm64 镜像验收。最终包含 17 组 260 项后端测试、类型检查、ESLint、生产构建、冻结安装、真实无模型 Pi、Go test/vet、六架构连接器构建，以及 Python 冷缓存联网和热缓存禁网检查。每个后端测试进程仍限制为 60 秒。
+
+单端口 Compose 验收覆盖 REST 完成结果在重启后解密读取、未完成调用标记结果未知且不重放、模板自动解析与幂等、Apps HTTP 契约、HMAC 设备通道和安装下载。第三阶段最初 CI 暴露共享撤权测试在实际派发前撤销的竞态；测试改为等待上游真实收到调用，随后完整 CI 通过，未放宽超时或更改生产行为。
+
+四阶段分别通过 [PR #1](https://github.com/yibaiba/mcp-platform/pull/1)、[PR #2](https://github.com/yibaiba/mcp-platform/pull/2)、[PR #3](https://github.com/yibaiba/mcp-platform/pull/3)、[PR #4](https://github.com/yibaiba/mcp-platform/pull/4) 合并至本仓库主分支。此次未发布 Release；镜像和安装包仍只在 `release.published` 发布。真实供应商 SSO、Embedding 服务、远端物理设备及 Windows 重配需在具备对应环境后另行验收，协议夹具和交叉构建不替代这些结论。

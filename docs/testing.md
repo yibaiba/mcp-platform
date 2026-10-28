@@ -4,6 +4,8 @@
 
 ## 常规检查
 
+2026-10-29 八项能力最终回归为 17 组、260 项通过，每个后端进程保留 60 秒硬超时。Node.js 22/24、原生 Linux amd64/arm64 镜像、单端口 Compose 的 REST 重启持久化与禁止重放、Python 冷/热缓存及独立 Chrome 的 Apps 隔离检查均通过。具体环境、CI 链接、初次失败与未完成的外部供应商/实机验证见[八项能力验收记录](eight-capabilities-progress.md#最终验收与合并)。
+
 ```sh
 pnpm check-types
 pnpm lint
