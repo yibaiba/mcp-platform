@@ -152,7 +152,12 @@ async function oauthFixture(options: { expiresIn?: number; multipleIdentities?: 
     dispatches: () => dispatches,
     agents: () => agents,
     close: async () => {
-      await new Promise<void>((resolve) => server.close(() => resolve()));
+      const closed = new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+      // MCP clients have closed; do not wait for proxy HTTP keep-alive sockets.
+      server.closeAllConnections();
+      await closed;
       await mcp.close();
     },
   };
