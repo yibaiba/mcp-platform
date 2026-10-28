@@ -77,6 +77,8 @@ Windows PowerShell 安装脚本尚未实机运行；尝试使用官方 PowerShel
 
 同一应用代码在 [GitHub Actions 的 Linux 验证](https://github.com/yibaiba/mcp-platform/actions/runs/40645423794)中，Node.js 22/24 的 163 项后端测试全部通过，连同类型检查、Lint、生产构建、无模型 Pi、Go test/vet 和六架构构建。该轮镜像构建、源码一致性、迁移、网页/API 和下载校验通过，但新设备验收脚本误传 `expiresAt`，配对接口返回 400，因此该轮整体 CI 失败、未发布镜像。脚本已改为只传接口要求的 `code`；在 macOS 重新构建并实际下载运行 Go 连接器，同端口 WebSocket 上线和撤销断线检查通过。
 
+[第二轮 CI](https://github.com/yibaiba/mcp-platform/actions/runs/40646912748)的代码检查和 amd64 容器验收全部通过，包括 Go 设备通信、Apps HTTP 契约和真实 Pi 桥接；发布时的 QEMU arm64 Go 编译触发 180 秒编译超时，统一镜像标签未发布。流水线已改为两个原生架构分别构建及验收，再合并已通过的镜像；保留原有编译和测试超时。
+
 先从当前仓库构建应用镜像，再运行隔离的检查项目：
 
 ```sh
