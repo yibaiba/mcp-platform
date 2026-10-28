@@ -55,6 +55,7 @@ function setup() {
     check: vi.fn(adapter.check),
   };
   const effects = {
+    diagnostic: vi.fn(),
     sleep: vi.fn(async () => {}),
     error: vi.fn(async () => {}),
     recover: vi.fn(async () => replacement),

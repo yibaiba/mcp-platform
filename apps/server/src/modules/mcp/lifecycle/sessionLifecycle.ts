@@ -17,6 +17,7 @@ export class SessionLifecycle {
   private readonly sessions = new Map<string, Managed>();
   constructor(
     private readonly effects: {
+      diagnostic: (code: string) => void;
       sleep: (context: ConnectionContext) => Promise<void>;
       error: (context: ConnectionContext, error: unknown) => Promise<void>;
       recover: (context: ConnectionContext) => Promise<ConnectionAdapter>;
@@ -40,9 +41,14 @@ export class SessionLifecycle {
       (s) => s.context.id === connectionId && (s.leases > 0 || s.checking),
     );
   }
-  recovery(connectionId: string) {
+  recovery(connectionId: string, ownerId?: string) {
     return [...this.sessions.values()]
-      .filter((state) => state.context.id === connectionId && state.recovery)
+      .filter(
+        (state) =>
+          state.context.id === connectionId &&
+          (!ownerId || state.context.ownerId === ownerId) &&
+          state.recovery,
+      )
       .map((state) => ({ sessionId: state.context.sessionId, ...state.recovery!.state }));
   }
   wrap(
@@ -113,8 +119,12 @@ export class SessionLifecycle {
     };
     if (context.config.health.recover)
       state.recovery = new RecoverySchedule({
+        diagnostic: this.effects.diagnostic,
         ...context.config.health,
-        redact: (error) => redactConnectionError(error, context.config),
+        redact: (error) =>
+          context.shareId && context.credentialScope?.ownerId !== context.ownerId
+            ? '共享上游不可用，请联系所有者检查授权或设备'
+            : redactConnectionError(error, context.config),
         report: (error) => this.effects.error(context, error),
         recover: async () => {
           restoring = restore();

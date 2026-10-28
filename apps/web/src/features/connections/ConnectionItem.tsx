@@ -39,11 +39,13 @@ export function ConnectionItem({
   connection,
   devices,
   onEdit,
+  onShare,
   onInspect,
 }: {
   connection: Connection;
   devices: ReadonlyMap<string, Device>;
   onEdit: (connection: Connection) => void;
+  onShare: (connection: Connection) => void;
   onInspect: (inspection: ConnectionInspection) => void;
 }) {
   const query = useQueryClient();
@@ -166,6 +168,7 @@ export function ConnectionItem({
               <DropdownMenuItem onClick={() => perform('discover', '更新目录')}>
                 刷新工具目录
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onShare(connection)}>共享连接</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => perform('check', '健康检查', true)}>
                 健康检查

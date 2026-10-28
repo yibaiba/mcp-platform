@@ -44,7 +44,7 @@ export class Gateway {
       connections: ConnectionService;
     },
   ) {
-    this.subscriptions = new ResourceSubscriptions(deps.content);
+    this.subscriptions = new ResourceSubscriptions(deps.content, deps.logger);
     this.handlers = { ...deps, subscriptions: this.subscriptions };
     this.unwatch = deps.connections.watch((event) => this.notify(event));
     this.unwatchClosing = deps.connections.watchClosing((id) => this.connectionClosing(id));
@@ -62,7 +62,7 @@ export class Gateway {
             channel,
             era: context.era,
           }),
-        { legacy: 'reject', onerror: (error) => console.error('MCP gateway', error.message) },
+        { legacy: 'reject', onerror: () => this.deps.logger.report('MCP_GATEWAY_FAILED') },
       );
       entry = { principal, handler, channels: new Set() };
       this.modern.set(principal.credentialId, entry);
@@ -189,7 +189,7 @@ export class Gateway {
         this.sessions.delete(id);
         void this.subscriptions
           .release(channel)
-          .catch((error: unknown) => console.error('Resource subscription cleanup failed', error));
+          .catch(() => this.deps.logger.report('RESOURCE_SUBSCRIPTION_CLEANUP_FAILED'));
       },
     });
     await server.connect(transport);
@@ -248,31 +248,25 @@ export class Gateway {
         capabilities: {},
       },
       async () => {
-        if (event.notification.method === 'notifications/resources/updated') {
-          const uri = event.notification.params?.uri;
-          if (typeof uri !== 'string') return false;
-          try {
-            await this.deps.content.resolveResource(
-              { ...principal, principal },
-              scopedUri(event.connectionId, uri),
-            );
-            return true;
-          } catch (error) {
-            if (error instanceof AppError && error.code === 'RESOURCE_FORBIDDEN') return false;
-            throw error;
-          }
-        }
-        return this.deps.content.eventVisible(
-          principal,
-          event.connectionId,
-          event.notification.method,
-        );
+        // Permission checks for notifications must not create another upstream session.
+        return this.deps.content.eventVisible(principal, {
+          connectionId: event.connectionId,
+          method: event.notification.method,
+          uri:
+            typeof event.notification.params?.uri === 'string'
+              ? event.notification.params.uri
+              : undefined,
+        });
       },
     );
   }
   async revoke(credentialId: string) {
     this.deps.invocations.revoke({ credentialId });
     await this.remove((principal) => principal.credentialId === credentialId);
+  }
+  async revokeOwner(ownerId: string) {
+    this.deps.invocations.revoke({ ownerId });
+    await this.remove((principal) => principal.ownerId === ownerId);
   }
   private async connectionClosing(context: import('./adapter.js').ConnectionContext) {
     const connectionId = context.id;

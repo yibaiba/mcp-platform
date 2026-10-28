@@ -33,7 +33,8 @@ beforeAll(async () => {
       JSON.stringify({
         server: h.baseURL,
         deviceId: device.deviceId,
-        token: device.token,
+        deviceSecret: device.deviceSecret,
+        credentialVersion: device.credentialVersion,
         skillRoots: { claude: join(root, '.claude', 'skills') },
         artifactRoots: { workspace: root },
       }),

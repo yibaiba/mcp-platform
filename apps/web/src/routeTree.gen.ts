@@ -9,8 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UsersRouteImport } from './routes/users'
 import { Route as ToolsRouteImport } from './routes/tools'
 import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as SystemLogsRouteImport } from './routes/system-logs'
 import { Route as SkillsRouteImport } from './routes/skills'
 import { Route as ProfilesRouteImport } from './routes/profiles'
 import { Route as DevicesRouteImport } from './routes/devices'
@@ -19,8 +21,14 @@ import { Route as AuthorizeRouteImport } from './routes/authorize'
 import { Route as AuthorizationsRouteImport } from './routes/authorizations'
 import { Route as ArtifactsRouteImport } from './routes/artifacts'
 import { Route as ActivityRouteImport } from './routes/activity'
+import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 
+const UsersRoute = UsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ToolsRoute = ToolsRouteImport.update({
   id: '/tools',
   path: '/tools',
@@ -29,6 +37,11 @@ const ToolsRoute = ToolsRouteImport.update({
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SystemLogsRoute = SystemLogsRouteImport.update({
+  id: '/system-logs',
+  path: '/system-logs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SkillsRoute = SkillsRouteImport.update({
@@ -71,6 +84,11 @@ const ActivityRoute = ActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -79,6 +97,7 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/activity': typeof ActivityRoute
   '/artifacts': typeof ArtifactsRoute
   '/authorizations': typeof AuthorizationsRoute
@@ -87,11 +106,14 @@ export interface FileRoutesByFullPath {
   '/devices': typeof DevicesRoute
   '/profiles': typeof ProfilesRoute
   '/skills': typeof SkillsRoute
+  '/system-logs': typeof SystemLogsRoute
   '/tasks': typeof TasksRoute
   '/tools': typeof ToolsRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/activity': typeof ActivityRoute
   '/artifacts': typeof ArtifactsRoute
   '/authorizations': typeof AuthorizationsRoute
@@ -100,12 +122,15 @@ export interface FileRoutesByTo {
   '/devices': typeof DevicesRoute
   '/profiles': typeof ProfilesRoute
   '/skills': typeof SkillsRoute
+  '/system-logs': typeof SystemLogsRoute
   '/tasks': typeof TasksRoute
   '/tools': typeof ToolsRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/activity': typeof ActivityRoute
   '/artifacts': typeof ArtifactsRoute
   '/authorizations': typeof AuthorizationsRoute
@@ -114,13 +139,16 @@ export interface FileRoutesById {
   '/devices': typeof DevicesRoute
   '/profiles': typeof ProfilesRoute
   '/skills': typeof SkillsRoute
+  '/system-logs': typeof SystemLogsRoute
   '/tasks': typeof TasksRoute
   '/tools': typeof ToolsRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/account'
     | '/activity'
     | '/artifacts'
     | '/authorizations'
@@ -129,11 +157,14 @@ export interface FileRouteTypes {
     | '/devices'
     | '/profiles'
     | '/skills'
+    | '/system-logs'
     | '/tasks'
     | '/tools'
+    | '/users'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/account'
     | '/activity'
     | '/artifacts'
     | '/authorizations'
@@ -142,11 +173,14 @@ export interface FileRouteTypes {
     | '/devices'
     | '/profiles'
     | '/skills'
+    | '/system-logs'
     | '/tasks'
     | '/tools'
+    | '/users'
   id:
     | '__root__'
     | '/'
+    | '/account'
     | '/activity'
     | '/artifacts'
     | '/authorizations'
@@ -155,12 +189,15 @@ export interface FileRouteTypes {
     | '/devices'
     | '/profiles'
     | '/skills'
+    | '/system-logs'
     | '/tasks'
     | '/tools'
+    | '/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountRoute: typeof AccountRoute
   ActivityRoute: typeof ActivityRoute
   ArtifactsRoute: typeof ArtifactsRoute
   AuthorizationsRoute: typeof AuthorizationsRoute
@@ -169,12 +206,21 @@ export interface RootRouteChildren {
   DevicesRoute: typeof DevicesRoute
   ProfilesRoute: typeof ProfilesRoute
   SkillsRoute: typeof SkillsRoute
+  SystemLogsRoute: typeof SystemLogsRoute
   TasksRoute: typeof TasksRoute
   ToolsRoute: typeof ToolsRoute
+  UsersRoute: typeof UsersRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tools': {
       id: '/tools'
       path: '/tools'
@@ -187,6 +233,13 @@ declare module '@tanstack/react-router' {
       path: '/tasks'
       fullPath: '/tasks'
       preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/system-logs': {
+      id: '/system-logs'
+      path: '/system-logs'
+      fullPath: '/system-logs'
+      preLoaderRoute: typeof SystemLogsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/skills': {
@@ -245,6 +298,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ActivityRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -257,6 +317,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountRoute: AccountRoute,
   ActivityRoute: ActivityRoute,
   ArtifactsRoute: ArtifactsRoute,
   AuthorizationsRoute: AuthorizationsRoute,
@@ -265,8 +326,10 @@ const rootRouteChildren: RootRouteChildren = {
   DevicesRoute: DevicesRoute,
   ProfilesRoute: ProfilesRoute,
   SkillsRoute: SkillsRoute,
+  SystemLogsRoute: SystemLogsRoute,
   TasksRoute: TasksRoute,
   ToolsRoute: ToolsRoute,
+  UsersRoute: UsersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

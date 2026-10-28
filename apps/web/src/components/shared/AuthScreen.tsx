@@ -5,8 +5,19 @@ import { Network } from 'lucide-react';
 import { authClient } from '../../lib/auth-client.js';
 import { Field, Form, value } from './Controls.js';
 import { Button } from '../ui/button.js';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../../lib/api.js';
+import { Action, Feedback } from './Controls.js';
+export type LoginOptions = {
+  registration: boolean;
+  providers: { id: string; name: string; kind: string }[];
+};
 export function AuthScreen() {
   const [register, setRegister] = useState(false);
+  const options = useQuery({
+    queryKey: ['login-options'],
+    queryFn: () => api<LoginOptions>('/login-options'),
+  });
   return (
     <main className="auth-screen">
       <div className="auth-brand">
@@ -52,9 +63,26 @@ export function AuthScreen() {
             />
           </Field>
         </Form>
-        <Button variant="ghost" onClick={() => setRegister(!register)}>
-          {register ? '已有账户，返回登录' : '首次使用？创建账户'}
-        </Button>
+        <Feedback error={options.error} />
+        {options.data?.providers.map((provider) => (
+          <Action
+            key={provider.id}
+            action={async () => {
+              const result =
+                provider.kind === 'oauth2'
+                  ? await authClient.signIn.oauth2({ providerId: provider.id, callbackURL: '/' })
+                  : await authClient.signIn.social({ provider: provider.id, callbackURL: '/' });
+              if (result.error) throw new Error(result.error.message ?? '单点登录失败');
+            }}
+          >
+            使用 {provider.name} 登录
+          </Action>
+        ))}
+        {options.data?.registration ? (
+          <Button variant="ghost" onClick={() => setRegister(!register)}>
+            {register ? '已有账户，返回登录' : '首次使用？创建账户'}
+          </Button>
+        ) : null}
         <small>自托管部署默认关闭注册，由管理员在首次设置时启用。</small>
       </Card>
     </main>

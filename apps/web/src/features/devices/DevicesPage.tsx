@@ -1,3 +1,4 @@
+import { RePairDevice } from './RePairDevice.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
 import { Card } from '../../components/ui/card.js';
 import { useQuery } from '@tanstack/react-query';
@@ -7,6 +8,10 @@ import { DevicePairing } from './DevicePairing.js';
 import { DeviceToolsDialog } from './DeviceToolsDialog.js';
 import { Action, Code, date, Empty, Feedback, Status } from '../../components/shared/Controls.js';
 export default function DevicesPage() {
+  const platform = useQuery({
+    queryKey: ['me'],
+    queryFn: () => api<{ platformOrigin: string }>('/me'),
+  });
   const devices = useQuery({
     queryKey: ['devices'],
     queryFn: () => api<Device[]>('/devices'),
@@ -21,7 +26,7 @@ export default function DevicesPage() {
           <p>连接器主动连接平台，设备无需开放公网端口。</p>
         </div>
       </div>
-      <Feedback error={devices.error} />
+      <Feedback error={devices.error ?? platform.error} />
       <DevicePairing />
       <Card className="panel">
         <div className="panel-heading">
@@ -42,7 +47,17 @@ export default function DevicesPage() {
                     {device.version ?? '—'}
                   </small>
                 </div>
-                <Status value={device.revoked ? 'revoked' : device.online ? 'online' : 'offline'} />
+                <Status
+                  value={
+                    device.revoked
+                      ? 'revoked'
+                      : device.pairingRequired
+                        ? 'pairing_required'
+                        : device.online
+                          ? 'online'
+                          : 'offline'
+                  }
+                />
               </div>
               <div className="row-actions">
                 <small>最近通信：{date(device.lastSeen)}</small>
@@ -53,6 +68,9 @@ export default function DevicesPage() {
                   </Action>
                 ) : null}
               </div>
+              {!device.revoked && platform.data ? (
+                <RePairDevice device={device} platformOrigin={platform.data.platformOrigin} />
+              ) : null}
               {device.services.length ? (
                 <Disclosure title="MCP 服务诊断">
                   <Code value={device.services} />

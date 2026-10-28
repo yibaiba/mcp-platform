@@ -1,3 +1,4 @@
+import type { DiagnosticLogger } from '../activity/systemLogger.js';
 import { randomUUID } from 'node:crypto';
 import {
   deviceResponse,
@@ -34,7 +35,13 @@ export class DeviceBroker {
   private readonly sockets = new Map<string, WebSocket>();
   private readonly pending = new Map<string, Pending>();
   private readonly listeners = new Map<string, Set<(event: McpNotification) => void>>();
-  constructor(private readonly report: (id: string, message: DeviceResponse) => Promise<void>) {}
+  constructor(
+    private readonly report: (id: string, message: DeviceResponse) => Promise<void>,
+    private readonly logger: DiagnosticLogger,
+  ) {}
+  diagnostic(code: string) {
+    this.logger.report(code);
+  }
   online(id: string) {
     return this.sockets.get(id)?.readyState === 1;
   }
@@ -51,9 +58,16 @@ export class DeviceBroker {
       alive = true;
     });
     socket.on('message', (data) => {
-      void this.receive(id, socket, data.toString()).catch(() =>
-        socket.close(1008, 'Invalid device message'),
-      );
+      void this.receive(id, socket, data.toString()).catch((error: unknown) => {
+        this.logger.report(
+          error instanceof SyntaxError
+            ? 'DEVICE_INVALID_JSON'
+            : error instanceof z.ZodError
+              ? 'DEVICE_INVALID_MESSAGE'
+              : 'DEVICE_MESSAGE_FAILED',
+        );
+        socket.close(1008, 'Invalid device message');
+      });
     });
     socket.on('error', () => socket.terminate());
     socket.on('close', () => {

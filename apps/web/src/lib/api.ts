@@ -22,6 +22,8 @@ export type Device = {
   name: string;
   online: boolean;
   revoked: boolean;
+  pairingRequired: boolean;
+  credentialVersion: number;
   os: string | null;
   hostname: string | null;
   version: string | null;

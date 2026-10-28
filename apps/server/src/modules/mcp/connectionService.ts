@@ -1,6 +1,8 @@
+import type { DiagnosticLogger } from '../activity/systemLogger.js';
+import { activeUser } from '../users/userAccess.js';
 import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
-import { connections, profiles, catalogSnapshots, type Database } from '@platform/db';
+import { connections, catalogSnapshots, type Database } from '@platform/db';
 import {
   connectionInput,
   connectorPresets,
@@ -8,7 +10,7 @@ import {
   type ConnectionInput,
 } from '@platform/contracts';
 import type { McpNotification } from '@platform/mcp';
-import { digest, type Vault } from '../../shared/crypto.js';
+import { type Vault } from '../../shared/crypto.js';
 import { AppError, requireValue } from '../../shared/errors.js';
 import { redactConnectionError } from './connectionDiagnostics.js';
 import type { DeviceService } from '../devices/deviceService.js';
@@ -16,7 +18,8 @@ import type { AdapterFactory, ConnectionContext } from './adapter.js';
 import { ConnectionRuntime } from './connectionRuntime.js';
 import { SessionLifecycle } from './lifecycle/sessionLifecycle.js';
 import { BindingService } from '../authorizations/bindingService.js';
-import { currentExecution, sessionScope, PLATFORM_CAPABILITIES } from './executionContext.js';
+import { connectionContext } from './connectionContext.js';
+import type { ShareService } from '../shares/shareService.js';
 import { CatalogRepository, toolId } from './catalogRepository.js';
 import { compileDocument } from '../openapi/compile.js';
 import type { ApiDocument } from '../openapi/types.js';
@@ -44,39 +47,48 @@ export class ConnectionService {
   constructor(
     private readonly deps: {
       db: Database;
+      logger: DiagnosticLogger;
       vault: Vault;
       factory: AdapterFactory;
       devices: DeviceService;
       publicUrl: string;
+      shares: ShareService;
     },
   ) {
     this.bindings = new BindingService(deps);
     this.catalogs = new CatalogRepository(deps.db, this.bindings);
     this.lifecycle = new SessionLifecycle({
+      diagnostic: (code) => deps.logger.report(code),
       sleep: async (context) => {
         await this.runtime.invalidate(context.runtimeKey!).closed;
       },
       error: async (context, error) => {
-        const row = await this.owned(context.ownerId, context.id);
+        const row = await this.accessible(context.ownerId, context.id);
         if (row.status === 'stopped' || row.revision !== context.revision) return;
+        if (context.shareId)
+          return this.deps.shares.state(context, 'error', '共享连接暂不可用；请检查身份和执行位置');
         await deps.db
           .update(connections)
           .set({ status: 'error', error: this.redact(error, context.config) })
           .where(and(eq(connections.id, context.id), eq(connections.revision, row.revision)));
       },
       recover: async (context) => {
-        const row = await this.owned(context.ownerId, context.id);
+        const row = await this.accessible(context.ownerId, context.id);
         if (row.status === 'stopped')
           throw new AppError('CONNECTION_STOPPED', '手动停止的连接不能自动恢复', 409);
         if (row.revision !== context.revision)
           throw new AppError('CONNECTION_SUPERSEDED', '连接配置已更新，旧会话不再恢复', 409);
         await this.bindings.assertCredentials(context);
-        return deps.factory(context);
+        return this.createAdapter(context);
       },
     });
     this.runtime = new ConnectionRuntime(async (context, slot) => {
       await this.bindings.assertCredentials(context);
-      const adapter = this.lifecycle.wrap(context, await deps.factory(context), slot.abort.signal);
+      const adapter = this.lifecycle.wrap(
+        context,
+        await this.createAdapter(context),
+        slot.abort.signal,
+      );
       const current = () => this.runtime.current(slot) && !slot.abort.signal.aborted;
       const unwatch = adapter.watch((notification) =>
         this.receive({ context, notification, current }),
@@ -129,8 +141,10 @@ export class ConnectionService {
       })
       .catch(async (error: unknown) => {
         if (!current()) return;
+        if (context.shareId)
+          return this.deps.shares.state(context, 'error', '共享连接目录通知失败');
         const message = this.redact(error, context.config);
-        console.error('MCP notification failed', context.id, message);
+        this.deps.logger.report('MCP_NOTIFICATION_FAILED', context.ownerId);
         await this.deps.db
           .update(connections)
           .set({ error: `通知处理失败：${message}` })
@@ -140,13 +154,9 @@ export class ConnectionService {
     const cleanup = () => {
       if (this.notifications.get(context.id) === pending) this.notifications.delete(context.id);
     };
-    void pending.then(cleanup, (error: unknown) => {
+    void pending.then(cleanup, () => {
       cleanup();
-      console.error(
-        'MCP notification diagnostic persistence failed',
-        context.id,
-        error instanceof Error ? error.message : String(error),
-      );
+      this.deps.logger.report('MCP_DIAGNOSTIC_PERSISTENCE_FAILED', context.ownerId);
     });
   }
   async validate(ownerId: string, input: unknown) {
@@ -206,47 +216,33 @@ export class ConnectionService {
       .where(and(eq(connections.id, id), eq(connections.ownerId, ownerId)));
     return requireValue(row);
   }
-  async context(ownerId: string, id: string): Promise<ConnectionContext> {
-    const row = await this.owned(ownerId, id);
-    const config = connectionInput.parse(
-      this.deps.vault.open<ConnectionInput>(row.config, `${ownerId}:${id}`),
-    );
-    const caller = currentExecution();
-    const [profile] = caller?.profileId
-      ? await this.deps.db
-          .select()
-          .from(profiles)
-          .where(and(eq(profiles.id, caller.profileId), eq(profiles.ownerId, ownerId)))
-      : [];
-    if (caller?.profileId && !profile)
-      throw new AppError('ACCESS_CONTEXT', 'Agent 不属于当前账号', 403);
-    const scope = sessionScope(config, profile?.connectionIdentities[id]);
-    const binding = await this.bindings.resolve({
-      ownerId,
-      connectionId: id,
-      identity: scope.identity,
-    });
-    const scopedConfig = await this.bindings.configuration(
-      binding,
-      config,
-      profile?.connectionIdentities[id] === 'profile' ||
-        profile?.connectionIdentities[id] === 'credential',
-    );
-    return {
-      id,
-      revision: row.revision,
-      ownerId,
-      bindingId: binding.id,
-      identity: scope.identity,
-      sessionId: scope.session,
-      capabilityKey: scope.capabilityKey,
-      runtimeKey: `${id}:${binding.id}:${scope.capabilityKey}:${digest(scope.session)}:${scope.headerKey}`,
-      capabilities: currentExecution()?.capabilities ?? PLATFORM_CAPABILITIES,
-      correlationId: currentExecution()?.correlationId,
-      profileId: caller?.profileId,
-      config: { ...scopedConfig, headers: { ...scopedConfig.headers, ...scope.headers } },
-    };
+  context(ownerId: string, id: string): Promise<ConnectionContext> {
+    return connectionContext({ ...this.deps, bindings: this.bindings }, { ownerId, id });
   }
+  async accessible(ownerId: string, id: string) {
+    return (await this.deps.shares.connection(ownerId, id)).connection;
+  }
+  private async createAdapter(context: ConnectionContext) {
+    await activeUser(this.deps.db, context.ownerId);
+    await this.deps.shares.assertContext(context);
+    await this.bindings.assertCredentials(context);
+    const adapter = await this.deps.factory(context);
+    try {
+      await activeUser(this.deps.db, context.ownerId);
+      await this.deps.shares.assertContext(context);
+      return adapter;
+    } catch (error) {
+      await adapter.close();
+      throw error;
+    }
+  }
+  async closeShare(shareId: string) {
+    for (const key of this.runtime.keysForShare(shareId)) await this.runtime.invalidate(key).closed;
+  }
+  async closeOwnerSessions(ownerId: string) {
+    for (const key of this.runtime.keysForOwner(ownerId)) await this.runtime.invalidate(key).closed;
+  }
+
   async list(ownerId: string) {
     const rows = await this.deps.db
       .select()
@@ -269,7 +265,7 @@ export class ConnectionService {
           health: value.health,
           connectTimeoutMs: value.connectTimeoutMs ?? 60_000,
           requestOptions: connectionInput.parse(value).requestOptions,
-          recovery: this.lifecycle.recovery(row.id),
+          recovery: this.lifecycle.recovery(row.id, ownerId),
           forwardHeaders: value.forwardHeaders ?? [],
           sessions: this.runtime.keys(row.id),
           mode: value.mode,
@@ -285,9 +281,16 @@ export class ConnectionService {
     const slot = this.runtime.acquire(context);
     return { signal: slot.abort.signal, release: this.lifecycle.hold(slot.id) };
   }
+  recovery(ownerId: string, id: string) {
+    return this.lifecycle.recovery(id, ownerId);
+  }
   async adapter(ownerId: string, id: string) {
     const context = await this.context(ownerId, id);
-    if (context.config.deviceId) await this.deps.devices.owned(ownerId, context.config.deviceId);
+    if (context.config.deviceId)
+      await this.deps.devices.owned(
+        context.credentialScope?.ownerId ?? ownerId,
+        context.config.deviceId,
+      );
     const slot = this.runtime.acquire(context);
     try {
       const adapter = await this.runtime.adapter(slot);
@@ -304,14 +307,24 @@ export class ConnectionService {
   }
   private async discoverContext(context: ConnectionContext, signal?: AbortSignal) {
     const { ownerId, id } = context;
-    if (context.config.deviceId) await this.deps.devices.owned(ownerId, context.config.deviceId);
+    if (context.config.deviceId)
+      await this.deps.devices.owned(
+        context.credentialScope?.ownerId ?? ownerId,
+        context.config.deviceId,
+      );
     const slot = this.runtime.acquire(context);
     try {
       const adapter = await this.runtime.adapter(slot);
       const combined = AbortSignal.any([slot.abort.signal, ...(signal ? [signal] : [])]);
       combined.throwIfAborted();
       const catalog = await adapter.catalog(combined);
-      const discovered = catalog.tools;
+      await this.deps.shares.assertContext(context);
+      const grant = context.shareId
+        ? (await this.deps.shares.connection(ownerId, id)).share
+        : undefined;
+      const discovered = grant
+        ? catalog.tools.filter((tool) => grant.toolIds.includes(toolId(id, tool.name)))
+        : catalog.tools;
       const saved = await this.runtime.write(slot, () => this.catalogs.save(context, catalog));
       if (!saved)
         throw new AppError('CONNECTION_SUPERSEDED', '连接已停止或被替换，旧发现结果未保存', 409);
@@ -325,19 +338,24 @@ export class ConnectionService {
         context.config.health.recover && this.lifecycle.recovery(id).length
           ? { next: slot, closed: Promise.resolve() }
           : this.runtime.invalidate(slot.id);
-      const message = this.redact(error, context.config);
+      const message =
+        context.shareId && context.credentialScope?.ownerId !== ownerId
+          ? '共享上游不可用，请联系连接所有者检查授权或设备'
+          : this.redact(error, context.config);
       await this.runtime.write(next, () =>
-        this.deps.db
-          .update(connections)
-          .set({ status: 'error', error: message })
-          .where(eq(connections.id, id)),
+        context.shareId
+          ? this.deps.shares.state(context, 'error', message)
+          : this.deps.db
+              .update(connections)
+              .set({ status: 'error', error: message })
+              .where(eq(connections.id, id)),
       );
       try {
         await closed;
       } catch (closeError) {
         throw new AppError(
           'CONNECTION_FAILED',
-          `${message}; 清理连接失败：${this.redact(closeError, context.config)}`,
+          `${message}; 清理连接失败：${context.shareId && context.credentialScope?.ownerId !== ownerId ? '请联系连接所有者' : this.redact(closeError, context.config)}`,
           502,
         );
       }
@@ -350,7 +368,7 @@ export class ConnectionService {
   async catalogForAccess(ownerId: string, id: string) {
     const context = await this.context(ownerId, id);
     const snapshot = await this.bindings.snapshot(context);
-    const row = await this.owned(ownerId, id);
+    const row = await this.accessible(ownerId, id);
     if (row.status === 'stopped') return snapshot;
     if (snapshot && (context.config.lifecycle.startup === 'on-demand' || row.status === 'sleeping'))
       return snapshot;
@@ -380,11 +398,29 @@ export class ConnectionService {
       );
   }
   async closeBinding(context: ConnectionContext) {
+    for (const key of this.runtime.keysForCredentialBinding(context.bindingId!))
+      await this.runtime.invalidate(key).closed;
     for (const key of this.runtime.keys(context.id))
       if (key.startsWith(`${context.id}:${context.bindingId}:`))
         await this.runtime.invalidate(key).closed;
   }
-  async update(ownerId: string, id: string, input: unknown) {
+  update(ownerId: string, id: string, input: unknown) {
+    return this.saveConfig({ ownerId, id, input, replace: false });
+  }
+  replace(ownerId: string, id: string, input: unknown) {
+    return this.saveConfig({ ownerId, id, input, replace: true });
+  }
+  private async saveConfig({
+    ownerId,
+    id,
+    input,
+    replace,
+  }: {
+    ownerId: string;
+    id: string;
+    input: unknown;
+    replace: boolean;
+  }) {
     const row = await this.owned(ownerId, id);
     const old = this.deps.vault.open<ConnectionInput>(row.config, `${ownerId}:${id}`);
     if (!input || typeof input !== 'object' || Array.isArray(input))
@@ -392,7 +428,7 @@ export class ConnectionService {
     const { revision, ...patch } = input as Record<string, unknown>;
     if (revision !== undefined && revision !== row.revision)
       throw new AppError('REVISION_CONFLICT', '连接配置已变化，请重新加载', 409);
-    const config = await this.validate(ownerId, { ...old, ...patch });
+    const config = await this.validate(ownerId, replace ? patch : { ...old, ...patch });
     await this.close(ownerId, id);
     const updated = await this.deps.db
       .update(connections)

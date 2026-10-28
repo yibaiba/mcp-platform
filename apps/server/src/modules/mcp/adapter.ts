@@ -7,6 +7,10 @@ export type ConnectionContext = {
   revision?: number;
   id: string;
   ownerId: string;
+  resourceOwnerId?: string;
+  shareId?: string;
+  shareVersion?: number;
+  credentialScope?: { ownerId: string; connectionId: string; bindingId: string; identity: string };
   config: ConnectionInput;
   bindingId?: string;
   identity?: string;

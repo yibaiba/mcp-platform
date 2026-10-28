@@ -26,9 +26,12 @@ import { authorizeConnection } from './authorizationFlow.js';
 import { authorizationResult } from './authorizationResult.js';
 import { ConnectionItem, type ConnectionInspection } from './ConnectionItem.js';
 import { SetupChecklist } from '../onboarding/SetupChecklist.js';
+import { ConnectionShares } from './ConnectionShares.js';
+import { IncomingShares } from './IncomingShares.js';
 
 export default function ConnectionsPage() {
   const [editing, setEditing] = useState<Connection>();
+  const [sharing, setSharing] = useState<Connection>();
   const [show, setShow] = useState(false);
   const [preset, setPreset] = useState<ConnectorPreset>();
   const [inspection, setInspection] = useState<ConnectionInspection>();
@@ -151,6 +154,7 @@ export default function ConnectionsPage() {
               key={connection.id}
               connection={connection}
               devices={deviceById}
+              onShare={setSharing}
               onEdit={setEditing}
               onInspect={setInspection}
             />
@@ -196,7 +200,22 @@ export default function ConnectionsPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+      <IncomingShares devices={devices.data ?? []} />
       <OpenApiPanel />
+      <Dialog
+        open={Boolean(sharing)}
+        onOpenChange={(open) => {
+          if (!open) setSharing(undefined);
+        }}
+      >
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>共享 {sharing?.name}</DialogTitle>
+            <DialogDescription>按接收账号授予能力，并明确选择凭证使用方式。</DialogDescription>
+          </DialogHeader>
+          {sharing && <ConnectionShares connectionId={sharing.id} />}
+        </DialogContent>
+      </Dialog>
       <ImportPanel devices={devices.data ?? []} />
     </>
   );

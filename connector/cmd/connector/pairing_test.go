@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"mcplatform/connector/internal/config"
@@ -25,7 +26,7 @@ func TestConnectPairsOnceAndReusesSavedConfiguration(t *testing.T) {
 			return
 		}
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]string{"deviceId": "test-device", "token": "test-device-token"})
+		json.NewEncoder(w).Encode(map[string]any{"deviceId": "test-device", "deviceSecret": base64.RawURLEncoding.EncodeToString(make([]byte, 32)), "credentialVersion": 1})
 	}))
 	defer server.Close()
 	var output bytes.Buffer
@@ -46,7 +47,7 @@ func TestConnectPairsOnceAndReusesSavedConfiguration(t *testing.T) {
 	if err != nil || !bytes.Equal(before, after) || calls.Load() != 1 {
 		t.Fatal("reconnecting changed configuration or paired again", err)
 	}
-	if strings.Contains(output.String(), "test-device-token") || strings.Contains(output.String(), "one-time-code") {
+	if strings.Contains(output.String(), base64.RawURLEncoding.EncodeToString(make([]byte, 32))) || strings.Contains(output.String(), "one-time-code") {
 		t.Fatal("pairing output disclosed credentials")
 	}
 }
@@ -68,7 +69,7 @@ func TestConnectRejectsInvalidSavedConfigurationWithoutPairing(t *testing.T) {
 
 func TestConnectRejectsDifferentPlatformAndPairPreservesConfiguration(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "connector.json")
-	if err := config.Save(path, config.Config{Server: "https://platform.example/", DeviceID: "device", Token: "fixture-token"}); err != nil {
+	if err := config.Save(path, config.Config{Server: "https://platform.example/", DeviceID: "device", DeviceSecret: base64.RawURLEncoding.EncodeToString(make([]byte, 32)), CredentialVersion: 1}); err != nil {
 		t.Fatal(err)
 	}
 	options := pairingOptions{Path: path, Server: "https://platform.example", Output: io.Discard}

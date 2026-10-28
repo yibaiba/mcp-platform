@@ -22,6 +22,7 @@ export type Context = {
   id: string;
   ownerId: string;
   bindingId?: string;
+  credentialScope?: { ownerId: string; bindingId: string };
   runtimeKey?: string;
   capabilities?: Record<string, unknown>;
   config: {
@@ -49,8 +50,10 @@ export async function bridge(options: {
   context: Context;
   directory: string;
   authorizationKey?: string;
+  diagnostic?: (code: string) => void;
 }) {
   const bridgeContext = options.context;
+  const diagnostic = options.diagnostic ?? ((code: string) => console.error(code));
   await mkdir(options.directory, { recursive: true, mode: 0o700 });
   const worker = fork(new URL('./worker.ts', import.meta.url), [], {
     execArgv: ['--import', 'tsx'],
@@ -60,8 +63,9 @@ export async function bridge(options: {
       PI_MCP_ADAPTER_OAUTH_FILE_KEY:
         options.authorizationKey ?? process.env.PI_MCP_ADAPTER_OAUTH_FILE_KEY,
     },
-    stdio: ['ignore', 'ignore', 'inherit', 'ipc'],
+    stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
   });
+  worker.stderr?.on('data', () => diagnostic('PI_WORKER_STDERR'));
   let connected = false;
   const lifetime = new AbortController();
   const authLeases = new Map<string, () => void>();
@@ -86,7 +90,14 @@ export async function bridge(options: {
       errorCode?: string;
       notification?: McpNotification;
       progress?: Progress;
+      code?: string;
     }) => {
+      if (message.type === 'diagnostic') {
+        diagnostic(
+          message.code === 'PI_DISCONNECT_CLEANUP_FAILED' ? message.code : 'PI_IPC_DELIVERY_FAILED',
+        );
+        return;
+      }
       if (message.type === 'auth-acquire') {
         void authorizationCoordinator.acquire(options.directory, lifetime.signal).then(
           (lease) => {
@@ -243,8 +254,8 @@ export async function bridge(options: {
         const signal = input.signal;
         const cancel = () => {
           interactions.delete(state);
-          void request('interaction.cancel', { requestState: state }).catch((error: unknown) =>
-            console.error('Pi interaction cancellation failed', error),
+          void request('interaction.cancel', { requestState: state }).catch(() =>
+            diagnostic('PI_INTERACTION_CANCEL_FAILED'),
           );
         };
         interactions.set(state, () => signal.removeEventListener('abort', cancel));

@@ -86,9 +86,7 @@ export function createDeviceAdapter(
               method: 'interaction.cancel',
               params: { ...params, requestState: state },
             })
-            .catch((error: unknown) =>
-              console.error('Device interaction cancellation failed', error),
-            );
+            .catch(() => broker.diagnostic('DEVICE_INTERACTION_CANCEL_FAILED'));
         };
         interactions.set(state, () => signal.removeEventListener('abort', cancel));
         signal.addEventListener('abort', cancel, { once: true });

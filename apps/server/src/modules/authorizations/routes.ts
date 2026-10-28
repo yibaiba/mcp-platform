@@ -8,6 +8,7 @@ import { withExecution } from '../mcp/executionContext.js';
 import { AppError } from '../../shared/errors.js';
 import type { ConnectionContext } from '../mcp/adapter.js';
 import { finishBrowserAuthorization, oauthCallbackUrl } from './browserFlow.js';
+import { assertCredentialManager } from './credentialScope.js';
 export function authorizationRoutes(
   deps: {
     connections: ConnectionService;
@@ -16,6 +17,7 @@ export function authorizationRoutes(
     publicUrl: string;
     webOrigin: string;
     changed?: () => Promise<void>;
+    authorized?: (ownerId: string, connectionId: string) => Promise<unknown>;
   },
   binding = false,
 ) {
@@ -24,7 +26,7 @@ export function authorizationRoutes(
   if (binding)
     app.use('/:id/bindings/:bindingId/*', async (c, next) => {
       const id = paramId(c);
-      await deps.connections.owned(owner(c), id);
+      await deps.connections.accessible(owner(c), id);
       const row = (await deps.connections.bindings.list(owner(c), id)).find(
         (item) => item.id === c.req.param('bindingId'),
       );
@@ -43,6 +45,7 @@ export function authorizationRoutes(
     });
   async function httpContext(ownerId: string, connectionId: string) {
     const context = await deps.connections.context(ownerId, connectionId);
+    assertCredentialManager(context);
     if (context.config.transport === 'stdio')
       throw new AppError(
         'OAUTH_NOT_APPLICABLE',
@@ -88,6 +91,7 @@ export function authorizationRoutes(
     if (context.config.adapter === 'pi') {
       const result = await deps.pi.action(context, { action: 'auth-complete', args: input });
       await identityChanged(context);
+      await deps.authorized?.(context.ownerId, context.id);
       return Response.json(result);
     }
     const url = new URL(input.redirectUrl);
@@ -99,6 +103,7 @@ export function authorizationRoutes(
       issuer: url.searchParams.get('iss') ?? undefined,
     });
     await identityChanged(context);
+    await deps.authorized?.(context.ownerId, context.id);
     return c.json({ authorized: true });
   });
   app.get(`${prefix}/callback`, async (c) => {
@@ -118,6 +123,7 @@ export function authorizationRoutes(
       await deps.oauth.complete(context, input);
     }
     await identityChanged(context);
+    await deps.authorized?.(context.ownerId, context.id);
     return finishBrowserAuthorization({
       context,
       connections: deps.connections,

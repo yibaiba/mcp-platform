@@ -32,6 +32,7 @@ export class RecoverySchedule {
       initialIntervalMs: number;
       maxIntervalMs: number;
       recover: () => Promise<void>;
+      diagnostic: (code: string) => void;
       report: (error: unknown) => Promise<void>;
       redact: (error: unknown) => string;
       random?: () => number;
@@ -90,8 +91,8 @@ export class RecoverySchedule {
       this.failed(error);
       try {
         await this.options.report(error);
-      } catch (reportError) {
-        console.error('Recovery error persistence failed', this.options.redact(reportError));
+      } catch {
+        this.options.diagnostic('RECOVERY_PERSISTENCE_FAILED');
       }
     }
   }

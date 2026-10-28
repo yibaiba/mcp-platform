@@ -1,6 +1,7 @@
+import type { DiagnosticLogger } from '../activity/systemLogger.js';
 import { CallToolResultSchema, type CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { randomUUID } from 'node:crypto';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { calls, type Database } from '@platform/db';
 import { AppError } from '../../shared/errors.js';
 import type { ProfileService, Principal } from '../agent-profiles/profileService.js';
@@ -41,6 +42,7 @@ export class InvocationService {
   constructor(
     private readonly deps: {
       db: Database;
+      logger: DiagnosticLogger;
       profiles: ProfileService;
       connections: ConnectionService;
       interactions: InteractionService;
@@ -78,7 +80,7 @@ export class InvocationService {
       await this.deps.profiles.authenticate(input.principal.profileId, input.principal.token);
     const tool = await this.deps.profiles.tool(input.ownerId, input);
     if (!tool) throw new AppError('TOOL_FORBIDDEN', '该工具不存在或未授权', 403);
-    const connection = await this.deps.connections.owned(input.ownerId, tool.connectionId);
+    const connection = await this.deps.connections.accessible(input.ownerId, tool.connectionId);
     if (connection.status === 'stopped')
       throw new AppError('CONNECTION_STOPPED', '连接已停止，请先启动', 409);
     const id = randomUUID();
@@ -105,12 +107,16 @@ export class InvocationService {
         profileId: input.profileId,
         toolId: tool.id,
         connectionId: connection.id,
-        adapter: connection.adapter,
-        deviceId: connection.deviceId,
+        adapter: context.config.adapter,
+        deviceId: context.config.deviceId,
         status: 'running',
         taskId: execution?.taskId,
         credentialId: execution?.credentialId,
         bindingId: context.bindingId,
+        shareId: context.shareId,
+        shareVersion: context.shareVersion,
+        resourceOwnerId: context.resourceOwnerId ?? input.ownerId,
+        credentialOwnerId: context.credentialScope?.ownerId ?? input.ownerId,
         sessionId: context.sessionId,
         entry: execution?.entry ?? 'dashboard',
         correlationId: execution?.correlationId,
@@ -146,8 +152,8 @@ export class InvocationService {
       releasePermission();
       clearTimeout(deadlineTimer);
       budget.pause();
-      void this.finish(id, 'unknown', '调用或运行会话已中断').catch((error: unknown) =>
-        console.error('Call interruption persistence failed', error),
+      void this.finish(id, 'unknown', '调用或运行会话已中断').catch(() =>
+        this.deps.logger.report('CALL_INTERRUPTION_PERSISTENCE_FAILED', input.ownerId),
       );
     };
     signal.addEventListener('abort', interrupted, { once: true });
@@ -193,6 +199,7 @@ export class InvocationService {
             budget.pause();
             network.removeEventListener('abort', forwardAbort);
           });
+        signal.throwIfAborted();
         if (isInputRequiredResult(result)) {
           const required = await this.deps.interactions.create({
             ownerId: input.ownerId,
@@ -234,12 +241,21 @@ export class InvocationService {
           result: scopeResult(connection.id, result),
         });
       } catch (error) {
-        const message = this.deps.connections.redact(error, context.config);
+        const message =
+          context.shareId && context.credentialScope?.ownerId !== input.ownerId
+            ? '共享上游调用失败；请联系所有者检查授权或设备'
+            : this.deps.connections.redact(error, context.config);
         const unknown =
           signal.aborted ||
           budget.signal.aborted ||
           (error instanceof AppError && error.code === 'RESULT_UNKNOWN');
-        await this.finish(id, unknown ? 'unknown' : 'failed', message);
+        await this.finish(
+          id,
+          unknown ? 'unknown' : 'failed',
+          unknown
+            ? 'RESULT_UNKNOWN: 调用中断或超时；上游可能已执行，请先核实结果'
+            : 'CALL_FAILED: 调用或协议校验失败；具体错误仅返回给本次调用方',
+        );
         throw new AppError(unknown ? 'RESULT_UNKNOWN' : 'CALL_FAILED', message, 502);
       } finally {
         if (!waiting) {
@@ -264,7 +280,7 @@ export class InvocationService {
         revision: sql`${calls.revision} + 1`,
         endedAt: status === 'waiting' ? null : new Date(),
       })
-      .where(eq(calls.id, id))
+      .where(and(eq(calls.id, id), inArray(calls.status, ['running', 'waiting'])))
       .returning({ ownerId: calls.ownerId, revision: calls.revision });
     if (row)
       this.deps.events.publish({
@@ -283,9 +299,10 @@ export class InvocationService {
     current.abort.abort();
     this.active.delete(id);
   }
-  revoke(input: { profileId?: string; credentialId?: string }) {
+  revoke(input: { ownerId?: string; profileId?: string; credentialId?: string }) {
     for (const current of this.active.values())
       if (
+        (input.ownerId && current.ownerId === input.ownerId) ||
         (input.profileId && current.profileId === input.profileId) ||
         (input.credentialId && current.credentialId === input.credentialId)
       )

@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { authorizationBindings, type Database } from '@platform/db';
 import type { Vault } from '../../shared/crypto.js';
 import type { ConnectionContext } from '../mcp/adapter.js';
+import { credentialScope } from '../authorizations/credentialScope.js';
 import { AppError } from '../../shared/errors.js';
 export type ApiToken = {
   access_token: string;
@@ -26,14 +27,17 @@ export class ApiCredentialStore {
       .from(authorizationBindings)
       .where(
         and(
-          eq(authorizationBindings.id, context.bindingId!),
-          eq(authorizationBindings.ownerId, context.ownerId),
+          eq(authorizationBindings.id, credentialScope(context).bindingId!),
+          eq(authorizationBindings.ownerId, credentialScope(context).ownerId),
           eq(authorizationBindings.revoked, false),
         ),
       );
     if (!row) throw new AppError('BINDING_REVOKED', '授权绑定不存在或已撤销', 403);
     return row.encrypted
-      ? this.deps.vault.open(row.encrypted, `openapi:${context.ownerId}:${context.bindingId}`)
+      ? this.deps.vault.open(
+          row.encrypted,
+          `openapi:${credentialScope(context).ownerId}:${credentialScope(context).bindingId}`,
+        )
       : {};
   }
   async change<T>(
@@ -42,13 +46,18 @@ export class ApiCredentialStore {
       state: Record<string, ApiAuthState>,
     ) => Promise<{ state: Record<string, ApiAuthState>; result: T }>,
   ) {
-    const key = context.bindingId!;
+    const key = credentialScope(context).bindingId!;
     const previous = this.queues.get(key) ?? Promise.resolve();
     const pending = previous.then(async () => {
       const next = await action(await this.read(context));
       const rows = await this.deps.db
         .update(authorizationBindings)
-        .set({ encrypted: this.deps.vault.seal(next.state, `openapi:${context.ownerId}:${key}`) })
+        .set({
+          encrypted: this.deps.vault.seal(
+            next.state,
+            `openapi:${credentialScope(context).ownerId}:${key}`,
+          ),
+        })
         .where(and(eq(authorizationBindings.id, key), eq(authorizationBindings.revoked, false)))
         .returning({ id: authorizationBindings.id });
       if (!rows.length) throw new AppError('BINDING_REVOKED', '授权已撤销', 403);

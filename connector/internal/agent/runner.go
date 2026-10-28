@@ -58,8 +58,7 @@ func (r *Runner) session(parent context.Context) error {
 		u.Scheme = "ws"
 	}
 	u.Path = "/api/v1/devices/channel"
-	headers := http.Header{"Authorization": []string{"Bearer " + r.Config.Token}}
-	conn, resp, err := websocket.Dial(parent, u.String(), &websocket.DialOptions{HTTPClient: r.Client, HTTPHeader: headers})
+	conn, resp, err := websocket.Dial(parent, u.String(), &websocket.DialOptions{HTTPClient: r.Client})
 	if err != nil {
 		if resp != nil {
 			return fmt.Errorf("channel HTTP %d", resp.StatusCode)
@@ -67,6 +66,9 @@ func (r *Runner) session(parent context.Context) error {
 		return err
 	}
 	defer conn.CloseNow()
+	if err = r.authenticate(parent, conn); err != nil {
+		return err
+	}
 	conn.SetReadLimit(-1)
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()

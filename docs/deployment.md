@@ -4,7 +4,7 @@
 
 `docker-compose.yml` 是独立部署文件，包含应用和 PostgreSQL，没有 `build`。数据库与应用文件分别使用持久卷，PostgreSQL 不发布主机端口。下载该文件和 `.env.docker.example` 即可配置，无需下载应用源码或另行准备数据库。
 
-1. 将 `.env.docker.example` 复制为 `.env`，填写随机十六进制 `POSTGRES_PASSWORD`、`BETTER_AUTH_SECRET` 和 32 字节 Base64 `ENCRYPTION_KEY`。镜像来自本仓库的 `ghcr.io/yibaiba/mcp-platform`，`PLATFORM_VERSION` 可使用已发布的 `latest` 或 `sha-<完整提交号>`。Compose 自动注入容器内部的 `DATABASE_URL`，无需手填。
+1. 将 `.env.docker.example` 复制为 `.env`，填写随机十六进制 `POSTGRES_PASSWORD`、`BETTER_AUTH_SECRET` 和 32 字节 Base64 `ENCRYPTION_KEY` 和独立的 `DEVICE_AUTH_ENCRYPTION_KEY`。镜像来自本仓库的 `ghcr.io/yibaiba/mcp-platform`，`PLATFORM_VERSION` 可使用已发布的 `latest` 或 `sha-<完整提交号>`。Compose 自动注入容器内部的 `DATABASE_URL`，无需手填。
 2. 将 `PUBLIC_URL` 和 `WEB_ORIGIN` 均设为实际访问地址，例如 `http://服务器IP:4300`，或 Nginx 提供的同一个 HTTPS 域名。
 3. 首次注册时临时启用 `ALLOW_REGISTRATION=true`，注册后关闭并重新创建应用容器。
 
@@ -27,7 +27,7 @@ docker compose -f docker-compose.yml logs --tail=100 server
 默认单实例，没有 Redis、消息队列或多副本路由。MCP 会话和在线设备请求由服务进程维护；重启会中断请求并记录结果未知，不自动重放。
 
 1. 安装 Docker/Compose，准备容器可访问的 PostgreSQL 17 数据库。
-2. `cp .env.example .env`；设置外部 `DATABASE_URL`、随机 `BETTER_AUTH_SECRET` 和 32 字节 Base64 `ENCRYPTION_KEY`。`PUBLIC_URL` 和 `WEB_ORIGIN` 都填写实际访问地址；直连使用 `http://服务器IP:4300`，Nginx 使用同一个 HTTPS 域名。数据库地址中的 `localhost` 指应用容器自身，用户名与密码中的特殊字符需 URL 编码。不要在仓库提交 `.env`。
+2. `cp .env.example .env`；设置外部 `DATABASE_URL`、随机 `BETTER_AUTH_SECRET` 和 32 字节 Base64 `ENCRYPTION_KEY` 和独立的 `DEVICE_AUTH_ENCRYPTION_KEY`。`PUBLIC_URL` 和 `WEB_ORIGIN` 都填写实际访问地址；直连使用 `http://服务器IP:4300`，Nginx 使用同一个 HTTPS 域名。数据库地址中的 `localhost` 指应用容器自身，用户名与密码中的特殊字符需 URL 编码。不要在仓库提交 `.env`。
 3. 首次临时启用 `ALLOW_REGISTRATION=true`，注册后关闭并重建 server 容器。
 
 ```sh
@@ -85,7 +85,7 @@ docker compose -f docker-compose.yml start server
 
 逐条检查退出码；任何步骤失败都不能报告备份成功，并在维护结束时恢复应用。
 
-`platform.env` 含数据库与加密密钥，必须私密保存；没有原 `ENCRYPTION_KEY` 不能解密 MCP/OAuth 凭证。Pi 凭证还依赖原 Pi 文件密钥。备份文件不要上传到公开仓库。
+`platform.env` 含数据库与加密密钥，必须私密保存；没有原 `ENCRYPTION_KEY` 不能解密 MCP/OAuth 凭证。设备密钥依赖原 `DEVICE_AUTH_ENCRYPTION_KEY`；独立保护并另行备份该主密钥，遗失后无法认证现有设备，须逐台重配。Pi 凭证还依赖原 Pi 文件密钥。备份文件不要上传到公开仓库。
 
 ## 恢复到新的空部署
 
@@ -111,3 +111,5 @@ docker compose -f docker-compose.yml up -d
 ```
 
 恢复后验证登录、连接授权、产物哈希、设备重新上线和配置权限。域名变化需更新设备 `server` 和上游 OAuth 回调注册，重新签发包含旧 resource URL 的 Agent OAuth 授权。恢复演练和公网站点证书仍须在部署环境验收，不能把配置检查当作已部署。
+
+设备 HMAC 升级后，旧设备显示待重新配对，必须同时更新连接器并完成重配。详见 [设备认证升级](device-auth-verification.md)。

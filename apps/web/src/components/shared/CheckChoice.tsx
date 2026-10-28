@@ -5,11 +5,15 @@ export function CheckChoice({
   name,
   value,
   defaultChecked,
+  checked,
+  onCheckedChange,
   disabled,
   children,
 }: {
-  name: string;
-  value: string;
+  name?: string;
+  value?: string;
+  checked?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
   defaultChecked?: boolean;
   disabled?: boolean;
   children: ReactNode;
@@ -23,6 +27,8 @@ export function CheckChoice({
         name={name}
         value={value}
         defaultChecked={defaultChecked}
+        checked={checked}
+        onCheckedChange={onCheckedChange}
         disabled={disabled}
       />
       <Label id={`${id}-label`} htmlFor={id} className="cursor-pointer font-normal">

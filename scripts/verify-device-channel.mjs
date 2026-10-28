@@ -65,7 +65,7 @@ export async function verifyDeviceChannel({ directory, origin, cookie, request }
       'PASS: downloaded Go connector connects over the same-port WebSocket and revocation disconnects it',
     );
   } catch (error) {
-    process.stderr.write(stderr.replaceAll(device.token, '[redacted]'));
+    process.stderr.write(stderr.replaceAll(device.deviceSecret, '[redacted]'));
     throw error;
   } finally {
     child.kill('SIGINT');

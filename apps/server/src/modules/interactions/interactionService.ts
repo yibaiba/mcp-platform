@@ -1,3 +1,4 @@
+import type { DiagnosticLogger } from '../activity/systemLogger.js';
 import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { interactions, type Database } from '@platform/db';
@@ -25,7 +26,7 @@ type Live = {
 };
 export class InteractionService {
   private readonly pending = new Map<string, Live>();
-  constructor(private readonly deps: { db: Database; vault: Vault }) {}
+  constructor(private readonly deps: { db: Database; vault: Vault; logger: DiagnosticLogger }) {}
   async create(input: {
     ownerId: string;
     connectionId: string;
@@ -57,8 +58,8 @@ export class InteractionService {
     const abort = () => {
       this.pending.delete(id);
       reject(new AppError('INTERACTION_INTERRUPTED', '原调用已中断，不能续传', 409));
-      void this.finish(id, 'interrupted').catch((error: unknown) =>
-        console.error('Interaction interruption persistence failed', error),
+      void this.finish(id, 'interrupted').catch(() =>
+        this.deps.logger.report('INTERACTION_PERSISTENCE_FAILED', input.ownerId),
       );
     };
     await this.deps.db.insert(interactions).values({

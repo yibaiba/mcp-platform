@@ -6,14 +6,16 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type Config struct {
-	Server        string            `json:"server"`
-	DeviceID      string            `json:"deviceId"`
-	Token         string            `json:"token"`
-	SkillRoots    map[string]string `json:"skillRoots"`
-	ArtifactRoots map[string]string `json:"artifactRoots"`
+	Server            string            `json:"server"`
+	DeviceID          string            `json:"deviceId"`
+	DeviceSecret      string            `json:"deviceSecret"`
+	CredentialVersion int               `json:"credentialVersion"`
+	SkillRoots        map[string]string `json:"skillRoots"`
+	ArtifactRoots     map[string]string `json:"artifactRoots"`
 }
 
 func ValidateServer(raw string) (*url.URL, error) {
@@ -21,10 +23,13 @@ func ValidateServer(raw string) (*url.URL, error) {
 	if err != nil {
 		return nil, err
 	}
+	if u.Hostname() == "" {
+		return nil, fmt.Errorf("server requires a hostname")
+	}
 	if u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
 		return nil, fmt.Errorf("server must be an origin URL")
 	}
-	if u.Scheme != "https" && !(u.Scheme == "http" && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" || u.Hostname() == "::1")) {
+	if u.Scheme != "https" && !(u.Scheme == "http" && (strings.EqualFold(u.Hostname(), "localhost") || u.Hostname() == "127.0.0.1" || u.Hostname() == "::1")) {
 		return nil, fmt.Errorf("remote servers require HTTPS")
 	}
 	return u, nil
@@ -42,8 +47,11 @@ func Load(path string) (Config, error) {
 	if _, err = ValidateServer(c.Server); err != nil {
 		return c, err
 	}
-	if c.Token == "" || c.DeviceID == "" {
+	if c.DeviceID == "" || c.CredentialVersion < 1 {
 		return c, fmt.Errorf("device must be paired first")
+	}
+	if err = ValidateSecret(c.DeviceSecret); err != nil {
+		return c, err
 	}
 	for _, roots := range []map[string]string{c.SkillRoots, c.ArtifactRoots} {
 		for name, path := range roots {

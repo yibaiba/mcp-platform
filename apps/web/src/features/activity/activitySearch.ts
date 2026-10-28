@@ -1,5 +1,7 @@
 import { z } from 'zod';
 export const activitySearch = z.object({
+  from: z.string().optional(),
+  before: z.string().optional(),
   profileId: z.string().optional(),
   taskId: z.string().optional(),
   connectionId: z.string().optional(),

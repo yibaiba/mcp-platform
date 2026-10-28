@@ -42,7 +42,9 @@ try {
   } finally {
     closeSync(files);
   }
-  console.log('Backup complete. Keep platform.env private; it contains the encryption key.');
+  console.log(
+    'Backup complete. Keep platform.env private; it contains encryption keys, including the independent device authentication master key.',
+  );
 } finally {
   compose(['start', 'server']);
 }
