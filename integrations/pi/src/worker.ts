@@ -63,6 +63,8 @@ function client() {
 }
 let server = '';
 let serverUrl = '';
+let requestTimeoutMs: number | undefined;
+let healthTimeoutMs: number | undefined;
 const active = new Map<string, AbortController>();
 const authGrants = new Map<string, { resolve: () => void; reject: (error: Error) => void }>();
 function sendToParent(message: Record<string, unknown>) {
@@ -114,11 +116,14 @@ async function proxy(params: Record<string, unknown>, signal?: AbortSignal) {
   );
   const details = result.details as Record<string, unknown> | undefined;
   if (details?.error && details.error !== 'tool_error')
-    throw new Error(
-      `${details.error}: ${result.content
-        .filter((b) => b.type === 'text')
-        .map((b) => b.text)
-        .join('\n')}`,
+    throw Object.assign(
+      new Error(
+        `${details.error}: ${result.content
+          .filter((b) => b.type === 'text')
+          .map((b) => b.text)
+          .join('\n')}`,
+      ),
+      { code: String(details.error) },
     );
   return { content: result.content, details };
 }
@@ -130,6 +135,8 @@ async function dispatch(
 ) {
   if (method === 'initialize') {
     const context = params as Context;
+    requestTimeoutMs = context.config.requestOptions?.timeoutMs;
+    healthTimeoutMs = context.config.health?.timeoutMs;
     configurePlatformEmbedding({
       oauthRedirectUri: context.oauthRedirectUri,
       authorize,
@@ -195,6 +202,7 @@ async function dispatch(
                         oauth: context.config.oauth,
                       }),
                   lifecycle: 'lazy',
+                  requestTimeoutMs: context.config.connectTimeoutMs,
                   roots: false,
                   protocolVersion: context.config.transport === 'sse' ? 'legacy' : 'auto',
                 },
@@ -233,22 +241,27 @@ async function dispatch(
     : undefined;
   if (method === 'catalog' || method === 'discover') {
     await proxy({ connect: server }, signal);
-    catalog = await discoverCatalog(client(), signal);
+    catalog = await discoverCatalog(client(), signal, requestTimeoutMs);
     return method === 'discover' ? catalog.tools : catalog;
   }
   if (method === 'request' || method === 'call' || method === 'check') {
     if (!catalog) {
       await proxy({ connect: server }, signal);
-      catalog = await discoverCatalog(client(), signal);
+      catalog = await discoverCatalog(client(), signal, requestTimeoutMs);
     }
   }
   if (method === 'check') {
-    if (client().getProtocolEra() === 'modern') await client().discover({ signal });
-    else await client().ping({ signal });
+    if (client().getProtocolEra() === 'modern')
+      await client().discover({ signal, timeout: healthTimeoutMs });
+    else await client().ping({ signal, timeout: healthTimeoutMs });
     return {};
   }
   if (method === 'request')
-    return executeOperation(client(), params.operation as McpOperation, { signal, onprogress });
+    return executeOperation(client(), params.operation as McpOperation, {
+      signal,
+      onprogress,
+      executionTimeoutMs: params.executionTimeoutMs as number | undefined,
+    });
   if (method === 'interaction.cancel')
     return interactive.get(client())!.cancel(String(params.requestState));
   if (method === 'call') {
@@ -311,6 +324,8 @@ process.on(
           sendToParent({
             id: message.id,
             error: error instanceof Error ? error.message : String(error),
+            errorName: error instanceof Error ? error.name : undefined,
+            errorCode: error instanceof Error && 'code' in error ? String(error.code) : undefined,
           }),
       )
       .finally(() => active.delete(message.id));

@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { DEFAULT_REQUEST_TIMEOUT_MS, requestOptions } from './requestOptions.js';
+export * from './requestOptions.js';
 export { clientPresets, type ClientPreset } from './clientPresets.js';
 export {
   connectorPresets,
@@ -8,7 +10,7 @@ export {
   type ConnectorAuthentication,
 } from './connectorPresets.js';
 export const PROTOCOL_VERSION = 1;
-export const CALL_TIMEOUT_MS = 60_000;
+export const CALL_TIMEOUT_MS = DEFAULT_REQUEST_TIMEOUT_MS;
 export const HEARTBEAT_MS = 15_000;
 export const pairingLifetimeMs = 10 * 60_000;
 export const idSchema = z.uuid();
@@ -26,6 +28,11 @@ export const httpUrl = z
 export const connectionInput = z
   .object({
     name: z.string().trim().min(1),
+    connectTimeoutMs: z.number().int().positive().default(CALL_TIMEOUT_MS),
+    requestOptions: requestOptions.default({
+      timeoutMs: CALL_TIMEOUT_MS,
+      resetTimeoutOnProgress: false,
+    }),
     source: z.enum(['mcp', 'openapi']).default('mcp'),
     openapi: z
       .object({
@@ -81,8 +88,21 @@ export const connectionInput = z
         intervalMs: z.number().int().positive().default(60_000),
         timeoutMs: z.number().int().positive().default(5_000),
         recover: z.boolean().default(false),
+        initialIntervalMs: z.number().int().positive().default(5_000),
+        maxIntervalMs: z.number().int().positive().default(300_000),
       })
-      .default({ enabled: false, intervalMs: 60_000, timeoutMs: 5_000, recover: false }),
+      .refine(
+        (value) => value.maxIntervalMs >= value.initialIntervalMs,
+        '恢复最大间隔不能小于初始间隔',
+      )
+      .default({
+        enabled: false,
+        intervalMs: 60_000,
+        timeoutMs: 5_000,
+        recover: false,
+        initialIntervalMs: 5_000,
+        maxIntervalMs: 300_000,
+      }),
     oauth: z
       .object({
         clientId: z.string().optional(),

@@ -9,7 +9,10 @@ import type {
   ConnectionAdapter,
   ConnectionContext,
 } from '../apps/server/src/modules/mcp/adapter.js';
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 function setup() {
   const context: ConnectionContext = {
     id: 'unit-session',
@@ -22,7 +25,14 @@ function setup() {
       mode: 'existing',
       url: 'https://example.com',
       lifecycle: { idleTimeoutMs: 10 },
-      health: { enabled: true, intervalMs: 60, timeoutMs: 5, recover: true },
+      health: {
+        enabled: true,
+        intervalMs: 60,
+        timeoutMs: 5,
+        recover: true,
+        initialIntervalMs: 5,
+        maxIntervalMs: 20,
+      },
     }),
   };
   const catalog = { tools: [], prompts: [], resources: [], templates: [], capabilities: {} };
@@ -67,19 +77,39 @@ test('subscriptions retain idle leases while health follows its configured inter
 });
 test('health recovery restores subscriptions but never replays a dispatched tool', async () => {
   vi.useFakeTimers();
+  vi.spyOn(Math, 'random').mockReturnValue(0.5);
   const { wrapped, adapter, replacement, effects } = setup();
   await wrapped.request({ method: 'resources/subscribe', params: { uri: 'file:///subscribed' } });
   await expect(wrapped.call({ name: 'write', arguments: {} })).rejects.toThrow('execution failed');
   vi.mocked(adapter.check!).mockRejectedValueOnce(new Error('ping failed'));
   await vi.advanceTimersByTimeAsync(60);
+  expect(effects.recover).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(5);
   expect(effects.recover).toHaveBeenCalledTimes(1);
-  expect(replacement.request).toHaveBeenCalledWith({
-    method: 'resources/subscribe',
-    params: { uri: 'file:///subscribed' },
-  });
+  expect(replacement.request).toHaveBeenCalledWith(
+    {
+      method: 'resources/subscribe',
+      params: { uri: 'file:///subscribed' },
+    },
+    { signal: expect.any(AbortSignal) },
+  );
   expect(adapter.call).toHaveBeenCalledTimes(1);
   expect(replacement.call).not.toHaveBeenCalled();
   await wrapped.close();
+});
+test('first catalog failure schedules recovery and closing during backoff prevents resurrection', async () => {
+  vi.useFakeTimers();
+  vi.spyOn(Math, 'random').mockReturnValue(0.5);
+  const { wrapped, adapter, manager, effects } = setup();
+  adapter.catalog = vi.fn(async () => {
+    throw new Error('unreachable');
+  });
+  await expect(wrapped.catalog()).rejects.toThrow('unreachable');
+  expect(manager.recovery('unit-session')[0]).toMatchObject({ status: 'scheduled', attempts: 0 });
+  await wrapped.close();
+  await vi.advanceTimersByTimeAsync(100);
+  expect(effects.recover).not.toHaveBeenCalled();
+  expect(manager.recovery('unit-session')).toEqual([]);
 });
 test.skipIf(process.platform === 'win32')(
   'managed stdio terminates a real child and grandchild after the configured grace',

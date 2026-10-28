@@ -57,21 +57,26 @@ export class ConnectionService {
         await this.runtime.invalidate(context.runtimeKey!).closed;
       },
       error: async (context, error) => {
-        if ((await this.owned(context.ownerId, context.id)).status === 'stopped') return;
+        const row = await this.owned(context.ownerId, context.id);
+        if (row.status === 'stopped' || row.revision !== context.revision) return;
         await deps.db
           .update(connections)
           .set({ status: 'error', error: this.redact(error, context.config) })
-          .where(eq(connections.id, context.id));
+          .where(and(eq(connections.id, context.id), eq(connections.revision, row.revision)));
       },
       recover: async (context) => {
-        if ((await this.owned(context.ownerId, context.id)).status === 'stopped')
+        const row = await this.owned(context.ownerId, context.id);
+        if (row.status === 'stopped')
           throw new AppError('CONNECTION_STOPPED', '手动停止的连接不能自动恢复', 409);
+        if (row.revision !== context.revision)
+          throw new AppError('CONNECTION_SUPERSEDED', '连接配置已更新，旧会话不再恢复', 409);
+        await this.bindings.assertCredentials(context);
         return deps.factory(context);
       },
     });
     this.runtime = new ConnectionRuntime(async (context, slot) => {
       await this.bindings.assertCredentials(context);
-      const adapter = this.lifecycle.wrap(context, await deps.factory(context));
+      const adapter = this.lifecycle.wrap(context, await deps.factory(context), slot.abort.signal);
       const current = () => this.runtime.current(slot) && !slot.abort.signal.aborted;
       const unwatch = adapter.watch((notification) =>
         this.receive({ context, notification, current }),
@@ -229,6 +234,7 @@ export class ConnectionService {
     );
     return {
       id,
+      revision: row.revision,
       ownerId,
       bindingId: binding.id,
       identity: scope.identity,
@@ -261,6 +267,9 @@ export class ConnectionService {
           identityMode: value.identityMode ?? 'shared',
           lifecycle: value.lifecycle,
           health: value.health,
+          connectTimeoutMs: value.connectTimeoutMs ?? 60_000,
+          requestOptions: connectionInput.parse(value).requestOptions,
+          recovery: this.lifecycle.recovery(row.id),
           forwardHeaders: value.forwardHeaders ?? [],
           sessions: this.runtime.keys(row.id),
           mode: value.mode,
@@ -312,7 +321,10 @@ export class ConnectionService {
         throw new AppError('DISCOVERY_CANCELLED', this.redact(error, context.config), 409);
       if (!this.runtime.current(slot))
         throw new AppError('CONNECTION_SUPERSEDED', '连接已停止或被替换，旧发现请求已结束', 409);
-      const { next, closed } = this.runtime.invalidate(slot.id);
+      const { next, closed } =
+        context.config.health.recover && this.lifecycle.recovery(id).length
+          ? { next: slot, closed: Promise.resolve() }
+          : this.runtime.invalidate(slot.id);
       const message = this.redact(error, context.config);
       await this.runtime.write(next, () =>
         this.deps.db
@@ -448,5 +460,11 @@ export class ConnectionService {
   async shutdown() {
     await this.runtime.shutdown();
     await Promise.all(this.notifications.values());
+  }
+  async remove(ownerId: string, id: string) {
+    await this.close(ownerId, id);
+    await this.deps.db
+      .delete(connections)
+      .where(and(eq(connections.id, id), eq(connections.ownerId, ownerId)));
   }
 }

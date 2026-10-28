@@ -1,5 +1,4 @@
 import { CallToolResultSchema, type CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { CALL_TIMEOUT_MS } from '@platform/contracts';
 import { randomUUID } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
 import { calls, type Database } from '@platform/db';
@@ -8,6 +7,7 @@ import type { ProfileService, Principal } from '../agent-profiles/profileService
 import type { ConnectionService } from './connectionService.js';
 import {
   parseTool,
+  ExecutionBudget,
   validateToolValue,
   isInputRequiredResult,
   type McpToolResult,
@@ -90,6 +90,7 @@ export class InvocationService {
     let releasePermission = () => {};
     const execution = currentExecution();
     const context = await this.deps.connections.context(input.ownerId, connection.id);
+    const budget = new ExecutionBudget(context.config.requestOptions);
     const adapter = await this.deps.connections.adapter(input.ownerId, connection.id);
     const lease = await this.deps.connections.lease(input.ownerId, connection.id);
     const signal = AbortSignal.any([
@@ -144,6 +145,7 @@ export class InvocationService {
       lease.release();
       releasePermission();
       clearTimeout(deadlineTimer);
+      budget.pause();
       void this.finish(id, 'unknown', '调用或运行会话已中断').catch((error: unknown) =>
         console.error('Call interruption persistence failed', error),
       );
@@ -163,14 +165,10 @@ export class InvocationService {
         if (!current) throw new AppError('GRANT_REVOKED', '请求期间工具权限已撤销', 403);
         const definition = parseTool(current.definition);
         validateToolValue({ tool: definition, field: 'inputSchema', value: input.arguments });
-        const timeout = new AbortController();
-        const timer = setTimeout(
-          () => timeout.abort(new Error('MCP 网络执行超时')),
-          CALL_TIMEOUT_MS,
-        );
+        budget.resume();
         const network = AbortSignal.any([
           signal,
-          timeout.signal,
+          budget.signal,
           ...(!continuation && input.requestSignal ? [input.requestSignal] : []),
         ]);
         // A completed HTTP response ends only the network round. Legacy elicitation
@@ -184,11 +182,15 @@ export class InvocationService {
             name: tool.name,
             arguments: input.arguments,
             signal: AbortSignal.any([signal, networkAbort.signal]),
-            onprogress: input.onprogress,
+            executionTimeoutMs: budget.remainingMs,
+            onprogress: (progress) => {
+              budget.progress(progress);
+              input.onprogress?.(progress);
+            },
             ...continuation,
           })
           .finally(() => {
-            clearTimeout(timer);
+            budget.pause();
             network.removeEventListener('abort', forwardAbort);
           });
         if (isInputRequiredResult(result)) {
@@ -234,11 +236,14 @@ export class InvocationService {
       } catch (error) {
         const message = this.deps.connections.redact(error, context.config);
         const unknown =
-          signal.aborted || (error instanceof AppError && error.code === 'RESULT_UNKNOWN');
+          signal.aborted ||
+          budget.signal.aborted ||
+          (error instanceof AppError && error.code === 'RESULT_UNKNOWN');
         await this.finish(id, unknown ? 'unknown' : 'failed', message);
         throw new AppError(unknown ? 'RESULT_UNKNOWN' : 'CALL_FAILED', message, 502);
       } finally {
         if (!waiting) {
+          budget.pause();
           this.active.delete(id);
           lease.release();
           releasePermission();

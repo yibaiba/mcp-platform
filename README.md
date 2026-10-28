@@ -85,3 +85,5 @@ pnpm test:pi                # 真实 Pi SDK 桥接；不调用模型，硬超时
 - [客户端配置格式与核对来源](docs/client-configurations.md)
 
 依赖版本由 `pnpm-lock.yaml` 锁定。
+
+Python 环境、统一调用预算和逐连接恢复设置见[连接稳定性](docs/connection-reliability.md)，本仓库的分阶段迁移状态见[八项能力记录](docs/eight-capabilities-progress.md)。

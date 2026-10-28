@@ -159,12 +159,7 @@ func (r *Runner) read(ctx context.Context, conn *websocket.Conn) error {
 			response := Result{V: 1, Type: "result", ID: msg.ID, Result: result}
 			if err != nil {
 				response.Result = nil
-				code := "EXECUTION_FAILED"
-				var coded interface{ Code() string }
-				if errors.As(err, &coded) {
-					code = coded.Code()
-				}
-				response.Error = &Error{Code: code, Message: err.Error()}
+				response.Error = executionError(callCtx, err)
 			}
 			if err = r.send(ctx, conn, response); err != nil {
 				r.Logger.Printf("result delivery failed for %s; outcome unknown at platform: %v", msg.ID, err)

@@ -11,12 +11,13 @@ index 8cace7a1b82f9899e526d1236f89b3d6f9afcdc1..13c66d36945ddc52d92a497a4bb6a033
              ...(typeof oauth.scope === "string" ? { scope: oauth.scope } : {}),
              ...(typeof authServerMetadataUrl === "string" ? { authServerMetadataUrl } : {}),
 diff --git a/index.ts b/index.ts
-index 0607163b14aeef959c49552c532b69a774253272..280cd01a5475bdc5db9b778e6deb79a3d5801043 100644
+index 0607163b14aeef959c49552c532b69a774253272..d908b998b66c9a81f3cdf604432dd054b2b65688 100644
 --- a/index.ts
 +++ b/index.ts
-@@ -1,4 +1,15 @@
+@@ -1,4 +1,16 @@
  import { registerProtocolBridge } from "./runtime-protocol.ts";
 +export { configurePlatformEmbedding } from "./platform-embedding.ts";
++import { platformEmbedding } from "./platform-embedding.ts";
 +import type { Client } from "@modelcontextprotocol/client";
 +
 +const platformClientAccess = new WeakMap<ExtensionAPI, (name: string) => Client>();
@@ -30,7 +31,20 @@ index 0607163b14aeef959c49552c532b69a774253272..280cd01a5475bdc5db9b778e6deb79a3
  export { registerMcpProtocol, MCP_PROTOCOL_EVENT, type McpProtocolDefinition, type McpProtocol, type McpProtocolSession, type McpProtocolStream, type McpProtocolWatch, type McpProtocolEnd } from "./runtime-protocol.ts";
  import { withFileMutationQueue, type AgentToolResult, type AgentToolUpdateCallback, type ExtensionAPI, type ExtensionContext, type ExtensionToolContext, type RegisteredMcpServer, type ToolInfo } from "@earendil-works/pi-coding-agent";
  import { resolve } from "node:path";
-@@ -262,6 +273,13 @@ function installMcpAdapter(pi: ExtensionAPI, options: McpAdapterOptions) {
+@@ -229,6 +241,12 @@ async function awaitWithTimeout<T>(promise: Promise<T>, timeoutMs: number): Prom
+   }
+ }
+ 
++// Embedded workers are bounded and cancelled by the platform connection budget.
++// The interactive adapter keeps its original short initialization wait.
++async function awaitInitialization<T>(promise: Promise<T>): Promise<T | typeof INIT_WAIT_TIMED_OUT> {
++  return platformEmbedding ? promise : awaitWithTimeout(promise, INIT_WAIT_TIMEOUT_MS);
++}
++
+ // TypeBox 1.x annotates raw objects passed to Type.Optional with an enumerable
+ // "~optional" key that survives serialization into provider tool schemas (Gemini
+ // rejects it with 400 INVALID_ARGUMENT). Prefer a real Type.Number schema; fall
+@@ -262,6 +280,13 @@ function installMcpAdapter(pi: ExtensionAPI, options: McpAdapterOptions) {
    // Before the first config load, so every load in this process agrees.
    if (!programmaticConfig) setPiMcpConfigEnabled(piSupportsMcp(pi));
    let state: McpExtensionState | null = null;
@@ -44,6 +58,24 @@ index 0607163b14aeef959c49552c532b69a774253272..280cd01a5475bdc5db9b778e6deb79a3
    let sessionCtx: ExtensionContext | null = null;
    let initPromise: Promise<McpExtensionState> | null = null;
    let initStartedPromise: Promise<void> | null = null;
+@@ -1822,7 +1847,7 @@ function installMcpAdapter(pi: ExtensionAPI, options: McpAdapterOptions) {
+ 
+     if (!state && initPromise) {
+       try {
+-        await awaitWithTimeout(initPromise, INIT_WAIT_TIMEOUT_MS);
++        await awaitInitialization(initPromise);
+       } catch {
+         return;
+       }
+@@ -2822,7 +2847,7 @@ function installMcpAdapter(pi: ExtensionAPI, options: McpAdapterOptions) {
+ 
+         if (!state && initPromise) {
+           try {
+-            const initialized = await awaitWithTimeout(initPromise, INIT_WAIT_TIMEOUT_MS);
++            const initialized = await awaitInitialization(initPromise);
+             if (initialized === INIT_WAIT_TIMED_OUT) {
+               return {
+                 content: [{ type: "text" as const, text: "MCP initialization is still in progress. Try again shortly." }],
 diff --git a/mcp-auth-flow.ts b/mcp-auth-flow.ts
 index 9a22ee76ec66322c812afe86c1296ba14989afad..712293e017b2d1ef2ea711ef23b4e79429cb2532 100644
 --- a/mcp-auth-flow.ts

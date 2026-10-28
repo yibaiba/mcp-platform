@@ -75,6 +75,8 @@ export default function ConnectionsPage() {
   const connections = useQuery({
     queryKey: ['connections'],
     queryFn: () => api<Connection[]>('/connections'),
+    refetchInterval: (query) =>
+      query.state.data?.some((connection) => connection.health?.recover) ? 5000 : false,
   });
   const devices = useQuery({ queryKey: ['devices'], queryFn: () => api<Device[]>('/devices') });
   const deviceById = new Map(devices.data?.map((device) => [device.id, device]));

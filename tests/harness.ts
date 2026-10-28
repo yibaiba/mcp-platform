@@ -93,9 +93,9 @@ export async function harness(options: { connectorFiles?: ConnectorFiles } = {})
     async close() {
       services.broker.close();
       sockets.close();
-      await services.pi.close();
       await services.gateway.close();
       await services.connections.shutdown();
+      await services.pi.close();
       await new Promise<void>((resolve) => server.close(() => resolve()));
       for (const id of owners) await db.delete(user).where(eq(user.id, id));
       await pool.end();

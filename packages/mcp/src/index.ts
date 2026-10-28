@@ -20,6 +20,8 @@ export type {
 } from '@modelcontextprotocol/client';
 export * from './catalog.js';
 export * from './operations.js';
+export * from './executionBudget.js';
+export * from './requestBudget.js';
 export * from './notifications.js';
 export * from './parseCatalog.js';
 export * from './schemaCompatibility.js';
