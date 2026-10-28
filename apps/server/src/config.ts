@@ -7,8 +7,6 @@ export const envSchema = z.object({
   WEB_ORIGIN: z.url(),
   BETTER_AUTH_SECRET: z.string().min(32),
   ENCRYPTION_KEY: z.string(),
-  APPS_ORIGIN: z.url().optional(),
-  APPS_PORT: z.coerce.number().int().positive().default(4302),
   PORT: z.coerce.number().int().positive().default(4300),
   DATA_DIR: z.string().default('.data'),
   ALLOW_REGISTRATION: z.enum(['true', 'false']).default('false'),

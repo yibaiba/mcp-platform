@@ -4,7 +4,7 @@
 
 `docker-compose.yml` 是独立部署文件，包含应用和 PostgreSQL，没有 `build`。数据库与应用文件分别使用持久卷，PostgreSQL 不发布主机端口。下载该文件和 `.env.docker.example` 即可配置，无需下载应用源码或另行准备数据库。
 
-1. 将 `.env.docker.example` 复制为 `.env`，填写已发布的 `PLATFORM_VERSION`、随机十六进制 `POSTGRES_PASSWORD` 和三项随机密钥。Compose 自动注入容器内部的 `DATABASE_URL`，无需手填。镜像必须包含 mcp-manger PR #3 的统一入口改动；合并提交不会自动产生镜像标签，必须先发布对应镜像。
+1. 将 `.env.docker.example` 复制为 `.env`，填写随机十六进制 `POSTGRES_PASSWORD`、`BETTER_AUTH_SECRET` 和 32 字节 Base64 `ENCRYPTION_KEY`。镜像来自本仓库的 `ghcr.io/yibaiba/mcp-platform`，`PLATFORM_VERSION` 可使用已发布的 `latest` 或 `sha-<完整提交号>`。Compose 自动注入容器内部的 `DATABASE_URL`，无需手填。
 2. 将 `PUBLIC_URL` 和 `WEB_ORIGIN` 均设为实际访问地址，例如 `http://服务器IP:4300`，或 Nginx 提供的同一个 HTTPS 域名。
 3. 首次注册时临时启用 `ALLOW_REGISTRATION=true`，注册后关闭并重新创建应用容器。
 
@@ -16,18 +16,18 @@ docker compose -f docker-compose.yml up -d
 docker compose -f docker-compose.yml logs --tail=100 server
 ```
 
-网页、API、MCP、WebSocket 和 Apps 共用 4300。有 Nginx 时将全部路径代理至该端口，保留 WebSocket Upgrade 并关闭流式响应缓冲。Apps 使用镜像内的不透明源沙箱，无需 Apps 子域名或 4302。私有镜像需先登录镜像仓库。
+网页、API、MCP、WebSocket 和 Apps 共用 4300。有 Nginx 时将全部路径代理至该端口，保留 Host 和 WebSocket Upgrade 并关闭流式响应缓冲，HTTPS 由自己的 Nginx 管理。Apps 使用不透明源沙箱，无需额外子域名或端口。私有镜像需先登录镜像仓库。
 
 本仓库同时保留 `compose.yaml`，Docker Compose 默认优先选取该文件，因此单端口镜像部署必须显式使用 `-f docker-compose.yml`，或设置 `COMPOSE_FILE=docker-compose.yml`。
 
-## 当前源码构建部署
+## 源码构建部署
 
-当前工作区源码仍使用 Caddy 网页服务和独立 Apps 监听，`compose.yaml` 按该源码结构构建；它与上面的远端统一镜像分别对应不同代码版本。构建部署同样只连接外部 PostgreSQL，不创建数据库容器。
+`compose.yaml` 从本仓库根目录构建 Dockerfile 的 `app` 阶段，运行与发布镜像相同的应用。构建配置不包含 PostgreSQL 服务，通过 `DATABASE_URL` 连接已有数据库。
 
 默认单实例，没有 Redis、消息队列或多副本路由。MCP 会话和在线设备请求由服务进程维护；重启会中断请求并记录结果未知，不自动重放。
 
-1. 云主机安装 Docker/Compose，DNS 指向主机，开放 80/443（Caddy 自动申请证书）。
-2. `cp .env.example .env`；设置外部 `DATABASE_URL`、`DOMAIN`、`PUBLIC_URL=https://你的域名`、`WEB_ORIGIN=https://你的域名`、随机 `BETTER_AUTH_SECRET`、32 字节 base64 `ENCRYPTION_KEY`。数据库必须能从容器内访问。将示例的本地 `APPS_ORIGIN` 改为 `https://apps.你的域名`，并设置 `APPS_DOMAIN=apps.你的域名`，为其配置 DNS；不要把开发默认 localhost 地址留在生产配置中。不要在仓库提交 `.env`。
+1. 安装 Docker/Compose，准备容器可访问的 PostgreSQL 17 数据库。
+2. `cp .env.example .env`；设置外部 `DATABASE_URL`、随机 `BETTER_AUTH_SECRET` 和 32 字节 Base64 `ENCRYPTION_KEY`。`PUBLIC_URL` 和 `WEB_ORIGIN` 都填写实际访问地址；直连使用 `http://服务器IP:4300`，Nginx 使用同一个 HTTPS 域名。数据库地址中的 `localhost` 指应用容器自身，用户名与密码中的特殊字符需 URL 编码。不要在仓库提交 `.env`。
 3. 首次临时启用 `ALLOW_REGISTRATION=true`，注册后关闭并重建 server 容器。
 
 ```sh
@@ -37,11 +37,24 @@ docker compose -f compose.yaml up -d
 docker compose -f compose.yaml logs --tail=100 server
 ```
 
-`/health` 会检查外部数据库；Caddy 转发 `/api/*`、`/mcp/*`、`/.well-known/*` 和 WebSocket。数据库由用户独立维护，产物、Pi 会话和证书存放在持久卷。设备连接器在实际设备运行，不在服务器容器中启动桌面软件。
+`/health` 会检查数据库。应用只监听 4300，产物与 Pi 会话保存在文件卷。设备连接器在实际设备运行，不在服务器容器中启动桌面软件。镜像内包含由本仓库 Go 源码构建的六种系统与架构的安装文件。
 
-Apps 使用单独源站，Caddy 将 APPS_DOMAIN 代理至 server:4302，仅暴露 Sandbox Proxy 和一次性 iframe 文档，不暴露管理 API。APPS_ORIGIN 必须与 PUBLIC_URL/WEB_ORIGIN 不同源；自定义域名时同步修改三项配置与 DNS。开发 `pnpm dev` 自动启动 4302，不需要单独启动命令。实际公网域名、证书、iframe/CSP 仍需部署验收。
+Apps 的可信代理通过 `data:` iframe 获得独立的不透明源，实际 App 运行在受 sandbox 属性和响应 CSP 限制的内层 iframe。平台固定消息窗口及来源，专用 frame 创建请求不携带凭证；管理 API 不接受 null-origin CORS。`APPS_ORIGIN`、`APPS_PORT`、`DOMAIN` 和 `APPS_DOMAIN` 不再使用。开发环境可以继续使用 Vite 的 4301，Apps 资源仍由后端提供。
 
-镜像把 Corepack 缓存放在 `/usr/local/share/corepack`，运行用户 node 可以直接使用构建时安装的 pnpm，无需启动时再次联网下载。修改镜像后，可在本机运行 `node scripts/check.mjs 600 node scripts/verify-compose.mjs`：需要先构建出默认的 mcp-platform-server/web 镜像，并空出 54330/54332。验收使用独立项目名、随机临时凭证、新建卷和仅回环地址的 HTTP 端口，检查非 root 用户禁网执行 pnpm、新库及重复迁移、Caddy 静态页、健康/登录 API、隔离源 HTTP 契约与真实无模型 Pi 桥接；结束时只清理本次项目和卷。该检查需要支持 `!override` 的 Compose，不验证公网证书签发。
+镜像把 Corepack 缓存放在 `/usr/local/share/corepack`，运行用户 node 可以禁网执行构建时安装的 pnpm。生产启动会检查 `apps/web/dist/index.html`，缺少构建产物会直接失败。浏览器页面路由返回应用入口，缺失的 API、Apps 文档和静态资源仍返回 404。
+
+## 本仓库镜像发布与验收
+
+`.github/workflows/ci.yml` 对 main 的 push 和手动运行先执行 Node.js 22/24 检查，再构建应用镜像，核对镜像内源码与当前检出内容，并执行隔离 Compose 验收。全部通过后发布 `ghcr.io/yibaiba/mcp-platform:latest` 和 `sha-<完整提交号>`，支持 linux/amd64、linux/arm64。PR 只运行代码检查，不发布镜像。镜像名由当前 GitHub 仓库生成，源码标签固定指向本项目。发布使用该仓库的 GitHub Token，首次使用需要确认 GHCR 包的读取权限。
+
+本机执行：
+
+```sh
+node scripts/check.mjs 900 docker build --target app -t mcp-platform:local .
+node scripts/check.mjs 600 node scripts/verify-compose.mjs
+```
+
+验收直接使用 `docker-compose.yml`，以独立项目、随机凭证和新卷启动应用与数据库，仅在回环地址发布临时应用端口 54330。检查镜像源码、禁网 pnpm、新库与重复迁移、网页与资源、认证/API、六种连接器下载，并实际运行本机对应的 Go 连接器检查同端口 WebSocket 上线和撤销。另检查 Apps 一次性文档和 CSP、真实无模型 Pi 桥接，结束后清理本次资源。可通过 `PLATFORM_TEST_IMAGE` 指定另一个由当前源码构建的本地标签。该检查需要支持 `!override` 的 Compose；真实浏览器和公网 Nginx/HTTPS 需分别验证，见[测试说明](testing.md)。
 
 ## 升级与回退
 

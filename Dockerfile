@@ -16,17 +16,16 @@ ENV COREPACK_HOME=/usr/local/share/corepack
 RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
 COPY . .
 RUN pnpm install --frozen-lockfile
-RUN pnpm check-types && pnpm build
+RUN pnpm check-types \
+    && node scripts/check.mjs 60 pnpm exec vitest run tests/web.test.ts \
+    && pnpm build
 
-FROM caddy:2.10-alpine AS web
-COPY --from=build /app/apps/web/dist /srv
-COPY deploy/Caddyfile /etc/caddy/Caddyfile
-
-FROM build AS server
+FROM build AS app
 COPY --from=connector-build /app/connector/bin /app/connector/bin
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /app/.data && chown node:node /app/.data
 ENV NODE_ENV=production
+LABEL org.opencontainers.image.source="https://github.com/yibaiba/mcp-platform"
 USER node
-EXPOSE 4300 4302
+EXPOSE 4300
 CMD ["pnpm", "start"]

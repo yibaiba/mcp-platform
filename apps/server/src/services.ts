@@ -107,16 +107,7 @@ export function createServices(db: Database, config: Config) {
     onResult: (input) => apps.capture(input),
   });
   const content = new ContentService({ db, profiles, connections });
-  const sandboxOrigin =
-    config.APPS_ORIGIN ??
-    (new URL(config.PUBLIC_URL).hostname === 'localhost'
-      ? 'http://localhost:4302'
-      : `${new URL(config.PUBLIC_URL).protocol}//apps.${new URL(config.PUBLIC_URL).hostname}`);
-  if (
-    new URL(sandboxOrigin).origin === new URL(config.PUBLIC_URL).origin ||
-    new URL(sandboxOrigin).origin === new URL(config.WEB_ORIGIN).origin
-  )
-    throw new Error('APPS_ORIGIN 必须与平台使用不同源');
+  const sandboxOrigin = new URL(config.PUBLIC_URL).origin;
   const apps = new AppSessionService({
     connections,
     content,

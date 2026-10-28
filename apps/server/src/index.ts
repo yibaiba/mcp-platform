@@ -1,4 +1,3 @@
-import { sandboxApp } from './modules/apps/sandbox.js';
 import { config as loadEnv } from 'dotenv';
 import { serve } from '@hono/node-server';
 import { createAuth } from '@platform/auth';
@@ -10,6 +9,7 @@ import { envSchema, platformRoot } from './config.js';
 import { createServices } from './services.js';
 import { createApp } from './app.js';
 import { attachDeviceSocket } from './deviceSocket.js';
+import { mountWeb } from './web.js';
 loadEnv({ path: resolve(platformRoot, '.env') });
 const parsedConfig = envSchema.parse(process.env);
 const config = { ...parsedConfig, DATA_DIR: resolve(platformRoot, parsedConfig.DATA_DIR) };
@@ -38,21 +38,15 @@ await services.pi.recover();
 await services.requests.recover();
 await services.interactions.recover();
 const app = createApp({ db, auth, config, services });
+if (process.env.NODE_ENV === 'production')
+  await mountWeb(app, resolve(platformRoot, 'apps/web/dist'));
 const server = serve({ fetch: app.fetch, port: config.PORT });
-const appsServer = serve({
-  fetch: sandboxApp(
-    [new URL(config.WEB_ORIGIN).origin, new URL(config.PUBLIC_URL).origin],
-    new URL(services.sandboxOrigin).origin,
-  ).fetch,
-  port: config.APPS_PORT,
-});
 const sockets = attachDeviceSocket(server as Server, services);
 console.log(
   `MCP Platform listening on ${config.PORT}; Pi MCP bridge available; built-in agent tasks ${config.PI_ENABLED === 'true' ? 'enabled' : 'disabled'}`,
 );
 async function shutdown() {
   server.close();
-  appsServer.close();
   services.broker.close();
   sockets.close();
   await services.pi.close();

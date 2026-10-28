@@ -7,6 +7,8 @@ import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { setTimeout } from 'node:timers/promises';
+import { verifyImageSource } from './verify-image-source.mjs';
+import { verifyDeviceChannel } from './verify-device-channel.mjs';
 
 const execute = promisify(execFile);
 const cwd = fileURLToPath(new URL('../', import.meta.url));
@@ -14,15 +16,14 @@ await mkdir(resolve(cwd, '.data'), { recursive: true });
 const directory = await mkdtemp(resolve(cwd, '.data/compose-acceptance-'));
 const project = `platform-acceptance-${Date.now()}`;
 const origin = 'http://localhost:54330';
-const sandboxOrigin = 'http://localhost:54332';
+const image = process.env.PLATFORM_TEST_IMAGE ?? 'mcp-platform:local';
 const databasePassword = randomBytes(24).toString('hex');
 const environment = {
   ...process.env,
-  DOMAIN: 'http://localhost:80',
-  APPS_DOMAIN: 'http://localhost:4302',
+  PLATFORM_TEST_IMAGE: image,
+  PLATFORM_VERSION: 'acceptance',
   PUBLIC_URL: origin,
   WEB_ORIGIN: origin,
-  APPS_ORIGIN: sandboxOrigin,
   DATABASE_URL: `postgresql://platform:${databasePassword}@db:5432/platform`,
   POSTGRES_PASSWORD: databasePassword,
   BETTER_AUTH_SECRET: randomBytes(32).toString('hex'),
@@ -37,37 +38,27 @@ const override = resolve(directory, 'compose.yaml');
 await writeFile(
   override,
   `services:
-  db:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_USER: platform
-      POSTGRES_DB: platform
-      POSTGRES_PASSWORD: \${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
-    volumes:
-      - postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: [CMD-SHELL, pg_isready -U platform -d platform]
-      interval: 5s
-      timeout: 3s
-      retries: 12
   server:
-    image: mcp-platform-server:latest
-    depends_on:
-      db:
-        condition: service_healthy
-  web:
-    image: mcp-platform-web:latest
+    image: \${PLATFORM_TEST_IMAGE}
     ports: !override
-      - '127.0.0.1:54330:80'
-      - '127.0.0.1:54332:4302'
-volumes:
-  postgres:
+      - '127.0.0.1:54330:4300'
 `,
 );
 async function compose(args, timeout = 120_000) {
   const result = await execute(
     'docker',
-    ['compose', '-p', project, '-f', 'compose.yaml', '-f', override, ...args],
+    [
+      'compose',
+      '--env-file',
+      '/dev/null',
+      '-p',
+      project,
+      '-f',
+      'docker-compose.yml',
+      '-f',
+      override,
+      ...args,
+    ],
     { cwd, env: environment, timeout, maxBuffer: 4 * 1024 * 1024 },
   );
   process.stdout.write(result.stdout);
@@ -96,7 +87,17 @@ async function waitForHealth() {
 async function verifyManagement() {
   const page = await request(origin);
   assert.equal(page.status, 200);
-  assert.match(await page.text(), /<div id="app">/);
+  const html = await page.text();
+  assert.match(html, /<div id="app">/);
+  const asset = html.match(/src="([^" ]+\.js)"/);
+  assert.ok(asset, 'Production page must reference a built JS asset');
+  const script = await request(new URL(asset[1], origin));
+  assert.equal(script.status, 200);
+  assert.match(script.headers.get('content-type'), /javascript/);
+  const navigation = await request(`${origin}/connections`);
+  assert.equal(navigation.status, 200);
+  assert.match(await navigation.text(), /<div id="app">/);
+  assert.equal((await request(`${origin}/assets/missing.js`)).status, 404);
   assert.equal((await request(`${origin}/api/v1/connections`)).status, 401);
   const signup = await request(`${origin}/api/v1/auth/sign-up/email`, {
     method: 'POST',
@@ -118,27 +119,28 @@ async function verifyManagement() {
   });
   assert.equal(connections.status, 200);
   assert.deepEqual(await connections.json(), []);
-  console.log('PASS: Caddy static web, database health, authentication and management API');
+  console.log('PASS: single-port web, database health, authentication and management API');
+  return cookie;
 }
 async function verifySandbox() {
-  const response = await request(`${sandboxOrigin}/sandbox?parent=${encodeURIComponent(origin)}`);
+  const response = await request(`${origin}/_apps/sandbox?parent=${encodeURIComponent(origin)}`);
   assert.equal(response.status, 200);
   assert.match(response.headers.get('content-security-policy'), /script-src 'sha256-/);
-  assert.equal((await request(`${sandboxOrigin}/api/v1/connections`)).status, 404);
+  assert.equal((await request(`${origin}/_apps/api/v1/connections`)).status, 404);
   const html = '<!doctype html><h1>Disposable isolated frame</h1>';
-  const creation = await request(`${sandboxOrigin}/frames`, {
+  const creation = await request(`${origin}/_apps/frames`, {
     method: 'POST',
-    headers: { Origin: sandboxOrigin, 'Content-Type': 'application/json' },
+    headers: { Origin: 'null', 'Content-Type': 'application/json' },
     body: JSON.stringify({ html }),
   });
   assert.equal(creation.status, 200);
   const { path } = await creation.json();
-  const frame = await request(new URL(path, sandboxOrigin));
+  const frame = await request(new URL(path, origin));
   assert.equal(frame.status, 200);
   assert.equal(await frame.text(), html);
   assert.match(frame.headers.get('content-security-policy'), /sandbox allow-scripts allow-forms/);
-  assert.equal((await request(new URL(path, sandboxOrigin))).status, 410);
-  console.log('PASS: separate Apps proxy, single-use document and CSP HTTP contract');
+  assert.equal((await request(new URL(path, origin))).status, 410);
+  console.log('PASS: same-port Apps proxy, single-use document and sandbox CSP HTTP contract');
 }
 async function verifyConnectorDownloads() {
   const response = await request(`${origin}/api/v1/connector/downloads/SHA256SUMS`);
@@ -168,9 +170,10 @@ async function verifyConnectorDownloads() {
   console.log('PASS: public installers and all six connector downloads match packaged SHA-256');
 }
 try {
+  await verifyImageSource(image, cwd);
   const offline = await execute(
     'docker',
-    ['run', '--rm', '--network', 'none', 'mcp-platform-server:latest', 'pnpm', '--version'],
+    ['run', '--rm', '--network', 'none', image, 'pnpm', '--version'],
     { cwd, timeout: 60_000 },
   );
   assert.equal(offline.stdout.trim(), '10.12.4');
@@ -178,15 +181,16 @@ try {
   await compose(['up', '-d', '--wait', 'db']);
   await compose(['run', '--rm', '--no-deps', '-T', 'server', 'pnpm', 'db:migrate']);
   await compose(['run', '--rm', '--no-deps', '-T', 'server', 'pnpm', 'db:migrate']);
-  await compose(['up', '-d', '--no-build', 'server', 'web']);
+  await compose(['up', '-d', '--no-build', 'server']);
   await waitForHealth();
-  await verifyManagement();
+  const cookie = await verifyManagement();
   await verifyConnectorDownloads();
+  await verifyDeviceChannel({ directory, origin, cookie, request });
   await verifySandbox();
   await compose(['exec', '-T', 'server', 'node', 'scripts/check.mjs', '60', 'pnpm', 'test:pi']);
   console.log('PASS: fresh Compose migrations, repeat migration and actual no-model Pi bridge');
 } catch (error) {
-  await compose(['logs', '--no-color', '--tail', '50', 'server', 'web']);
+  await compose(['logs', '--no-color', '--tail', '50', 'server']);
   throw error;
 } finally {
   await compose(['down', '--volumes', '--remove-orphans']);

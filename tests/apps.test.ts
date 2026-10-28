@@ -117,8 +117,8 @@ test('platform App calls use current grants and end on refresh without replaying
   h.services.apps.close(account.ownerId, id);
   await expect(h.services.apps.view(account.ownerId, id)).rejects.toThrow(/已结束/);
 });
-test('sandbox serves separate one-use documents and enforces configured public origin and declared CSP', async () => {
-  const app = sandboxApp(['https://platform.example'], 'https://apps.platform.example');
+test('sandbox serves one-use documents for the opaque proxy and enforces declared CSP', async () => {
+  const app = sandboxApp(['https://platform.example'], 'https://platform.example');
   const denied = await app.request('/frames', {
     method: 'POST',
     headers: { Origin: 'https://evil.example' },
@@ -127,7 +127,7 @@ test('sandbox serves separate one-use documents and enforces configured public o
   expect(denied.status).toBe(403);
   const response = await app.request('/frames', {
     method: 'POST',
-    headers: { Origin: 'https://apps.platform.example', 'Content-Type': 'application/json' },
+    headers: { Origin: 'null', 'Content-Type': 'application/json' },
     body: JSON.stringify({
       html: '<p>actual</p>',
       csp: { connectDomains: ['https://api.example'] },
@@ -148,6 +148,18 @@ test('sandbox serves separate one-use documents and enforces configured public o
       'Content-Security-Policy',
     ),
   ).toContain("script-src 'sha256-");
+});
+test('mounting the sandbox does not expose management APIs to null origins', async () => {
+  const response = await h.app.request('/api/v1/connections', {
+    method: 'OPTIONS',
+    headers: { Origin: 'null', 'Access-Control-Request-Method': 'GET' },
+  });
+  expect(response.headers.get('Access-Control-Allow-Origin')).not.toBe('null');
+  const nested = await h.app.request('/_apps/api/v1/connections', {
+    headers: { Origin: 'null' },
+  });
+  expect(nested.status).toBe(404);
+  expect(nested.headers.get('Access-Control-Allow-Origin')).toBeNull();
 });
 test('call event streams expose only the authenticated owner and release their subscription on disconnect', async () => {
   const account = await h.signup();

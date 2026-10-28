@@ -3,7 +3,7 @@ services:
   server:
     build:
       context: .
-      target: server
+      target: app
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to an external PostgreSQL database}
       PUBLIC_URL: ${PUBLIC_URL:?Set PUBLIC_URL}
@@ -12,35 +12,16 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY}
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
       PORT: 4300
-      APPS_PORT: 4302
-      APPS_ORIGIN: ${APPS_ORIGIN:-https://apps.${DOMAIN}}
       DATA_DIR: /app/.data
       PI_ENABLED: ${PI_ENABLED:-false}
       PI_MODEL_PROVIDER: ${PI_MODEL_PROVIDER:-}
       PI_MODEL_ID: ${PI_MODEL_ID:-}
       PI_MCP_ADAPTER_OAUTH_FILE_KEY: ${PI_MCP_ADAPTER_OAUTH_FILE_KEY:-}
+    ports:
+      - '4300:4300'
     volumes:
       - files:/app/.data
     init: true
     restart: unless-stopped
-  web:
-    build:
-      context: .
-      target: web
-    environment:
-      DOMAIN: ${DOMAIN:?Set DOMAIN}
-      APPS_DOMAIN: ${APPS_DOMAIN:-apps.${DOMAIN}}
-    ports:
-      - '80:80'
-      - '443:443'
-      - '443:443/udp'
-    volumes:
-      - caddy:/data
-      - caddy-config:/config
-    depends_on:
-      - server
-    restart: unless-stopped
 volumes:
   files:
-  caddy:
-  caddy-config:

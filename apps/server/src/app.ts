@@ -25,6 +25,7 @@ import { appRoutes } from './modules/apps/routes.js';
 import { interactionRoutes } from './modules/interactions/routes.js';
 import { openApiRoutes } from './modules/openapi/routes.js';
 import type { Services } from './services.js';
+import { sandboxApp } from './modules/apps/sandbox.js';
 
 export function createApp(deps: {
   db: Database;
@@ -35,6 +36,15 @@ export function createApp(deps: {
 }) {
   const { db, auth, config, services: s } = deps;
   const app = new Hono<ApiEnv>();
+  app.route(
+    '/_apps',
+    sandboxApp(
+      [new URL(config.WEB_ORIGIN).origin, new URL(config.PUBLIC_URL).origin],
+      config.PUBLIC_URL,
+      '/_apps',
+    ),
+  );
+  app.all('/_apps/*', (c) => c.notFound());
   app.use(
     '*',
     cors({

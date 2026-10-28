@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/app-bridge';
+import { AppBridge } from '@modelcontextprotocol/ext-apps/app-bridge';
+import { mountSandboxProxy } from './sandboxProxy.js';
 import { api, json } from '../../lib/api.js';
 import { Button } from '../../components/ui/button.js';
 import { Feedback } from '../../components/shared/Controls.js';
@@ -164,43 +165,14 @@ export function AppHost({
         return {};
       };
     }
-    let connected = false;
-    const ready = () => {
-      if (!iframe.contentWindow || connected) return;
-      connected = true;
-      const transport = new PostMessageTransport(iframe.contentWindow, iframe.contentWindow);
-      const origin = new URL(data.sandboxOrigin).origin;
-      // The official transport verifies the window; this wrapper also pins the proxy origin.
-      const start = transport.start.bind(transport);
-      const close = transport.close.bind(transport);
-      const filter = (event: MessageEvent) => {
-        if (event.source === iframe.contentWindow && event.origin !== origin)
-          event.stopImmediatePropagation();
-        if (
-          event.source === iframe.contentWindow &&
-          event.origin === origin &&
-          event.data?.method === 'platform/proxy-error'
-        )
-          failure(new Error(String(event.data.params?.message)));
-      };
-      transport.start = async () => {
-        window.addEventListener('message', filter, true);
-        await start();
-      };
-      transport.close = async () => {
-        window.removeEventListener('message', filter, true);
-        await close();
-      };
-      transport.send = async (message) => {
-        iframe.contentWindow?.postMessage(message, origin);
-      };
-      void instance.connect(transport).catch(failure);
-      iframe.contentWindow.postMessage({ jsonrpc: '2.0', method: 'platform/proxy-check' }, origin);
-    };
-    iframe.addEventListener('load', ready);
-    iframe.src = `${data.sandboxOrigin}/sandbox?parent=${encodeURIComponent(window.location.origin)}`;
+    const unloadProxy = mountSandboxProxy({
+      iframe,
+      bridge: instance,
+      sandboxOrigin: data.sandboxOrigin,
+      onError: failure,
+    });
     return () => {
-      iframe.removeEventListener('load', ready);
+      unloadProxy();
       theme.disconnect();
       bridge.current = null;
       teardown.current = null;

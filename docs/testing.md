@@ -69,14 +69,20 @@ Windows PowerShell 安装脚本尚未实机运行；尝试使用官方 PowerShel
 
 ## Compose
 
-先构建镜像，再运行隔离的检查项目：
+### 2026-10-28 单端口改造本地验收
+
+在 macOS、Node.js 24.17.0、pnpm 10.12.4 和隔离 PostgreSQL 17 环境中，类型检查、ESLint、生产构建、4 项静态网页与沙箱路由测试通过。真实 Chrome 使用当前仓库的生产入口，通过两层 iframe 的不透明源及 DOM/Cookie/存储隔离、初始化、App 工具调用、全屏连续性和关闭检查。
+
+完整后端测试为 162 项通过、1 项失败：`catalogAdapters.test.ts` 的 Pi 目录测试触发现有 15 秒用例超时，单独复测仍超时；修改前的基线单独运行该用例约 13.5 秒通过，原因尚未确定，不能记为本地全量通过。测试超时设置未放宽。镜像验收另由下述脚本和本仓库 CI 执行，本地浏览器结果不代替容器或公网环境验证。
+
+先从当前仓库构建应用镜像，再运行隔离的检查项目：
 
 ```sh
-node scripts/check.mjs 900 docker compose build
+node scripts/check.mjs 900 docker build --target app -t mcp-platform:local .
 node scripts/check.mjs 600 node scripts/verify-compose.mjs
 ```
 
-需要 Docker、支持 `!override` 的 Compose，并空出 54330/54332。脚本使用独立项目、临时凭证和新建卷，仅在临时测试覆盖配置中为源码构建版添加 PostgreSQL 服务；`compose.yaml` 不包含数据库，直接镜像部署的 `docker-compose.yml` 则自带 PostgreSQL。检查迁移、重复迁移、非 root 用户禁网执行 pnpm、页面、认证/API、连接器安装脚本和六种下载文件校验、Apps 隔离源与无模型 Pi 桥接，结束后清理该项目及卷。公网 DNS、证书和实际 iframe/CSP 行为需在部署环境验证。备份与恢复流程见 [部署说明](deployment.md)。
+需要 Docker、支持 `!override` 的 Compose，并空出回环端口 54330。脚本使用直接镜像部署文件 `docker-compose.yml`，以独立项目、临时凭证和新卷启动应用与 PostgreSQL；构建用的 `compose.yaml` 仍连接外部数据库。运行前校验镜像源码与当前仓库、镜像来源标签，再检查迁移、重复迁移、非 root 用户禁网执行 pnpm、网页与资源、认证/API、六种连接器下载文件，并实际运行本机 Go 连接器验证同端口 WebSocket 上线和撤销。Apps 同端口路由与 CSP、无模型 Pi 桥接也包含在检查内，结束后清理本次项目和卷。`PLATFORM_TEST_IMAGE` 可指定当前源码构建的本地标签。公网 DNS、证书和实际 iframe/CSP 行为需另行验证。备份与恢复流程见 [部署说明](deployment.md)。
 
 ## Apps 浏览器检查
 
@@ -90,9 +96,9 @@ node scripts/check.mjs 1800 pnpm exec tsx tests/browserApps.mts
 该服务使用 `http://127.0.0.1:54820/mcp`。安装了 Chrome 和 Playwright 的环境可在服务运行期间执行：
 
 ```sh
-node scripts/check.mjs 180 node scripts/verify-apps-browser.mjs
+BROWSER_BASE_URL=http://localhost:4301 node scripts/check.mjs 180 node scripts/verify-apps-browser.mjs
 ```
 
-脚本默认导入 `playwright`，也可通过 `PLAYWRIGHT_MODULE` 指向现有模块。Playwright 不是项目依赖，需由浏览器检查环境提供。脚本检查初始化、结果传递、app-only 调用、全屏尺寸、iframe 连续性及关闭行为，输出写入 `.data/browser-acceptance/`。
+脚本默认访问生产入口 `http://localhost:4300`，`BROWSER_BASE_URL` 可切换开发或容器验收地址；`BROWSER_FIXTURE_URL` 指定后端可访问的夹具 MCP 地址。默认导入 `playwright`，也可通过 `PLAYWRIGHT_MODULE` 指向现有模块。Playwright 不是项目依赖，需由浏览器检查环境提供。脚本检查两层 iframe 的不透明源及 DOM/Cookie/存储隔离、初始化、结果传递、app-only 调用、全屏尺寸、iframe 连续性及关闭行为，输出写入 `.data/browser-acceptance/`。
 
 浏览器夹具使用官方 App SDK 构建，不是官方发布示例。验证官方示例、实际外部客户端、公网 Sandbox 或真实模型任务时，需分别记录实际环境和结果。OAuth 本地协议测试也不能代替供应商账号的登录、刷新、撤销及回调配置验证。

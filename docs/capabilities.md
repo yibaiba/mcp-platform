@@ -48,6 +48,6 @@ form 和 URL 均需明确接受、拒绝或取消。URL 打开前确认；Pi 等
 
 工具测试页和 Pi 任务详情通过官方 AppBridge 初始化，传递参数、结果、主题、尺寸，支持关闭、取消和全屏。App 视图仅属于当前运行会话；刷新后显示结束，不通过重放工具恢复。App 关闭会取消其活动操作。ui/message 进入待发送列表，用户发送后才创建模型任务；上下文只关联当前 App/任务。工具测试页不宣告模型会话能力。
 
-宿主 iframe 指向不同源 Sandbox Proxy，再创建 opaque-origin 内层 iframe。服务端发送真实 CSP，代理校验父窗口 origin/source 和内层消息来源；App 不获得平台 Cookie、接入凭证。摄像头、麦克风、定位和剪贴板权限当前不授予，若 App 声明要求会明确显示受限提示。
+宿主从 `/_apps/sandbox` 读取可信代理 HTML，以 `data:` iframe 加载，使代理获得 opaque origin，再创建受 sandbox 属性和响应 CSP 限制的内层 iframe。宿主固定消息来源窗口及 `null` origin，代理校验父窗口 origin/source 和内层消息来源；App 无法读取平台 DOM、Cookie 或存储。摄像头、麦克风、定位和剪贴板权限当前不授予，若 App 声明要求会明确显示受限提示。
 
-开发默认 localhost:4302；生产默认 apps.<PUBLIC_URL 主机>，APPS_ORIGIN 可配置，必须与平台不同源。部署步骤见 [部署说明](deployment.md)。浏览器与部署验证方法见 [测试说明](testing.md)。
+Apps 资源和管理接口共用后端的域名与端口；仅专用 frame 创建端点允许无凭证的 null-origin CORS，管理 API 不开放该来源。无需额外 Apps 域名或监听端口。部署步骤见 [部署说明](deployment.md)。浏览器与部署验证方法见 [测试说明](testing.md)。

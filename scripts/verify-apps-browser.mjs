@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright');
+const baseURL = process.env.BROWSER_BASE_URL ?? 'http://localhost:4300';
+const fixtureURL = process.env.BROWSER_FIXTURE_URL ?? 'http://127.0.0.1:54820/mcp';
 await mkdir('.data/browser-acceptance', { recursive: true });
 
 const browser = await chromium.launch({ channel: 'chrome', headless: true, chromiumSandbox: true });
 const context = await browser.newContext({
-  baseURL: 'http://localhost:4301',
+  baseURL,
   viewport: { width: 1440, height: 1100 },
 });
 const page = await context.newPage();
@@ -22,7 +24,7 @@ let connection;
 async function api(path, data) {
   const result = await context.request.post(`/api/v1${path}`, {
     data,
-    headers: { Origin: 'http://localhost:4301' },
+    headers: { Origin: new URL(baseURL).origin },
   });
   assert.ok(result.ok(), `${path}: ${result.status()} ${await result.text()}`);
   return result.json();
@@ -38,18 +40,47 @@ try {
     adapter: 'direct',
     transport: 'http',
     mode: 'existing',
-    url: 'http://127.0.0.1:54820/mcp',
+    url: fixtureURL,
   });
   await api(`/connections/${connection.id}/discover`, {});
   await page.goto('/tools');
   await page
-    .getByRole('button', { name: 'show Apps browser acceptance 未提供描述', exact: true })
+    .getByRole('button')
+    .filter({ has: page.getByText('show', { exact: true }) })
     .click();
   await page.getByRole('button', { name: '执行工具', exact: true }).click();
   const app = page.frameLocator('iframe[title="MCP App"]').frameLocator('iframe');
   await app.getByRole('heading', { name: '隔离 App 验收' }).waitFor({ timeout: 15000 });
   await app.locator('#status').filter({ hasText: '结果已收到：' }).waitFor();
   assert.equal(await app.locator('html').getAttribute('data-message-capability'), 'false');
+  for (const target of [page.frameLocator('iframe[title="MCP App"]'), app]) {
+    const isolation = await target.locator('html').evaluate(() => {
+      const denied = (action) => {
+        try {
+          action();
+          return false;
+        } catch (error) {
+          return error.name === 'SecurityError';
+        }
+      };
+      return {
+        origin: self.origin,
+        parentDenied: denied(() => window.parent.document.body),
+        cookieDenied: denied(() => document.cookie),
+        storageDenied: denied(() => localStorage.getItem('platform-secret')),
+      };
+    });
+    assert.deepEqual(isolation, {
+      origin: 'null',
+      parentDenied: true,
+      cookieDenied: true,
+      storageDenied: true,
+    });
+  }
+  assert.match(await page.locator('iframe[title="MCP App"]').getAttribute('src'), /^data:/);
+  console.log(
+    'PASS: both App frames have opaque origins and cannot read parent DOM, cookies or storage',
+  );
   console.log('PASS: App initialized and received original tool result');
   await app.getByRole('button', { name: '调用 App 专用工具' }).click();
   await app.locator('#status').filter({ hasText: 'App 工具调用成功：' }).waitFor();

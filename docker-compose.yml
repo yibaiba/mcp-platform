@@ -16,14 +16,13 @@ services:
       retries: 12
     restart: unless-stopped
   server:
-    image: ${PLATFORM_IMAGE_PREFIX:-ghcr.io/yibaiba/mcp-manger-platform}:${PLATFORM_VERSION:?Set PLATFORM_VERSION to a published image version}
+    image: ${PLATFORM_IMAGE_PREFIX:-ghcr.io/yibaiba/mcp-platform}:${PLATFORM_VERSION:?Set PLATFORM_VERSION to a published image version}
     environment:
       DATABASE_URL: postgresql://platform:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/platform
       PUBLIC_URL: ${PUBLIC_URL:?Set PUBLIC_URL}
       WEB_ORIGIN: ${WEB_ORIGIN:?Set WEB_ORIGIN}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY}
-      DEVICE_AUTH_ENCRYPTION_KEY: ${DEVICE_AUTH_ENCRYPTION_KEY:?Set DEVICE_AUTH_ENCRYPTION_KEY}
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
       PORT: 4300
       DATA_DIR: /app/.data
