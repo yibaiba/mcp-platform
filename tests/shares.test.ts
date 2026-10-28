@@ -150,6 +150,7 @@ test('owner credentials retain separate sessions and audit identity; one revocat
   expect(
     (await receiver.request(`/connections/${connection.id}/oauth`, { method: 'DELETE' })).status,
   ).toBe(403);
+  const before = upstream.count();
   const running = h.services.invocations.call({
     ownerId: receiver.ownerId,
     profileId: profile.id,
@@ -164,6 +165,9 @@ test('owner credentials retain separate sessions and audit identity; one revocat
       ),
     ).toBe(true),
   );
+  // A running audit row precedes authorization checks; wait for actual dispatch
+  // before asserting that revocation leaves the upstream result unknown.
+  await vi.waitFor(() => expect(upstream.count()).toBe(before + 1));
   await h.services.shares.revoke(owner.ownerId, share.id);
   await rejected;
   expect(await h.services.profiles.catalog(receiver.ownerId, profile.id)).toEqual([]);
