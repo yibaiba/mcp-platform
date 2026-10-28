@@ -119,7 +119,7 @@ test('device descriptions use the selected device and profile identity while ret
   expect(described?.definition).toMatchObject(definition);
   expect(described?.definition.description).toContain('执行位置 工作 Mac');
   expect(described?.definition.description).toContain('身份方式 Agent 专属身份');
-  expect(JSON.stringify(described)).not.toContain(device.token);
+  expect(JSON.stringify(described)).not.toContain(device.deviceSecret);
 });
 
 test('long-term artifact permissions belong to the Profile while revoking a key affects that credential only', async () => {

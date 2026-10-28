@@ -3,8 +3,15 @@ import { auth } from '@modelcontextprotocol/client';
 import type { Vault } from '../../shared/crypto.js';
 import { AppError } from '../../shared/errors.js';
 import type { ConnectionContext } from '../mcp/adapter.js';
+import {
+  credentialKey,
+  credentialCoordination,
+  assertCredentialManager,
+  type CredentialCoordination,
+} from './credentialScope.js';
 import { PersistedProvider } from './persistedProvider.js';
 export class UpstreamOAuth {
+  private readonly coordination = new Map<string, CredentialCoordination>();
   private readonly providers = new Map<string, PersistedProvider>();
   private readonly refreshing = new Map<string, Promise<Record<string, string>>>();
   constructor(
@@ -17,10 +24,17 @@ export class UpstreamOAuth {
     },
   ) {}
   provider(context: ConnectionContext) {
-    let provider = this.providers.get(`${context.ownerId}:${context.bindingId ?? context.id}`);
+    const scope = credentialKey(context);
+    const key = `${scope}:${context.shareId ?? 'owner'}`;
+    let provider = this.providers.get(key);
     if (!provider) {
-      provider = new PersistedProvider(this.options, context);
-      this.providers.set(`${context.ownerId}:${context.bindingId ?? context.id}`, provider);
+      let state = this.coordination.get(scope);
+      if (!state) {
+        state = credentialCoordination();
+        this.coordination.set(scope, state);
+      }
+      provider = new PersistedProvider(this.options, context, state);
+      this.providers.set(key, provider);
     }
     provider.configure(context);
     return provider;
@@ -29,7 +43,7 @@ export class UpstreamOAuth {
     return this.options.fetchFor?.(context) ?? this.options.fetch;
   }
   async headers(context: ConnectionContext): Promise<Record<string, string>> {
-    const key = `${context.ownerId}:${context.bindingId ?? context.id}`;
+    const key = credentialKey(context);
     const pending = this.refreshing.get(key);
     if (pending) return pending;
     const refreshing = this.authorizedHeaders(context);
@@ -56,6 +70,7 @@ export class UpstreamOAuth {
     return tokens ? { Authorization: `Bearer ${tokens.access_token}` } : {};
   }
   async start(context: ConnectionContext) {
+    assertCredentialManager(context);
     const provider = this.provider(context);
     const result = await auth(provider, {
       serverUrl: context.config.url!,
@@ -72,6 +87,7 @@ export class UpstreamOAuth {
     context: ConnectionContext,
     input: { code: string; state: string; issuer?: string },
   ) {
+    assertCredentialManager(context);
     const provider = this.provider(context);
     const stored = await provider.read();
     if (
@@ -91,6 +107,7 @@ export class UpstreamOAuth {
     });
   }
   async status(context: ConnectionContext) {
+    assertCredentialManager(context);
     const data = await this.provider(context).read();
     return {
       connectionId: context.id,
@@ -102,9 +119,13 @@ export class UpstreamOAuth {
     };
   }
   async revoke(context: ConnectionContext) {
+    assertCredentialManager(context);
     const provider = this.provider(context);
     await provider.revoke();
-    this.providers.delete(`${context.ownerId}:${context.bindingId ?? context.id}`);
+    const scope = credentialKey(context);
+    for (const key of this.providers.keys())
+      if (key.startsWith(`${scope}:`)) this.providers.delete(key);
+    this.coordination.delete(scope);
     return {
       status: 'removed',
       upstreamRevocation: '请在供应商账户中撤销已授予的权限；平台已删除本地凭证',

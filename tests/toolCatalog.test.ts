@@ -30,6 +30,8 @@ const devices: Device[] = [
   {
     id: 'mac',
     name: '设计工作站',
+    pairingRequired: false,
+    credentialVersion: 1,
     online: false,
     revoked: false,
     os: 'darwin',

@@ -1,9 +1,11 @@
 import type { AccessService } from '../permissions/accessService.js';
 import { describeTools } from './toolPresentation.js';
+import { describeSharedTools } from './sharedToolPresentation.js';
+import { activeUser } from '../users/userAccess.js';
+import type { ShareService } from '../shares/shareService.js';
 import { and, eq, inArray, gt, isNull, or, sql } from 'drizzle-orm';
 import {
   profiles,
-  connections,
   artifacts,
   tools,
   mcpEntries,
@@ -21,7 +23,8 @@ export class ProfileService {
   access?: AccessService;
   constructor(
     private readonly db: Database,
-    private readonly connections?: ConnectionService,
+    private readonly connections: ConnectionService,
+    private readonly shares: ShareService,
   ) {}
   async owned(ownerId: string, id: string) {
     const [profile] = await this.db
@@ -49,17 +52,27 @@ export class ProfileService {
       ? await this.db
           .select()
           .from(mcpEntries)
-          .where(and(eq(mcpEntries.ownerId, ownerId), inArray(mcpEntries.id, contentIds)))
+          .where(
+            and(
+              await this.shares.resourceFilter(ownerId, 'contentIds'),
+              inArray(mcpEntries.id, contentIds),
+            ),
+          )
       : [];
     if (entries.length !== contentIds.length)
-      throw new AppError('INVALID_GRANTS', '选择的 Prompt 或 Resource 不属于当前用户');
+      throw new AppError(
+        'INVALID_GRANTS',
+        '选择的 Prompt 或 Resource 不属于当前用户或未获共享授权',
+      );
     const toolIds = [...new Set(value.toolIds)];
     const versionIds = [...new Set(value.skillVersionIds)];
     const validTools = toolIds.length
       ? await this.db
           .select()
           .from(tools)
-          .where(and(eq(tools.ownerId, ownerId), inArray(tools.id, toolIds)))
+          .where(
+            and(await this.shares.resourceFilter(ownerId, 'toolIds'), inArray(tools.id, toolIds)),
+          )
       : [];
     const versions = versionIds.length
       ? await this.db
@@ -77,7 +90,7 @@ export class ProfileService {
     if (grantedFiles.length !== artifactIds.length)
       throw new AppError('INVALID_GRANTS', '选择的产物不属于当前用户');
     if (validTools.length !== toolIds.length || versions.length !== versionIds.length)
-      throw new AppError('INVALID_GRANTS', '选择的工具或 Skill 版本不属于当前用户');
+      throw new AppError('INVALID_GRANTS', '选择的工具或 Skill 版本未获授权');
     if (versions.some((v) => v.dependencies.some((t) => !toolIds.includes(t))))
       throw new AppError('SKILL_DEPENDENCY', 'Skill 依赖的 MCP 工具尚未授权');
     if (new Set(versions.map((v) => v.name)).size !== versions.length)
@@ -115,17 +128,13 @@ export class ProfileService {
         ? await this.db
             .select({ id: table.id })
             .from(table)
-            .where(and(eq(table.ownerId, ownerId), inArray(table.id, ids)))
+            .where(and(await this.shares.resourceFilter(ownerId, kind), inArray(table.id, ids)))
         : [];
       if (rows.length !== ids.length)
-        throw new AppError('INVALID_GRANTS', '可申请能力必须属于当前用户');
+        throw new AppError('INVALID_GRANTS', '可申请能力必须属于当前用户或已获共享授权');
     }
     for (const id of Object.keys(value.connectionIdentities ?? {})) {
-      const [row] = await this.db
-        .select({ id: connections.id })
-        .from(connections)
-        .where(and(eq(connections.id, id), eq(connections.ownerId, ownerId)));
-      if (!row) throw new AppError('INVALID_IDENTITY', '身份连接不属于当前用户');
+      await this.shares.connection(ownerId, id);
     }
   }
   list(ownerId: string) {
@@ -172,7 +181,10 @@ export class ProfileService {
           or(isNull(accessKeys.expiresAt), gt(accessKeys.expiresAt, new Date())),
         ),
       );
-    if (key) return { ownerId: key.ownerId, profileId, credentialId: key.id, token };
+    if (key) {
+      await activeUser(this.db, key.ownerId);
+      return { ownerId: key.ownerId, profileId, credentialId: key.id, token };
+    }
     const [grant] = await this.db
       .select()
       .from(oauthGrants)
@@ -184,25 +196,36 @@ export class ProfileService {
           gt(oauthGrants.expiresAt, new Date()),
         ),
       );
-    if (grant) return { ownerId: grant.ownerId, profileId, credentialId: grant.id, token };
+    if (grant) {
+      await activeUser(this.db, grant.ownerId);
+      return { ownerId: grant.ownerId, profileId, credentialId: grant.id, token };
+    }
     throw new AppError('UNAUTHORIZED', 'Agent 凭证无效、已过期或已撤销', 401);
   }
   private async scopedCatalog(ownerId: string, rows: (typeof tools.$inferSelect)[]) {
-    if (!this.connections) return rows;
     const snapshots = new Map(
       await Promise.all(
         [...new Set(rows.map((row) => row.connectionId))].map(async (id) => {
-          const snapshot = await this.connections!.catalogForAccess(ownerId, id);
+          const snapshot = await this.connections.catalogForAccess(ownerId, id);
           return [id, snapshot] as const;
         }),
       ),
     );
-    return rows.flatMap((row) => {
-      const definition = snapshots
-        .get(row.connectionId)
-        ?.tools.find((tool) => tool.name === row.name);
-      return definition ? [{ ...row, definition }] : [];
-    });
+    const permitted = new Set(
+      await this.shares.permitted(
+        ownerId,
+        'toolIds',
+        rows.map((row) => row.id),
+      ),
+    );
+    return rows
+      .filter((row) => permitted.has(row.id))
+      .flatMap((row) => {
+        const definition = snapshots
+          .get(row.connectionId)
+          ?.tools.find((tool) => tool.name === row.name);
+        return definition ? [{ ...row, definition }] : [];
+      });
   }
   async instructions(ownerId: string, profileId: string) {
     const profile = await this.owned(ownerId, profileId);
@@ -211,12 +234,17 @@ export class ProfileService {
       ? await this.db
           .select({ connectionId: mcpEntries.connectionId })
           .from(mcpEntries)
-          .where(and(eq(mcpEntries.ownerId, ownerId), inArray(mcpEntries.id, profile.contentIds)))
+          .where(
+            and(
+              await this.shares.resourceFilter(ownerId, 'contentIds'),
+              inArray(mcpEntries.id, profile.contentIds),
+            ),
+          )
       : [];
     const ids = [...new Set([...catalog, ...content].map((row) => row.connectionId))].sort();
     const descriptions = await Promise.all(
       ids.map(async (id) => {
-        const row = await this.connections?.owned(ownerId, id);
+        const row = await this.connections.accessible(ownerId, id);
         const snapshot = await this.connections?.catalogForAccess(ownerId, id);
         const text = snapshot?.instructions;
         return text ? `[${row?.name ?? id} · ${id}]\n${text}` : '';
@@ -231,7 +259,7 @@ export class ProfileService {
       ? await this.db
           .select()
           .from(tools)
-          .where(and(eq(tools.ownerId, ownerId), inArray(tools.id, ids)))
+          .where(and(await this.shares.resourceFilter(ownerId, 'toolIds'), inArray(tools.id, ids)))
       : [];
     return this.scopedCatalog(ownerId, rows);
   }
@@ -244,11 +272,21 @@ export class ProfileService {
     return false;
   }
   async describedCatalog(ownerId: string, profileId: string) {
-    return describeTools({
-      db: this.db,
-      profile: await this.owned(ownerId, profileId),
-      catalog: await this.catalog(ownerId, profileId),
-    });
+    const catalog = await this.catalog(ownerId, profileId);
+    const [owned, shared] = await Promise.all([
+      describeTools({
+        db: this.db,
+        profile: await this.owned(ownerId, profileId),
+        catalog: catalog.filter((tool) => tool.ownerId === ownerId),
+      }),
+      describeSharedTools({
+        ownerId,
+        connections: this.connections,
+        catalog: catalog.filter((tool) => tool.ownerId !== ownerId),
+      }),
+    ]);
+    const descriptions = new Map([...owned, ...shared].map((tool) => [tool.id, tool]));
+    return catalog.map((tool) => descriptions.get(tool.id)!);
   }
   async catalog(ownerId: string, profileId?: string, connectionId?: string) {
     const rows = await this.db
@@ -256,7 +294,7 @@ export class ProfileService {
       .from(tools)
       .where(
         and(
-          eq(tools.ownerId, ownerId),
+          await this.shares.resourceFilter(ownerId, 'toolIds'),
           connectionId ? eq(tools.connectionId, connectionId) : undefined,
         ),
       );
@@ -277,7 +315,7 @@ export class ProfileService {
     const rows = await this.db
       .select()
       .from(tools)
-      .where(and(eq(tools.ownerId, ownerId), eq(tools.id, input.toolId)));
+      .where(and(await this.shares.resourceFilter(ownerId, 'toolIds'), eq(tools.id, input.toolId)));
     return (await this.scopedCatalog(ownerId, rows))[0];
   }
 }

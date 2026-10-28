@@ -20,7 +20,7 @@ export async function fixtureApp(
         },
         {
           name: 'app_action',
-          inputSchema: { type: 'object' },
+          inputSchema: { type: 'object', properties: { internal: { type: 'boolean' } } },
           _meta: { ui: { visibility: ['app'] } },
         },
         {

@@ -43,7 +43,7 @@ Schema 使用官方 AJV 按 `$schema` 选择 draft-07、2019-09、2020-12；无�
 | 功能                    | 方法与路径                                                                                                                                                                                   |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 当前用户 / 可选模块状态 | `GET /me`                                                                                                                                                                                    |
-| 设备                    | `GET /devices`、`POST /devices/pairings`、`POST /devices/pair`、`DELETE /devices/:id`                                                                                                        |
+| 设备                    | `GET /devices`、`POST /devices/pairings`、`POST /devices/pair`、`POST /devices/:id/re-pairings`、`DELETE /devices/:id`                                                                       |
 | 连接                    | `GET/POST /connections`、`PATCH /connections/:id`、`POST /connections/:id/discover`、`POST /connections/:id/stop`、`POST .../wake`、`POST .../sleep`、`POST .../check`                       |
 | 工具                    | `GET /tools`、`POST /tools/:id/call`（`{arguments:{...}}`）                                                                                                                                  |
 | 内容目录                | `GET /catalog`、`POST /catalog/prompts/:id/get`、`POST /catalog/resources/read`                                                                                                              |
@@ -153,3 +153,17 @@ Profile 新增 `revision`、`requestable:{toolIds,contentIds,artifactIds}` 与 `
 交接输入由用户选择 sourceTaskId、targetProfileId、targetRevision、summary、artifactIds、mode（pi/external），外部模式还需目标 Profile 的有效 credentialId。创建携带 idempotencyKey；预览不是授权凭证，保存和执行均重新核对内容来源、目标修订和权限。保存与执行分离，执行事务预留唯一任务；重复请求返回同一结果，失败保留状态，不自动重试。导出不调用模型，不含平台密钥、公开下载令牌、原始会话或 Apps 状态。外部产物入口仍需选定凭证鉴权；Pi 新任务通过 `platform_artifacts_catalog/read` 在当前任务权限内读取指定字节区间。
 
 仅单进程维护运行调用、订阅与 Apps。撤销会结束依赖失效授权的活动，不能保证撤回已派发操作；未知结果明确记录，不宣称回滚或自动重放。
+
+## 设备 HMAC 认证（连接器 0.3.0）
+
+`POST /devices/pairings` 由管理会话生成十分钟一次性配对码。兑换 `POST /devices/pair` 接受 `{code, deviceId?}`，首次配对不传 deviceId，重配必须传原 deviceId；返回 `{deviceId, deviceSecret, credentialVersion}`，响应 `Cache-Control: no-store`。长期密钥仅此响应返回。重配码仅允许设备所有者通过带匹配 Origin 的管理会话调用 `POST /devices/:id/re-pairings` 生成，返回 `{code, expiresAt}`；事务递增版本、清除旧密钥、替换旧码，断开设备后返回。已撤销设备不可重配。
+
+`GET /me` 的 `platformOrigin` 来自配置的 PUBLIC_URL 规范化源站，设备页以此生成配对命令；开发前端代理端口不会作为设备认证源站。`GET /devices` 使用字段白名单，增加 `credentialVersion`、`pairingRequired`；不会返回密文、密钥、MAC。迁移前的设备保留身份和资源关联，显示待重新配对。
+
+设备在同一 `/api/v1/devices/channel` WSS 连接完成以下认证，禁止 Authorization 和 Origin 请求头：
+
+1. 服务端发送 `{type:"auth.challenge",v:1,nonce,expiresAt}`，nonce 为 32 字节无填充 Base64URL；expiresAt 为 UTC ISO 字符串，30 秒到期。
+2. 连接器发送 `{type:"auth.response",v:1,deviceId,credentialVersion,mac}`。密钥和 MAC 都为 32 字节无填充 Base64URL。MAC 输入是紧凑 JSON 的 UTF-8 字节：`["mcplatform-device-auth",1,platformOrigin,deviceId,credentialVersion,nonce,expiresAt]`。platformOrigin 为规范化的已配对平台源站，expiresAt 原样使用挑战字符串。共享测试向量位于 `packages/contracts/testdata/device-auth-vectors.json`。
+3. 成功返回 `{type:"auth.success",v:1}`，注册通道，连接器发送原有 hello。失败统一返回 `{type:"auth.failure",v:1,error:"Device authentication failed"}` 后以 1008 关闭，客户端必须重新连接。超过 4 KiB 的认证帧在 JSON 解析前拒绝。挑战绑定连接，一次应答即消费；认证前不派发业务。
+
+服务端以独立的 DEVICE_AUTH_ENCRYPTION_KEY 使用 AES-GCM 加密长期密钥，AAD 绑定所有者、设备 ID 和版本。单实例内认证完成/注册、重配及撤销按设备串行处理；凭证变更使用事务。机制遵循 [HMAC](https://www.rfc-editor.org/rfc/rfc2104.txt)；共享密钥要求服务端与本机都保护好密钥。该升级不改变 MCP 权限、固定凭证引用或一次性文件传输令牌。

@@ -50,6 +50,13 @@
       "when": 1793034774096,
       "tag": "0006_breezy_james_howlett",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793200059209,
+      "tag": "0007_sparkling_random",
+      "breakpoints": true
     }
   ]
 }

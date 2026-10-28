@@ -11,6 +11,8 @@ import { InteractionService } from './modules/interactions/interactionService.js
 import { AppSessionService } from './modules/apps/appSessionService.js';
 import { resolve } from 'node:path';
 import type { Database } from '@platform/db';
+import { connectionShares } from '@platform/db';
+import { eq } from 'drizzle-orm';
 import type { Config } from './config.js';
 import { Vault } from './shared/crypto.js';
 import { DeviceBroker } from './modules/devices/deviceBroker.js';
@@ -29,11 +31,44 @@ import { SkillService } from './modules/skills/skillService.js';
 import { DiskFileStore } from './modules/artifacts/fileStore.js';
 import { ArtifactService } from './modules/artifacts/artifactService.js';
 import { PiService } from './modules/pi-runtime/piService.js';
+import { ActivityService } from './modules/activity/activityService.js';
+import { LogService } from './modules/activity/logService.js';
+import { databaseLogger } from './modules/activity/systemLogger.js';
+import { ShareService } from './modules/shares/shareService.js';
 export function createServices(db: Database, config: Config) {
   const vault = new Vault(config.ENCRYPTION_KEY);
+  const logger = databaseLogger(db);
+  const shares: ShareService = new ShareService({
+    db,
+    vault,
+    validate: (ownerId, input) => connections.validate(ownerId, input),
+    recovery: (ownerId, id) => connections.recovery(ownerId, id),
+    changed: async (shareId) => {
+      const [share] = await db
+        .select()
+        .from(connectionShares)
+        .where(eq(connectionShares.id, shareId));
+      const recipients = share ? await profiles.list(share.recipientId) : [];
+      const outcomes = await Promise.allSettled([
+        connections.closeShare(shareId),
+        access.changed(),
+        ...recipients.map((profile) => gateway.permissionsChanged(profile.id)),
+      ]);
+      const failures = outcomes
+        .filter((outcome) => outcome.status === 'rejected')
+        .map((outcome) => outcome.reason);
+      if (failures.length)
+        throw new AggregateError(failures, '共享授权已更新；运行时清理或通知失败');
+    },
+  });
   const events = new RuntimeEvents();
-  const broker = new DeviceBroker((id, message) => reportDevice(db, id, message));
-  const devices = new DeviceService(db, broker);
+  const broker = new DeviceBroker((id, message) => reportDevice(db, id, message), logger);
+  const devices = new DeviceService({
+    db,
+    broker,
+    vault: new Vault(config.DEVICE_AUTH_ENCRYPTION_KEY),
+    platformOrigin: new URL(config.PUBLIC_URL).origin,
+  });
   const upstreamOAuth = new UpstreamOAuth({
     db,
     vault,
@@ -48,6 +83,8 @@ export function createServices(db: Database, config: Config) {
     publicUrl: config.PUBLIC_URL,
   });
   const connections: ConnectionService = new ConnectionService({
+    logger,
+    shares,
     db,
     vault,
     devices,
@@ -74,17 +111,19 @@ export function createServices(db: Database, config: Config) {
       return createDirectAdapter(context, upstreamOAuth.provider(context), {
         fetch: upstreamOAuth.fetchFor(context),
         beforeCall: () => upstreamOAuth.headers(context),
-        logStderr: (message) => console.error('MCP stderr', context.id, message),
+        logStderr: () => logger.report('MCP_STDERR', context.ownerId),
       });
     },
   });
-  const profiles = new ProfileService(db, connections);
+  const profiles = new ProfileService(db, connections, shares);
   const access = new AccessService({
+    logger,
     db,
+    shares,
     binding: async (ownerId, id) => {
       const context = await connections.context(ownerId, id);
       const binding = await connections.bindings.owned(ownerId, context.bindingId!);
-      return `${binding.id}:${binding.revision}:${(await connections.owned(ownerId, id)).revision}`;
+      return `${binding.id}:${binding.revision}:${(await connections.accessible(ownerId, id)).revision}:${context.shareVersion ?? ''}`;
     },
   });
   profiles.access = access;
@@ -97,8 +136,9 @@ export function createServices(db: Database, config: Config) {
     publicUrl: config.PUBLIC_URL,
     changed: (id) => gateway.permissionsChanged(id),
   });
-  const interactions = new InteractionService({ db, vault });
+  const interactions = new InteractionService({ db, vault, logger });
   const invocations: InvocationService = new InvocationService({
+    logger,
     db,
     profiles,
     connections,
@@ -106,7 +146,7 @@ export function createServices(db: Database, config: Config) {
     events,
     onResult: (input) => apps.capture(input),
   });
-  const content = new ContentService({ db, profiles, connections });
+  const content = new ContentService({ db, profiles, connections, shares, logger });
   const sandboxOrigin = new URL(config.PUBLIC_URL).origin;
   const apps = new AppSessionService({
     connections,
@@ -117,7 +157,9 @@ export function createServices(db: Database, config: Config) {
     sandboxOrigin,
   });
   const requests: RequestService = new RequestService({
+    logger,
     db,
+    shares,
     access,
     changed: (id) => gateway.permissionsChanged(id),
     catalog: (access) => requestCatalog({ db, profiles, connections, content }, access),
@@ -126,6 +168,7 @@ export function createServices(db: Database, config: Config) {
     webOrigin: config.WEB_ORIGIN,
     access,
     artifacts,
+    logger,
     profiles,
     invocations,
     content,
@@ -136,6 +179,7 @@ export function createServices(db: Database, config: Config) {
   const skills = new SkillService({ db, broker, devices, profiles });
   const agentOAuth = new AgentOAuth({ db, profiles, publicUrl: config.PUBLIC_URL });
   const pi: PiService = new PiService({
+    logger,
     db,
     config,
     profiles,
@@ -153,6 +197,10 @@ export function createServices(db: Database, config: Config) {
     start: (ownerId, input, id) => pi.start(ownerId, input, id),
   });
   return {
+    shares,
+    activity: new ActivityService({ db, vault }),
+    logs: new LogService({ db, vault }),
+    logger,
     requests,
     handoffs,
     broker,

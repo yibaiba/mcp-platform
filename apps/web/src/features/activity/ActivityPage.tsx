@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { Button } from '../../components/ui/button.js';
+import { Action, Status } from '../../components/shared/Controls.js';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Card } from '../../components/ui/card.js';
@@ -19,15 +22,34 @@ import { CallDetail } from './CallDetail.js';
 export default function ActivityPage() {
   const filters = useSearch({ from: '/activity' });
   const navigate = useNavigate({ from: '/activity' });
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ count: number; token: string } | null>(null);
   const search = new URLSearchParams(
     Object.entries(filters).filter(([key, value]) => key !== 'callId' && Boolean(value)) as [
       string,
       string,
     ][],
-  ).toString();
+  );
+  for (const field of ['from', 'before']) {
+    const value = search.get(field);
+    if (value && Number.isFinite(Date.parse(value)))
+      search.set(field, new Date(value).toISOString());
+  }
+  const queryString = search.toString();
   const calls = useQuery({
-    queryKey: ['calls', search],
-    queryFn: ({ signal }) => api<Call[]>(`/calls?${search}`, { signal }),
+    queryKey: ['calls', queryString, cursor],
+    queryFn: () =>
+      api<{ items: Call[]; nextCursor: string | null }>(
+        `/activity/calls?${queryString}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
+      ),
+    refetchInterval: 5000,
+  });
+  const stats = useQuery({
+    queryKey: ['call-stats', queryString],
+    queryFn: () =>
+      api<{ status: string; count: number; meanDurationMs: number | null }[]>(
+        `/activity/calls/stats?${queryString}`,
+      ),
     refetchInterval: 5000,
   });
   const tools = useQuery({ queryKey: ['tools'], queryFn: () => api<Tool[]>('/tools') });
@@ -43,8 +65,11 @@ export default function ActivityPage() {
     profiles: profiles.data,
     devices: devices.data,
   });
-  const update = (patch: ActivitySearch) =>
+  const update = (patch: ActivitySearch) => {
+    setCursor(null);
+    setPreview(null);
     void navigate({ search: (previous) => ({ ...previous, callId: undefined, ...patch }) });
+  };
   return (
     <>
       <div className="page-heading">
@@ -67,9 +92,53 @@ export default function ActivityPage() {
         }}
         onChange={update}
       />
+      <Feedback error={stats.error} />
+      <div className="overview-grid">
+        {stats.data?.map((row) => (
+          <Card className="p-4" key={row.status}>
+            <Status value={row.status} />
+            <strong>{row.count} 次</strong>
+            <small>
+              平均耗时 {row.meanDurationMs === null ? '—' : `${Math.round(row.meanDurationMs)} ms`}
+            </small>
+          </Card>
+        ))}
+      </div>
+      <div className="my-4 flex flex-wrap items-center gap-3">
+        <Action
+          action={async () =>
+            setPreview(
+              await api('/activity/calls/cleanup/preview', {
+                method: 'POST',
+                body: JSON.stringify(Object.fromEntries(new URLSearchParams(search))),
+              }),
+            )
+          }
+        >
+          预览清理当前范围
+        </Action>
+        {preview ? (
+          <>
+            <span>将清理 {preview.count} 条已结束记录，运行和等待回答的调用保留。</span>
+            <Action
+              danger
+              action={async () => {
+                await api('/activity/calls/cleanup', {
+                  method: 'POST',
+                  body: JSON.stringify({ token: preview.token }),
+                });
+                setPreview(null);
+                setCursor(null);
+              }}
+            >
+              执行清理
+            </Action>
+          </>
+        ) : null}
+      </div>
       <Card className="panel">
         <div className="panel-heading">
-          <h2>最近 100 次匹配调用</h2>
+          <h2>调用记录 · 每页 50 条</h2>
           <span className="label">每 5 秒刷新</span>
         </div>
         {calls.isPending ? (
@@ -77,7 +146,7 @@ export default function ActivityPage() {
             正在读取调用记录…
           </p>
         ) : null}
-        {calls.data?.length ? (
+        {calls.data?.items.length ? (
           <Table>
             <TableHeader>
               <TableRow>
@@ -89,7 +158,7 @@ export default function ActivityPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {calls.data.map((call) => (
+              {calls.data.items.map((call) => (
                 <CallRow
                   key={call.id}
                   call={call}
@@ -110,6 +179,18 @@ export default function ActivityPage() {
           onClose={() => update({ callId: undefined })}
         />
       ) : null}
+      <div className="my-4 flex flex-wrap items-center gap-3">
+        <Button variant="outline" disabled={!cursor} onClick={() => setCursor(null)}>
+          返回第一页
+        </Button>
+        <Button
+          variant="outline"
+          disabled={!calls.data?.nextCursor}
+          onClick={() => setCursor(calls.data!.nextCursor)}
+        >
+          下一页
+        </Button>
+      </div>
     </>
   );
 }

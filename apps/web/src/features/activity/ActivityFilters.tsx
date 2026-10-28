@@ -17,6 +17,15 @@ export function ActivityFilters({
   return (
     <section className="panel padded mb-5 space-y-4" aria-label="调用筛选">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {(['from', 'before'] as const).map((field) => (
+          <Field key={field} label={field === 'from' ? '起始时间' : '结束时间（不含）'}>
+            <Input
+              type="datetime-local"
+              value={values[field] ?? ''}
+              onChange={(event) => onChange({ [field]: event.target.value })}
+            />
+          </Field>
+        ))}
         <NamedFilter
           label="Agent"
           all="全部 Agent 与管理账号"
@@ -84,6 +93,8 @@ export function ActivityFilters({
         variant="outline"
         onClick={() =>
           onChange({
+            from: '',
+            before: '',
             profileId: '',
             taskId: '',
             connectionId: '',

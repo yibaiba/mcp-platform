@@ -1,10 +1,12 @@
+import { credentialScope } from './credentialScope.js';
 import type { ConnectionContext } from '../mcp/adapter.js';
 import type { ConnectionService } from '../mcp/connectionService.js';
 
 export function oauthCallbackUrl(context: ConnectionContext, publicUrl: string) {
+  const scope = credentialScope(context);
   const binding =
-    context.identity && context.identity !== 'default' ? `/bindings/${context.bindingId}` : '';
-  return `${publicUrl}/api/v1/connections/${context.id}${binding}/oauth/callback`;
+    scope.identity && scope.identity !== 'default' ? `/bindings/${scope.bindingId}` : '';
+  return `${publicUrl}/api/v1/connections/${scope.connectionId}${binding}/oauth/callback`;
 }
 
 export async function finishBrowserAuthorization(options: {

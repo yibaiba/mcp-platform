@@ -25,6 +25,7 @@ export function profileRoutes(deps: {
     await deps.access.changed();
     await deps.requests.reconcile(paramId(c));
     await deps.connections.closeProfile(paramId(c));
+    await deps.gateway.permissionsChanged(paramId(c));
     await deps.gateway.profileChanged(paramId(c));
     await deps.pi.revokeProfile(paramId(c));
     return c.json(profile);

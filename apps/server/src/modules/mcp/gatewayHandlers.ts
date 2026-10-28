@@ -1,3 +1,5 @@
+import { scopeToolDefinition } from './catalogEntries.js';
+import type { DiagnosticLogger } from '../activity/systemLogger.js';
 import { z } from 'zod';
 import { artifactToolset, isArtifactTool } from '../artifacts/artifactTools.js';
 import type { ArtifactService } from '../artifacts/artifactService.js';
@@ -18,7 +20,6 @@ import type { Principal, ProfileService } from '../agent-profiles/profileService
 import type { InvocationService } from './invocationService.js';
 import type { ContentService } from './contentService.js';
 import type { ResourceSubscriptions } from './resourceSubscriptions.js';
-import { scopeToolDefinition } from './catalogEntries.js';
 import { currentExecution, withExecution } from './executionContext.js';
 import { legacyToolDefinition, parseTool, isInputRequiredResult } from '@platform/mcp';
 
@@ -27,6 +28,7 @@ export type GatewayHandlers = {
   access: AccessService;
   artifacts: ArtifactService;
   requests: RequestService;
+  logger: DiagnosticLogger;
   profiles: ProfileService;
   invocations: InvocationService;
   interactions: import('../interactions/interactionService.js').InteractionService;
@@ -130,13 +132,14 @@ export async function createGatewayServer(
           },
         ],
       };
+    const toolId = name;
     const state = context.mcpReq.requestState();
     if (typeof state === 'string')
       return input.interactions.respond({
         ownerId: principal.ownerId,
         id: state,
         credentialId: principal.credentialId,
-        toolId: request.params.name,
+        toolId,
         responses: context.mcpReq.inputResponses as Record<
           string,
           import('@modelcontextprotocol/client').ElicitResult
@@ -144,12 +147,12 @@ export async function createGatewayServer(
       }) as Promise<import('@platform/mcp').McpToolResult>;
     let result = await input.invocations.dispatch({
       ...access(),
-      toolId: request.params.name,
+      toolId,
       arguments: request.params.arguments ?? {},
       ...(input.era === 'legacy'
         ? { signal: context.mcpReq.signal }
         : { requestSignal: context.mcpReq.signal }),
-      onprogress: progressReporter(request.params._meta?.progressToken, context),
+      onprogress: progressReporter(request.params._meta?.progressToken, context, input.logger),
     });
     while (input.era === 'legacy' && isInputRequiredResult(result)) {
       const responses: Record<string, import('@modelcontextprotocol/client').ElicitResult> = {};
@@ -165,7 +168,7 @@ export async function createGatewayServer(
         ownerId: principal.ownerId,
         id: result.requestState!,
         credentialId: principal.credentialId,
-        toolId: request.params.name,
+        toolId,
         responses,
       })) as typeof result;
     }
@@ -192,7 +195,7 @@ export async function createGatewayServer(
       id: request.params.name,
       arguments: request.params.arguments,
       signal: context.mcpReq.signal,
-      onprogress: progressReporter(request.params._meta?.progressToken, context),
+      onprogress: progressReporter(request.params._meta?.progressToken, context, input.logger),
     }),
   );
   setHandler('resources/read', (request, context) =>
@@ -200,7 +203,7 @@ export async function createGatewayServer(
       ...access(),
       uri: request.params.uri,
       signal: context.mcpReq.signal,
-      onprogress: progressReporter(request.params._meta?.progressToken, context),
+      onprogress: progressReporter(request.params._meta?.progressToken, context, input.logger),
     }),
   );
   setHandler('resources/subscribe', async (request, context) => {
@@ -220,7 +223,11 @@ export async function createGatewayServer(
   return server;
 }
 
-function progressReporter(token: string | number | undefined, context: ServerContext) {
+function progressReporter(
+  token: string | number | undefined,
+  context: ServerContext,
+  logger: DiagnosticLogger,
+) {
   return token === undefined
     ? undefined
     : (progress: { progress: number; total?: number; message?: string }) => {
@@ -229,11 +236,6 @@ function progressReporter(token: string | number | undefined, context: ServerCon
             method: 'notifications/progress',
             params: { ...progress, progressToken: token },
           })
-          .catch((error: unknown) =>
-            console.error(
-              'MCP progress delivery failed',
-              error instanceof Error ? error.message : String(error),
-            ),
-          );
+          .catch(() => logger.report('MCP_PROGRESS_DELIVERY_FAILED'));
       };
 }

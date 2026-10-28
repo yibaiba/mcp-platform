@@ -1,3 +1,4 @@
+import type { DiagnosticLogger } from '../activity/systemLogger.js';
 import { currentExecution } from './executionContext.js';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -13,16 +14,19 @@ import type { ProfileService, Principal } from '../agent-profiles/profileService
 import type { ConnectionService } from './connectionService.js';
 import { catalogEntries } from './catalogEntries.js';
 import { scopedUri, scopeResult, originalUri } from './catalogEntries.js';
+import type { ShareAccess } from '../shares/shareAccess.js';
 
-export type ContentEntry = typeof mcpEntries.$inferSelect;
+export type ContentEntry = typeof mcpEntries.$inferSelect & { callerId?: string };
 export type ContentAccess = { ownerId: string; profileId?: string; principal?: Principal };
 
 export class ContentService {
   constructor(
     private readonly deps: {
       db: Database;
+      logger: DiagnosticLogger;
       profiles: ProfileService;
       connections: ConnectionService;
+      shares: ShareAccess;
     },
   ) {}
   async requestable(access: ContentAccess) {
@@ -30,11 +34,12 @@ export class ContentService {
       .contentIds;
   }
   async requestableCatalog(access: ContentAccess) {
-    const ids = await this.requestable(access);
+    const profile = await this.deps.profiles.owned(access.ownerId, access.profileId!);
+    const ids = profile.requestable.contentIds;
     const rows = await this.deps.db
       .select()
       .from(mcpEntries)
-      .where(eq(mcpEntries.ownerId, access.ownerId));
+      .where(await this.deps.shares.resourceFilter(access.ownerId, 'contentIds'));
     return (
       await this.scopedCatalog(
         access.ownerId,
@@ -50,7 +55,7 @@ export class ContentService {
       .from(mcpEntries)
       .where(
         and(
-          eq(mcpEntries.ownerId, access.ownerId),
+          await this.deps.shares.resourceFilter(access.ownerId, 'contentIds'),
           connectionId ? eq(mcpEntries.connectionId, connectionId) : undefined,
         ),
       );
@@ -63,7 +68,10 @@ export class ContentService {
       ? rows.filter((row) => permissions!.contentIds.includes(row.id))
       : rows;
     const visible = await this.scopedCatalog(access.ownerId, granted);
-    return permissions ? visible.filter((row) => permissions.contentIds.includes(row.id)) : visible;
+    const filtered = permissions
+      ? visible.filter((row) => permissions.contentIds.includes(row.id))
+      : visible;
+    return filtered;
   }
   private async scopedCatalog(ownerId: string, rows: ContentEntry[]) {
     const scoped = await Promise.all(
@@ -74,7 +82,14 @@ export class ContentService {
           : [];
       }),
     );
-    return scoped.flat();
+    const permitted = new Set(
+      await this.deps.shares.permitted(
+        ownerId,
+        'contentIds',
+        scoped.flat().map((entry) => entry.id),
+      ),
+    );
+    return scoped.flat().filter((entry) => permitted.has(entry.id));
   }
   definition(entry: ContentEntry) {
     const { definition, connectionId } = entry;
@@ -83,29 +98,51 @@ export class ContentService {
       return { ...definition, uriTemplate: scopedUri(connectionId, entry.locator) };
     return { ...definition, uri: scopedUri(connectionId, entry.locator) };
   }
-  async eventVisible(access: ContentAccess, connectionId: string, method: string) {
-    if (!access.profileId) return true;
-    const profile = await this.deps.profiles.owned(access.ownerId, access.profileId);
+  async eventVisible(
+    access: ContentAccess,
+    event: { connectionId: string; method: string; uri?: string },
+  ) {
+    const { connectionId, method, uri } = event;
+    const profile = access.profileId
+      ? await this.deps.profiles.owned(access.ownerId, access.profileId)
+      : undefined;
     const effective = await this.deps.profiles.access?.effective(access);
     const permissions = effective ?? profile;
     if (method === 'notifications/tools/list_changed') {
       const rows = await this.deps.db
         .select({ id: tools.id })
         .from(tools)
-        .where(and(eq(tools.ownerId, access.ownerId), eq(tools.connectionId, connectionId)));
-      return rows.some((row) => permissions.toolIds.includes(row.id));
+        .where(
+          and(
+            await this.deps.shares.resourceFilter(access.ownerId, 'toolIds'),
+            eq(tools.connectionId, connectionId),
+          ),
+        );
+      return rows.some((row) => !permissions || permissions.toolIds.includes(row.id));
     }
     const rows = await this.deps.db
       .select()
       .from(mcpEntries)
       .where(
-        and(eq(mcpEntries.ownerId, access.ownerId), eq(mcpEntries.connectionId, connectionId)),
+        and(
+          await this.deps.shares.resourceFilter(access.ownerId, 'contentIds'),
+          eq(mcpEntries.connectionId, connectionId),
+        ),
       );
     const prompt = method === 'notifications/prompts/list_changed';
     return rows.some(
       (row) =>
-        permissions.contentIds.includes(row.id) &&
-        (prompt ? row.kind === 'prompt' : row.kind !== 'prompt'),
+        (!permissions || permissions.contentIds.includes(row.id)) &&
+        (method === 'notifications/resources/updated'
+          ? Boolean(
+              uri &&
+                (row.kind === 'resource'
+                  ? row.locator === uri
+                  : row.kind === 'template' && new UriTemplate(row.locator).match(uri)),
+            )
+          : prompt
+            ? row.kind === 'prompt'
+            : row.kind !== 'prompt'),
     );
   }
   async prompt(
@@ -114,7 +151,12 @@ export class ContentService {
     const [stored] = await this.deps.db
       .select()
       .from(mcpEntries)
-      .where(and(eq(mcpEntries.ownerId, input.ownerId), eq(mcpEntries.id, input.id)));
+      .where(
+        and(
+          await this.deps.shares.resourceFilter(input.ownerId, 'contentIds'),
+          eq(mcpEntries.id, input.id),
+        ),
+      );
     if (!stored) throw new AppError('PROMPT_FORBIDDEN', '该 Prompt 不存在或未授权', 403);
     const entry = (await this.catalog(input, stored.connectionId)).find(
       (row) => row.kind === 'prompt' && row.id === input.id,
@@ -156,7 +198,10 @@ export class ContentService {
   async execute(entry: ContentEntry, operation: McpOperation, options: McpRequestOptions) {
     const adapter = await this.adapter(entry);
     const abort = new AbortController();
-    const access = { ownerId: entry.ownerId, profileId: currentExecution()?.profileId };
+    const access = {
+      ownerId: entry.callerId ?? entry.ownerId,
+      profileId: currentExecution()?.profileId,
+    };
     const release = await this.deps.profiles.access?.monitor({
       access,
       kind: 'contentIds',
@@ -173,26 +218,39 @@ export class ContentService {
     }
   }
   async subscribe(entry: ContentEntry, uri: string, onRevoked?: () => void) {
+    const context = await this.deps.connections.context(
+      entry.callerId ?? entry.ownerId,
+      entry.connectionId,
+    );
     const adapter = await this.adapter(entry);
     const abort = new AbortController();
     // Cleanup belongs to this adapter lifetime and must never open a replacement connection.
     let unwatch: (() => void) | undefined = undefined;
-    let ended = false;
-    const release = async () => {
-      if (ended) return;
-      ended = true;
-      unwatch?.();
-      await adapter.request({ method: 'resources/unsubscribe', params: { uri } });
-    };
+    let releasing: Promise<void> | undefined;
+    const release = () =>
+      (releasing ??= (async () => {
+        unwatch?.();
+        unwatchClosing?.();
+        await adapter.request({ method: 'resources/unsubscribe', params: { uri } });
+      })());
+    const unwatchClosing = this.deps.connections.watchClosing(async (closing) => {
+      if (closing.runtimeKey !== context.runtimeKey) return;
+      abort.abort(new Error('订阅会话已结束'));
+      onRevoked?.();
+      await release();
+    });
     unwatch = await this.deps.profiles.access?.monitor({
-      access: { ownerId: entry.ownerId, profileId: currentExecution()?.profileId },
+      access: {
+        ownerId: entry.callerId ?? entry.ownerId,
+        profileId: currentExecution()?.profileId,
+      },
       kind: 'contentIds',
       id: entry.id,
       cancel: () => {
         abort.abort(new Error('订阅授权已失效'));
         onRevoked?.();
-        void release().catch((error: unknown) =>
-          console.error('Subscription cleanup failed', error),
+        void release().catch(() =>
+          this.deps.logger.report('SUBSCRIPTION_CLEANUP_FAILED', entry.callerId ?? entry.ownerId),
         );
       },
     });
@@ -204,15 +262,17 @@ export class ContentService {
       );
     } catch (error) {
       unwatch?.();
+      unwatchClosing?.();
       throw error;
     }
     return release;
   }
   private async adapter(entry: ContentEntry) {
-    const connection = await this.deps.connections.owned(entry.ownerId, entry.connectionId);
+    const ownerId = entry.callerId ?? entry.ownerId;
+    const connection = await this.deps.connections.accessible(ownerId, entry.connectionId);
     if (connection.status === 'stopped')
       throw new AppError('CONNECTION_STOPPED', '连接已停止，请先启动', 409);
-    return this.deps.connections.adapter(entry.ownerId, entry.connectionId);
+    return this.deps.connections.adapter(ownerId, entry.connectionId);
   }
   private async assertStillGranted(access: ContentAccess, entry: ContentEntry) {
     if (!(await this.catalog(access, entry.connectionId)).some((row) => row.id === entry.id))

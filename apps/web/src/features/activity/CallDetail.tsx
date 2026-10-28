@@ -28,7 +28,7 @@ export function CallDetail({
 }) {
   const query = useQuery({
     queryKey: ['call', id],
-    queryFn: ({ signal }) => api<Call>(`/calls/${id}`, { signal }),
+    queryFn: ({ signal }) => api<Call>(`/activity/calls/${id}`, { signal }),
     refetchInterval: (state) =>
       ['running', 'waiting'].includes(state.state.data?.status ?? '') ? 5000 : false,
   });

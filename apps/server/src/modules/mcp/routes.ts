@@ -23,7 +23,7 @@ export function connectionRoutes(service: ConnectionService, changed: () => Prom
   });
   app.post('/:id/check', async (c) => c.json(await service.check(owner(c), paramId(c))));
   app.get('/:id/bindings', async (c) => {
-    await service.owned(owner(c), paramId(c));
+    await service.accessible(owner(c), paramId(c));
     return c.json(await service.bindings.list(owner(c), paramId(c)));
   });
   app.post('/:id/stop', async (c) => {

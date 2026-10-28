@@ -44,7 +44,8 @@ export function catalogEntries(context: ConnectionContext, catalog: McpCatalog) 
   return groups.flatMap(({ kind, items }) =>
     items.map(({ definition, locator }) => ({
       id: `${kind}_${digest(`${context.id}:${locator}`)}`,
-      ownerId: context.ownerId,
+      ownerId: context.resourceOwnerId ?? context.ownerId,
+      callerId: context.ownerId,
       connectionId: context.id,
       kind,
       name: definition.name,

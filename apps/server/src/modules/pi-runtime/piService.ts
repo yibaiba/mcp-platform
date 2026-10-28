@@ -1,3 +1,5 @@
+import type { DiagnosticLogger } from '../activity/systemLogger.js';
+import { assertCredentialManager } from '../authorizations/credentialScope.js';
 import { TaskStore } from './taskStore.js';
 import { OutputCheckpoint } from './outputCheckpoint.js';
 import { artifactToolset } from '../artifacts/artifactTools.js';
@@ -20,7 +22,6 @@ import type { SkillService } from '../skills/skillService.js';
 import type { ContentService } from '../mcp/contentService.js';
 import { contentToolset } from './contentTools.js';
 import type { RuntimeEvents } from '../../shared/runtimeEvents.js';
-import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 export class PiService {
   requests!: RequestService;
   get store() {
@@ -35,6 +36,7 @@ export class PiService {
   constructor(
     private readonly deps: {
       db: Database;
+      logger: DiagnosticLogger;
       config: Config;
       profiles: ProfileService;
       invocations: InvocationService;
@@ -44,7 +46,11 @@ export class PiService {
       events: RuntimeEvents;
     },
   ) {
-    this.bridges = new PiBridges({ config: deps.config, load: () => this.load() });
+    this.bridges = new PiBridges({
+      config: deps.config,
+      load: () => this.load(),
+      logger: deps.logger,
+    });
   }
   private load() {
     this.runtime ??= import('@platform/pi-runtime');
@@ -54,6 +60,7 @@ export class PiService {
     return this.bridges.bridge(context);
   }
   async action(context: ConnectionContext, input: Record<string, unknown>) {
+    assertCredentialManager(context);
     return (await this.bridge(context)).action(input);
   }
   list(ownerId: string) {
@@ -104,7 +111,7 @@ export class PiService {
     this.running.set(id, { ownerId, profileId: input.profileId, abort, done });
     void done
       .finally(() => this.running.delete(id))
-      .catch((error: unknown) => console.error('Task persistence failed', error));
+      .catch(() => this.deps.logger.report('TASK_PERSISTENCE_FAILED', ownerId));
     return { id };
   }
   private async run(
@@ -118,13 +125,15 @@ export class PiService {
       write: (text) => this.store.update(id, { output: text }),
       failed: (error) => {
         persistenceFailure = true;
-        console.error('Task checkpoint failed', error);
+        this.deps.logger.report('TASK_CHECKPOINT_FAILED', ownerId);
         input.abort.abort(error);
       },
     });
     try {
       const profile = await this.deps.profiles.owned(ownerId, input.profileId);
-      const catalog = await this.deps.profiles.potentialCatalog(ownerId, input.profileId);
+      const catalog = (await this.deps.profiles.potentialCatalog(ownerId, input.profileId)).map(
+        (row) => ({ ...row.definition, name: row.id }),
+      );
       const permissionTools = await availablePermissionTools(this.requests, {
         ownerId,
         profileId: input.profileId,
@@ -155,15 +164,7 @@ export class PiService {
           ...permissionTools,
           ...content.tools,
           ...artifacts.tools,
-          ...catalog
-            .filter((t) => {
-              const ui = (t.definition._meta as { ui?: { visibility?: string[] } } | undefined)?.ui;
-              return !ui?.visibility || ui.visibility.includes('model');
-            })
-            .map(
-              (t) =>
-                ({ ...t.definition, name: t.id, inputSchema: t.definition.inputSchema }) as Tool,
-            ),
+          ...catalog.filter((definition) => modelVisible({ definition })),
         ],
         skills,
         signal: input.abort.signal,
@@ -172,8 +173,9 @@ export class PiService {
           ...content.tools.map((t) => t.name),
           ...artifacts.tools.map((t) => t.name),
           ...(await this.deps.profiles.catalog(ownerId, input.profileId))
-            .filter(modelVisible)
-            .map((t) => t.id),
+            .map((row) => ({ ...row.definition, name: row.id }))
+            .filter((definition) => modelVisible({ definition }))
+            .map((tool) => tool.name),
         ],
         call: async (name, args, signal) => {
           const access = { ownerId, profileId: input.profileId };
@@ -194,11 +196,7 @@ export class PiService {
               next: '授权审批不执行业务，请发起新的工具调用',
             });
           }
-          return content.handles(name)
-            ? content.call(name, args, signal)
-            : artifacts.handles(name)
-              ? artifacts.call(name, args, signal)
-              : this.deps.invocations.call({ ...access, toolId: name, arguments: args, signal });
+          return this.deps.invocations.call({ ...access, toolId: name, arguments: args, signal });
         },
         onText: (text) => {
           output += text;
@@ -238,6 +236,11 @@ export class PiService {
   }
   async revokeProfile(profileId: string) {
     for (const task of this.running.values()) if (task.profileId === profileId) task.abort.abort();
+  }
+  async revokeOwner(ownerId: string) {
+    const tasks = [...this.running.values()].filter((task) => task.ownerId === ownerId);
+    for (const task of tasks) task.abort.abort();
+    await Promise.all(tasks.map((task) => task.done));
   }
   async close() {
     for (const task of this.running.values()) task.abort.abort();

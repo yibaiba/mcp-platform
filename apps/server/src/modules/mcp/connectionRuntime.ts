@@ -6,7 +6,14 @@ export type ConnectionSlot = {
   readonly profileId?: string;
   readonly context?: Pick<
     ConnectionContext,
-    'id' | 'ownerId' | 'profileId' | 'bindingId' | 'sessionId' | 'identity'
+    | 'id'
+    | 'ownerId'
+    | 'profileId'
+    | 'bindingId'
+    | 'sessionId'
+    | 'identity'
+    | 'shareId'
+    | 'credentialScope'
   > & { readonly deviceId?: string };
   readonly abort: AbortController;
   readonly ready?: Promise<AdapterOutcome>;
@@ -37,6 +44,8 @@ export class ConnectionRuntime {
         bindingId: context.bindingId,
         sessionId: context.sessionId,
         identity: context.identity,
+        shareId: context.shareId,
+        credentialScope: context.credentialScope,
         deviceId: context.config.deviceId,
       },
       abort: new AbortController(),
@@ -104,6 +113,21 @@ export class ConnectionRuntime {
 
   keysForProfile(profileId: string) {
     return [...this.slots.values()].filter((s) => s.profileId === profileId).map((s) => s.id);
+  }
+  keysForShare(shareId: string) {
+    return [...this.slots.values()]
+      .filter((slot) => slot.context?.shareId === shareId)
+      .map((slot) => slot.id);
+  }
+  keysForOwner(ownerId: string) {
+    return [...this.slots.values()]
+      .filter((slot) => slot.context?.ownerId === ownerId)
+      .map((slot) => slot.id);
+  }
+  keysForCredentialBinding(bindingId: string) {
+    return [...this.slots.values()]
+      .filter((slot) => slot.context?.credentialScope?.bindingId === bindingId)
+      .map((slot) => slot.id);
   }
   sessions(ownerId: string) {
     return [...this.slots.values()]

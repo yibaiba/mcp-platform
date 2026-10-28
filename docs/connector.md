@@ -26,7 +26,7 @@ pnpm connector:build
 
 在管理界面“设备”中生成配对码，粘贴到连接器提示；配对码十分钟内一次有效。`connect` 首次配对保存配置后立即连接；以后运行同一条命令复用原配置，不需要配对码，也可以省略 `--server`。终端保持运行，退出后设备离线。原有 `pair`（仅配对）和 `run`（仅启动）仍可用。
 
-连接器把设备 ID 和设备令牌写入新文件，已有文件不会覆盖。已有配置无效或 `--server` 与原平台不同时明确报错，不会暗中重新配对。需要连接另一个平台时选择另一份配置路径。远程必须 HTTPS/WSS；只有 loopback 开发允许 HTTP/WS。平台撤销后设备不能再次认证，须重新配对。后台不会自动重放工具调用。
+连接器把设备 ID、deviceSecret 和 credentialVersion写入新文件，已有文件不会覆盖。已有配置无效或 `--server` 与原平台不同时明确报错，不会暗中重新配对。需要连接另一个平台时选择另一份配置路径。远程必须 HTTPS/WSS；只有 loopback 开发允许 HTTP/WS。平台撤销后设备不能再次认证，须重新配对。后台不会自动重放工具调用。
 
 设备列表中的“添加本机工具”会预选这台设备和 stdio。填写 MCP 启动命令及参数，保存后到“MCP 连接”点击“连接”发现工具，再在 Agent 配置中选择权限。设备在线只表示传输通道已接通，不表示桌面或浏览器已经可操作。
 
@@ -38,7 +38,8 @@ pnpm connector:build
 {
   "server": "https://平台域名",
   "deviceId": "配对产生的 UUID",
-  "token": "配对产生的令牌，勿提交",
+  "deviceSecret": "配对产生的32字节无填充Base64URL密钥，勿提交",
+  "credentialVersion": 1,
   "skillRoots": { "claude-user": "/Users/your-user/.claude/skills" },
   "artifactRoots": { "work": "/Users/your-user/MCPFiles" }
 }
@@ -51,6 +52,22 @@ Windows 使用 JSON 转义路径，例如 `C:\\Users\\your-user\\.claude\\skills
 ```
 
 “连接已有服务”只连接 URL；“托管启动”由连接器持有子进程，关闭连接会清理进程。stdio 必须托管启动。HTTP 托管服务需要自己准备好监听；启动尚未就绪时会显式报告连接失败，不用固定 sleep 掩盖启动问题，可在服务就绪后刷新。
+
+使用私有 CA 的平台可在 `pair`、`re-pair`、`run` / `connect` 时显式添加 `--ca-cert /absolute/path/to/ca.pem`。此证书只加入当前进程的信任池，保留系统根证书及主机名校验；文件缺失或无有效 PEM 证书会报错，不修改系统钥匙串。后台服务需要私有 CA 时，使用系统信任库安装该 CA。
+
+## 设备认证与重新配对
+
+0.3.0 与服务端一起升级，不兼容旧设备 Bearer 协议。每次 WSS 连接先接收 30 秒有效、仅当前连接可用的挑战，使用 HMAC-SHA256 应答，服务端成功后才注册业务通道。平台源站来自已配对的 `server`，服务端使用配置的 PUBLIC_URL，不信任转发头。DNS 主机名使用小写、去掉默认端口，IPv6 使用压缩形式；国际化域名建议使用平台地址的 ASCII/IDNA 形式。认证失败会明确记录，自动重连取得新挑战；不会重放业务请求。
+
+在设备页点击“重新配对”，确认后**立即断线并使旧密钥失效**。设备 ID、连接与目录配置保留。重配码十分钟有效、单次使用；再次生成使上一枚失效。未兑换或过期后设备保持“待重新配对”。
+
+```sh
+connector re-pair --config /absolute/private/connector.json
+# 配置遗失时必须明确指定原设备：
+connector re-pair --config /absolute/private/connector.json --server https://平台域名 --device-id 原设备UUID
+```
+
+粘贴重配码，成功后重启连接器。命令原子替换凭证并移除旧 `token`，保留其余配置字段。兑换成功但本机保存失败会明确报错并提示设备 ID；服务端无法再次取回长期密钥，须在设备页生成新重配码再执行命令。
 
 ## 自启动
 

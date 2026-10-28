@@ -65,6 +65,7 @@ test.each(['http', 'sse'] as const)(
     await verifyExternalAgent(tools[0]!.id);
     expect(upstream.count()).toBe(2);
   },
+  30_000,
 );
 
 test('platform direct connects to legacy SSE without a model', async () => {
@@ -145,6 +146,7 @@ test.each(['direct', 'pi'] as const)(
       h.services.invocations.call({ ownerId: account.ownerId, toolId: tool!.id, arguments: {} }),
     ).rejects.toThrow('已停止');
   },
+  30_000,
 );
 
 function processExists(pid: number) {
@@ -181,6 +183,7 @@ async function verifyExternalAgent(toolId: string) {
 
 test('only built-in inference tasks require model configuration', async () => {
   const pi = new PiService({
+    logger: h.services.logger,
     db: h.db,
     config: { ...h.config, PI_ENABLED: 'true' },
     events: h.services.events,

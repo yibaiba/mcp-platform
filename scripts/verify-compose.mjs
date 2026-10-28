@@ -28,6 +28,7 @@ const environment = {
   POSTGRES_PASSWORD: databasePassword,
   BETTER_AUTH_SECRET: randomBytes(32).toString('hex'),
   ENCRYPTION_KEY: randomBytes(32).toString('base64'),
+  DEVICE_AUTH_ENCRYPTION_KEY: randomBytes(32).toString('base64'),
   PI_MCP_ADAPTER_OAUTH_FILE_KEY: randomBytes(32).toString('hex'),
   ALLOW_REGISTRATION: 'true',
   PI_ENABLED: 'false',

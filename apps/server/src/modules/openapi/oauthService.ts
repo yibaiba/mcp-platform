@@ -5,6 +5,7 @@ import type { ConnectionContext } from '../mcp/adapter.js';
 import type { SecurityScheme } from './types.js';
 import { ApiCredentialStore, type ApiAuthState, type ApiToken } from './credentialStore.js';
 import { AppError } from '../../shared/errors.js';
+import { assertCredentialManager } from '../authorizations/credentialScope.js';
 const tokenSchema = z.object({
   access_token: z.string().min(1),
   token_type: z.string().refine((v) => v.toLowerCase() === 'bearer'),
@@ -68,6 +69,7 @@ export class ApiOAuthService {
     return `${this.deps.publicUrl}/api/v1/connections/${context.id}${binding}/openapi/oauth/${encodeURIComponent(name)}/callback`;
   }
   async status(context: ConnectionContext, name: string) {
+    assertCredentialManager(context);
     const stored = (await this.deps.store.read(context))[name];
     return {
       authorized: Boolean(stored?.tokens),
@@ -76,12 +78,14 @@ export class ApiOAuthService {
     };
   }
   revoke(context: ConnectionContext, name: string) {
+    assertCredentialManager(context);
     return this.deps.store.change(context, async (stored) => ({
       state: Object.fromEntries(Object.entries(stored).filter(([key]) => key !== name)),
       result: { authorized: false },
     }));
   }
   async start(context: ConnectionContext, name: string) {
+    assertCredentialManager(context);
     const metadata = await this.metadata(context, name);
     const credential = this.credential(context, name);
     if (!metadata.authorization_endpoint)
@@ -120,6 +124,7 @@ export class ApiOAuthService {
     name: string,
     input: { code: string; state: string; issuer?: string },
   ) {
+    assertCredentialManager(context);
     const pending = await this.deps.store.change(context, async (stored) => {
       const pending = stored[name];
       if (

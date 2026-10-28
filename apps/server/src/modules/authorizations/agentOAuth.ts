@@ -1,3 +1,4 @@
+import { activeUser } from '../users/userAccess.js';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { and, eq, gt } from 'drizzle-orm';
@@ -134,6 +135,7 @@ export class AgentOAuth {
       )
         throw new AppError('invalid_grant', '授权码、PKCE 或资源校验失败');
       const tokens = this.newTokens();
+      await activeUser(tx, code.ownerId);
       await tx.insert(oauthGrants).values({
         ownerId: code.ownerId,
         clientId: code.clientId,
@@ -171,20 +173,20 @@ export class AgentOAuth {
     const profileId = z
       .uuid()
       .parse(value.resource.startsWith(prefix) ? value.resource.slice(prefix.length) : '');
-    const [grant] = await this.deps.db
-      .update(oauthGrants)
-      .set(tokens.stored)
-      .where(
-        and(
-          eq(oauthGrants.clientId, value.client_id),
-          eq(oauthGrants.profileId, profileId),
-          eq(oauthGrants.refreshHash, digest(value.refresh_token)),
-          eq(oauthGrants.revoked, false),
-          gt(oauthGrants.refreshExpiresAt, new Date()),
-        ),
-      )
-      .returning();
-    if (!grant) throw new AppError('invalid_grant', '刷新凭证已过期、已使用或已撤销');
+    await this.deps.db.transaction(async (tx) => {
+      const condition = and(
+        eq(oauthGrants.clientId, value.client_id),
+        eq(oauthGrants.profileId, profileId),
+        eq(oauthGrants.refreshHash, digest(value.refresh_token)),
+        eq(oauthGrants.revoked, false),
+        gt(oauthGrants.refreshExpiresAt, new Date()),
+      );
+      const [existing] = await tx.select().from(oauthGrants).where(condition);
+      if (!existing) throw new AppError('invalid_grant', '刷新凭证已过期、已使用或已撤销');
+      await activeUser(tx, existing.ownerId);
+      const [grant] = await tx.update(oauthGrants).set(tokens.stored).where(condition).returning();
+      if (!grant) throw new AppError('invalid_grant', '刷新凭证已过期、已使用或已撤销');
+    });
     return tokens.response;
   }
   async revoke(token: string) {

@@ -32,12 +32,15 @@ const navigation = [
   ['/artifacts', '产物', FolderOpen],
   ['/activity', '运行记录', History],
   ['/tasks', '内置 Agent', Bot],
+  ['/account', '个人账号', KeyRound],
+  ['/users', '用户管理', ShieldCheck],
+  ['/system-logs', '系统日志', History],
 ] as const;
 export function Shell() {
   const { data: session, isPending, error } = authClient.useSession();
   const info = useQuery({
     queryKey: ['me'],
-    queryFn: () => api<{ piEnabled: boolean }>('/me'),
+    queryFn: () => api<{ piEnabled: boolean; role: 'admin' | 'member' }>('/me'),
     enabled: Boolean(session),
   });
   if (isPending) return <div className="auth-screen">正在加载会话…</div>;
@@ -67,18 +70,22 @@ export function Shell() {
         </div>
         <span className="nav-label">工作空间</span>
         <nav aria-label="主导航">
-          {navigation.map(([to, label, Icon]) => (
-            <Link
-              key={to}
-              to={to}
-              activeOptions={{ exact: to === '/' }}
-              activeProps={{ className: 'active' }}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-              {to === '/tasks' && !info.data?.piEnabled ? <small>可选</small> : null}
-            </Link>
-          ))}
+          {navigation
+            .filter(
+              ([to]) => !['/users', '/system-logs'].includes(to) || info.data?.role === 'admin',
+            )
+            .map(([to, label, Icon]) => (
+              <Link
+                key={to}
+                to={to}
+                activeOptions={{ exact: to === '/' }}
+                activeProps={{ className: 'active' }}
+              >
+                <Icon size={18} />
+                <span>{label}</span>
+                {to === '/tasks' && !info.data?.piEnabled ? <small>可选</small> : null}
+              </Link>
+            ))}
         </nav>
         <div className="sidebar-bottom">
           <div className="core-note">

@@ -27,7 +27,8 @@ beforeAll(async () => {
     JSON.stringify({
       server: h.baseURL,
       deviceId,
-      token: device.token,
+      deviceSecret: device.deviceSecret,
+      credentialVersion: device.credentialVersion,
       skillRoots: { claude: join(root, 'skills') },
       artifactRoots: { workspace: root },
     }),
@@ -128,14 +129,22 @@ test.each(['device', 'pi'] as const)(
         resourceSubscriptions: [uri],
         promptsListChanged: true,
       });
+      const sessionsBeforeNotifications = h.services.connections.sessions(
+        account.ownerId,
+        {},
+      ).length;
       await fixture.update(adapter);
       await vi.waitFor(() => expect(events).toContain(uri), { timeout: 5000 });
       await fixture.changed('prompts');
       await vi.waitFor(() => expect(events).toContain('prompts'), { timeout: 5000 });
+      expect(h.services.connections.sessions(account.ownerId, {})).toHaveLength(
+        sessionsBeforeNotifications,
+      );
       await listen.close();
     } finally {
       await client.close();
     }
   },
+  // This scenario initializes separate owner and gateway Pi workers before protocol assertions.
   30_000,
 );

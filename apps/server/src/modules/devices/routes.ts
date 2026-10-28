@@ -9,6 +9,10 @@ export function deviceRoutes(service: DeviceService) {
     const input = z.object({ name: z.string().trim().min(1) }).parse(await c.req.json());
     return c.json(await service.createPairing(owner(c), input.name), 201);
   });
+  app.post('/:id/re-pairings', async (c) => {
+    c.header('Cache-Control', 'no-store');
+    return c.json(await service.createRePairing(owner(c), paramId(c)), 201);
+  });
   app.delete('/:id', async (c) => {
     await service.revoke(owner(c), paramId(c));
     return c.json({ revoked: true });

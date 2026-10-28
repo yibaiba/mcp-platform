@@ -1,9 +1,13 @@
 import { relations } from 'drizzle-orm';
-import { pgTable, text, timestamp, boolean, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, index, uniqueIndex } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('user', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
+  role: text('role', { enum: ['admin', 'member'] })
+    .default('member')
+    .notNull(),
+  enabled: boolean('enabled').default(true).notNull(),
   email: text('email').notNull().unique(),
   emailVerified: boolean('email_verified').default(false).notNull(),
   image: text('image'),
@@ -54,7 +58,10 @@ export const account = pgTable(
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  (table) => [index('account_userId_idx').on(table.userId)],
+  (table) => [
+    index('account_userId_idx').on(table.userId),
+    uniqueIndex('account_provider_subject_idx').on(table.providerId, table.accountId),
+  ],
 );
 
 export const verification = pgTable(

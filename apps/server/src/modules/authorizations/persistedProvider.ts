@@ -11,6 +11,11 @@ import { secretToken, type Vault } from '../../shared/crypto.js';
 import { AppError } from '../../shared/errors.js';
 import { oauthCallbackUrl } from './browserFlow.js';
 import type { ConnectionContext } from '../mcp/adapter.js';
+import {
+  credentialScope,
+  assertCredentialManager,
+  type CredentialCoordination,
+} from './credentialScope.js';
 interface Credentials {
   client?: StoredOAuthClientInformation;
   tokens?: StoredOAuthTokens;
@@ -22,34 +27,34 @@ interface Credentials {
   tokenExpiresAt?: number;
 }
 export class PersistedProvider implements OAuthClientProvider {
-  private writes: Promise<void> = Promise.resolve();
-  private authorizing: Promise<unknown> = Promise.resolve();
-  private tokenGeneration = 0;
-  private revoked = false;
   constructor(
     private readonly options: { db: Database; vault: Vault; publicUrl: string },
     private context: ConnectionContext,
+    private readonly shared: CredentialCoordination,
   ) {}
   configure(context: ConnectionContext) {
     this.context = context;
+  }
+  private get scope() {
+    return credentialScope(this.context);
   }
   platformAuthorize(
     action: () => Promise<'AUTHORIZED' | 'REDIRECT'>,
     options: { authorizationCode?: string; forceReauthorization?: boolean },
   ) {
-    const generation = this.tokenGeneration;
-    const pending = this.authorizing.then(async () => {
-      if (this.revoked) throw new AppError('OAUTH_REVOKED', '授权已撤销', 401);
+    const generation = this.shared.generation;
+    const pending = this.shared.authorizing.then(async () => {
+      if (this.shared.revoked) throw new AppError('OAUTH_REVOKED', '授权已撤销', 401);
       if (
         !options.authorizationCode &&
         !options.forceReauthorization &&
-        generation !== this.tokenGeneration &&
+        generation !== this.shared.generation &&
         (await this.tokens())
       )
         return 'AUTHORIZED' as const;
       return action();
     });
-    this.authorizing = pending.then(
+    this.shared.authorizing = pending.then(
       () => undefined,
       () => undefined,
     );
@@ -95,10 +100,10 @@ export class PersistedProvider implements OAuthClientProvider {
     };
   }
   private get independent() {
-    return this.context.identity && this.context.identity !== 'default';
+    return this.scope.identity && this.scope.identity !== 'default';
   }
   private get encryptionKey() {
-    return `oauth:${this.context.ownerId}:${this.independent ? this.context.bindingId : this.context.id}`;
+    return `oauth:${this.scope.ownerId}:${this.independent ? this.scope.bindingId : this.scope.connectionId}`;
   }
   async read(): Promise<Credentials> {
     if (this.independent) {
@@ -107,8 +112,8 @@ export class PersistedProvider implements OAuthClientProvider {
         .from(authorizationBindings)
         .where(
           and(
-            eq(authorizationBindings.id, this.context.bindingId!),
-            eq(authorizationBindings.ownerId, this.context.ownerId),
+            eq(authorizationBindings.id, this.scope.bindingId!),
+            eq(authorizationBindings.ownerId, this.scope.ownerId),
           ),
         );
       if (!row || row.revoked) throw new AppError('OAUTH_REVOKED', '授权绑定已撤销', 401);
@@ -121,15 +126,16 @@ export class PersistedProvider implements OAuthClientProvider {
       .from(authorizations)
       .where(
         and(
-          eq(authorizations.connectionId, this.context.id),
-          eq(authorizations.ownerId, this.context.ownerId),
+          eq(authorizations.connectionId, this.scope.connectionId),
+          eq(authorizations.ownerId, this.scope.ownerId),
         ),
       );
     return row ? this.options.vault.open<Credentials>(row.encrypted, this.encryptionKey) : {};
   }
   update(patch: Partial<Credentials>) {
-    const write = this.writes.then(async () => {
-      if (this.revoked) throw new AppError('OAUTH_REVOKED', '授权已撤销，请重新发起授权', 401);
+    const write = this.shared.writes.then(async () => {
+      if (this.shared.revoked)
+        throw new AppError('OAUTH_REVOKED', '授权已撤销，请重新发起授权', 401);
       const encrypted = this.options.vault.seal(
         { ...(await this.read()), ...patch },
         this.encryptionKey,
@@ -140,7 +146,7 @@ export class PersistedProvider implements OAuthClientProvider {
           .set({ encrypted })
           .where(
             and(
-              eq(authorizationBindings.id, this.context.bindingId!),
+              eq(authorizationBindings.id, this.scope.bindingId!),
               eq(authorizationBindings.revoked, false),
             ),
           )
@@ -150,35 +156,37 @@ export class PersistedProvider implements OAuthClientProvider {
       }
       await this.options.db
         .insert(authorizations)
-        .values({ connectionId: this.context.id, ownerId: this.context.ownerId, encrypted })
+        .values({ connectionId: this.scope.connectionId, ownerId: this.scope.ownerId, encrypted })
         .onConflictDoUpdate({
           target: authorizations.connectionId,
           set: { encrypted, updatedAt: new Date() },
         });
     });
-    this.writes = write.catch(() => {}); // Keep the queue usable; the caller still receives the rejection.
+    this.shared.writes = write.catch(() => {}); // Keep the queue usable; the caller still receives the rejection.
     return write;
   }
   async revoke() {
-    this.revoked = true;
-    await this.writes;
+    assertCredentialManager(this.context);
+    this.shared.revoked = true;
+    await this.shared.writes;
     if (this.independent) {
       await this.options.db
         .update(authorizationBindings)
         .set({ encrypted: null })
-        .where(eq(authorizationBindings.id, this.context.bindingId!));
+        .where(eq(authorizationBindings.id, this.scope.bindingId!));
       return;
     }
     await this.options.db
       .delete(authorizations)
       .where(
         and(
-          eq(authorizations.connectionId, this.context.id),
-          eq(authorizations.ownerId, this.context.ownerId),
+          eq(authorizations.connectionId, this.scope.connectionId),
+          eq(authorizations.ownerId, this.scope.ownerId),
         ),
       );
   }
   async state() {
+    assertCredentialManager(this.context);
     const state = secretToken();
     await this.update({ state, expiresAt: Date.now() + 10 * 60_000 });
     return state;
@@ -215,13 +223,15 @@ export class PersistedProvider implements OAuthClientProvider {
       tokenExpiresAt:
         tokens.expires_in !== undefined ? Date.now() + tokens.expires_in * 1000 : undefined,
     }).then(() => {
-      this.tokenGeneration++;
+      this.shared.generation++;
     });
   }
   redirectToAuthorization(url: URL) {
+    assertCredentialManager(this.context);
     return this.update({ url: url.toString() });
   }
   saveCodeVerifier(verifier: string) {
+    assertCredentialManager(this.context);
     return this.update({ verifier });
   }
   async codeVerifier() {

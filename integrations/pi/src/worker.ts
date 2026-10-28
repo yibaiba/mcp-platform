@@ -70,7 +70,7 @@ const authGrants = new Map<string, { resolve: () => void; reject: (error: Error)
 function sendToParent(message: Record<string, unknown>) {
   const failed = (error: Error | null) => {
     if (!error) return;
-    console.error('Pi bridge IPC delivery failed; pending execution cannot be reported', error);
+    console.error('PI_IPC_DELIVERY_FAILED');
     for (const grant of authGrants.values()) grant.reject(error);
     authGrants.clear();
     for (const abort of active.values()) abort.abort(error);
@@ -164,7 +164,7 @@ async function dispatch(
           new InteractiveClient(client, Boolean(context.capabilities?.elicitation)),
         ),
     });
-    server = `u_${context.ownerId}_c_${context.bindingId ?? context.id}`;
+    server = `u_${context.credentialScope?.ownerId ?? context.ownerId}_c_${context.credentialScope?.bindingId ?? context.bindingId ?? context.id}`;
     serverUrl = context.config.url ?? '';
     const directory = process.env.PI_CODING_AGENT_DIR!;
     const settings = SettingsManager.inMemory();
@@ -341,8 +341,8 @@ process.on('disconnect', () => {
     session?.dispose();
   })().then(
     () => process.exit(0),
-    (error: unknown) => {
-      console.error('Pi bridge disconnect cleanup failed', error);
+    () => {
+      console.error('PI_DISCONNECT_CLEANUP_FAILED');
       process.exit(1);
     },
   );

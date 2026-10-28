@@ -94,29 +94,25 @@ test('output checkpoints coalesce text deltas and expose write failures', async 
 test('Pi handoff artifacts are available through the new task only and are withdrawn when that task ends', async () => {
   const s = await setup();
   const taskId = randomUUID();
-  await h.db
-    .insert(tasks)
-    .values({
-      id: taskId,
-      ownerId: s.account.ownerId,
-      profileId: s.target.id,
-      prompt: 'artifact task',
-      status: 'running',
-    });
+  await h.db.insert(tasks).values({
+    id: taskId,
+    ownerId: s.account.ownerId,
+    profileId: s.target.id,
+    prompt: 'artifact task',
+    status: 'running',
+  });
   const { temporaryGrants } = await import('../packages/db/src/index.js');
-  await h.db
-    .insert(temporaryGrants)
-    .values({
-      id: randomUUID(),
-      ownerId: s.account.ownerId,
-      profileId: s.target.id,
-      profileRevision: s.target.revision,
-      subject: `task:${taskId}`,
-      taskId,
-      bindings: {},
-      permissions: { toolIds: [], contentIds: [], artifactIds: [s.artifact.id] },
-      expiresAt: new Date(Date.now() + 3600000),
-    });
+  await h.db.insert(temporaryGrants).values({
+    id: randomUUID(),
+    ownerId: s.account.ownerId,
+    profileId: s.target.id,
+    profileRevision: s.target.revision,
+    subject: `task:${taskId}`,
+    taskId,
+    bindings: {},
+    permissions: { toolIds: [], contentIds: [], artifactIds: [s.artifact.id] },
+    expiresAt: new Date(Date.now() + 3600000),
+  });
   await withExecution(
     {
       ownerId: s.account.ownerId,

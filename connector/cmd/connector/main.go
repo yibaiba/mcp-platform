@@ -27,13 +27,15 @@ func main() {
 }
 func execute() error {
 	if len(os.Args) < 2 {
-		return fmt.Errorf("usage: connector connect|pair|run|install|uninstall --config path [--server URL] [--scope user|system]")
+		return fmt.Errorf("usage: connector connect|pair|re-pair|run|install|uninstall --config path [--server URL] [--scope user|system]")
 	}
 	action := os.Args[1]
 	flags := flag.NewFlagSet(action, flag.ContinueOnError)
 	grace := flags.Duration("grace", 5*time.Second, "managed process shutdown grace period")
 	path := flags.String("config", "connector.json", "configuration path")
+	certificatePath := flags.String("ca-cert", "", "additional platform CA certificate PEM file")
 	server := flags.String("server", "", "platform origin")
+	deviceID := flags.String("device-id", "", "existing device ID when configuration is lost")
 	scope := flags.String("scope", "user", "user for desktop apps; system for background services")
 	if err := flags.Parse(os.Args[2:]); err != nil {
 		return err
@@ -41,7 +43,13 @@ func execute() error {
 	if action == "stdio-host" {
 		return processtree.Host(flags.Args(), *grace)
 	}
-	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	client, err := newHTTPClient(*certificatePath)
+	if err != nil {
+		return err
+	}
+	if action == "re-pair" {
+		return pairingCommand(client, repairOptions{Action: action, Path: *path, Server: *server, DeviceID: *deviceID})
+	}
 	if action == "pair" || action == "connect" {
 		options := pairingOptions{Path: *path, Server: *server, Client: client, Input: os.Stdin, Output: os.Stderr}
 		if err := prepareConnection(context.Background(), options, action == "connect"); err != nil {

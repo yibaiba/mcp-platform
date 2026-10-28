@@ -1,3 +1,4 @@
+import type { DiagnosticLogger } from '../activity/systemLogger.js';
 import { currentExecution } from './executionContext.js';
 import type { ContentAccess, ContentService } from './contentService.js';
 
@@ -9,7 +10,10 @@ type Subscription = {
 export class ResourceSubscriptions {
   private readonly subscriptions = new Map<string, Subscription>();
   private readonly changes = new Map<string, Promise<unknown>>();
-  constructor(private readonly content: ContentService) {}
+  constructor(
+    private readonly content: ContentService,
+    private readonly logger: DiagnosticLogger,
+  ) {}
   async subscribe(input: {
     access: ContentAccess;
     channel: string;
@@ -18,7 +22,7 @@ export class ResourceSubscriptions {
     active?: () => boolean;
   }) {
     const { entry, original } = await this.content.resolveResource(input.access, input.uri);
-    const key = `${entry.connectionId}:${currentExecution()?.identity ?? 'default'}:${currentExecution()?.sessionId ?? 'dashboard'}:${original}`;
+    const key = `${input.access.ownerId}:${entry.connectionId}:${currentExecution()?.identity ?? 'default'}:${currentExecution()?.sessionId ?? 'dashboard'}:${original}`;
     await this.sequence(key, async () => {
       input.signal?.throwIfAborted();
       if (input.active && !input.active()) throw new Error('订阅入口已关闭');
@@ -29,8 +33,8 @@ export class ResourceSubscriptions {
             const previous = this.subscriptions.get(key);
             this.subscriptions.delete(key);
             await previous?.release();
-          }).catch((error: unknown) =>
-            console.error('Subscription permission cleanup failed', error),
+          }).catch(() =>
+            this.logger.report('SUBSCRIPTION_PERMISSION_CLEANUP_FAILED', input.access.ownerId),
           );
         });
         subscription = {

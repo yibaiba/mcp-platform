@@ -6,9 +6,10 @@ import type { McpCatalog } from '@platform/mcp';
 import { digest, type Vault } from '../../shared/crypto.js';
 import { AppError } from '../../shared/errors.js';
 import type { ConnectionContext } from '../mcp/adapter.js';
+import type { ShareService } from '../shares/shareService.js';
 
 export class BindingService {
-  constructor(private readonly deps: { db: Database; vault: Vault }) {}
+  constructor(private readonly deps: { db: Database; vault: Vault; shares: ShareService }) {}
   async resolve(input: { ownerId: string; connectionId: string; identity: string }) {
     const id = `b_${digest(`${input.connectionId}:${input.identity}`)}`;
     await this.deps.db
@@ -42,9 +43,14 @@ export class BindingService {
       .from(connections)
       .where(eq(connections.id, row.connectionId));
     if (!connection) throw new AppError('NOT_FOUND', '连接不存在', 404);
-    const config = connectionInput.parse(
-      this.deps.vault.open(connection.config, `${ownerId}:${row.connectionId}`),
-    );
+    const access = await this.deps.shares.connection(ownerId, row.connectionId);
+    if (access.share?.credentialMode === 'owner')
+      throw new AppError('SHARE_OWNER_CREDENTIALS', '共享凭证由所有者管理', 403);
+    const config = access.share
+      ? this.deps.shares.config(ownerId, access.share)
+      : connectionInput.parse(
+          this.deps.vault.open(connection.config, `${connection.ownerId}:${row.connectionId}`),
+        );
     const value = z
       .object({
         revision: z.number().int().positive().optional(),
@@ -144,7 +150,7 @@ export class BindingService {
       );
   }
   async assertCredentials(context: ConnectionContext) {
-    if (context.identity === 'default') return;
+    if ((context.credentialScope?.identity ?? context.identity) === 'default') return;
     const config = context.config;
     const missing =
       config.transport === 'stdio'

@@ -35,13 +35,12 @@ export async function requestCatalog(
     : [];
   const connections = await Promise.all(
     [...new Set([...tools, ...content].map((row) => row.connectionId))].map(async (id) => {
-      const row = await deps.connections.owned(access.ownerId, id);
+      const row = await deps.connections.accessible(access.ownerId, id);
       const context = await deps.connections.context(access.ownerId, id);
       return {
         id,
         name: row.name,
-        adapter: row.adapter,
-        deviceId: row.deviceId,
+        adapter: context.config.adapter,
         bindingId: context.bindingId,
         identity: context.identity,
       };

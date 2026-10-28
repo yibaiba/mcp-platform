@@ -101,9 +101,9 @@ test('pairing is single use and revoked device cannot authenticate', async () =>
   const pairing = await h.services.devices.createPairing(account.ownerId, 'device');
   const device = await h.services.devices.pair(pairing.code);
   await expect(h.services.devices.pair(pairing.code)).rejects.toThrow('配对码');
-  await h.services.devices.authenticate(device.token);
+  expect(await h.services.devices.owned(account.ownerId, device.deviceId)).toBeDefined();
   await h.services.devices.revoke(account.ownerId, device.deviceId);
-  await expect(h.services.devices.authenticate(device.token)).rejects.toThrow('撤销');
+  await expect(h.services.devices.owned(account.ownerId, device.deviceId)).rejects.toThrow('撤销');
 });
 test('OAuth PKCE, resource binding, rotation and revocation', async () => {
   const profile = (await h.services.profiles.save(account.ownerId, {

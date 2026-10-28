@@ -1,3 +1,4 @@
+import type { DiagnosticLogger } from '../activity/systemLogger.js';
 import { and, eq, gt, isNull, or } from 'drizzle-orm';
 import {
   accessKeys,
@@ -10,6 +11,8 @@ import {
 import type { PermissionSet } from '@platform/contracts';
 import { currentExecution, withExecution } from '../mcp/executionContext.js';
 import { AppError, requireValue } from '../../shared/errors.js';
+import { activeUser } from '../users/userAccess.js';
+import type { ShareAccess } from '../shares/shareAccess.js';
 export type Access = { ownerId: string; profileId?: string };
 export type PermissionKind = keyof PermissionSet;
 export const emptyPermissions = (): PermissionSet => ({
@@ -32,6 +35,8 @@ export class AccessService {
   constructor(
     private readonly deps: {
       db: Database;
+      logger: DiagnosticLogger;
+      shares: ShareAccess;
       binding: (ownerId: string, connectionId: string) => Promise<string>;
     },
   ) {}
@@ -40,9 +45,11 @@ export class AccessService {
       .select()
       .from(profiles)
       .where(and(eq(profiles.id, access.profileId!), eq(profiles.ownerId, access.ownerId)));
-    return requireValue(profile);
+    const current = requireValue(profile);
+    return current;
   }
   async assertSubject(access: Access) {
+    await activeUser(this.deps.db, access.ownerId);
     const context = currentExecution();
     if (context?.ownerId && context.ownerId !== access.ownerId)
       throw new AppError('ACCESS_CONTEXT', '访问上下文账号不匹配', 403);
@@ -110,8 +117,8 @@ export class AccessService {
     return true;
   }
   async effective(access: Access): Promise<PermissionSet | undefined> {
-    if (!access.profileId) return undefined;
     await this.assertSubject(access);
+    if (!access.profileId) return undefined;
     const profile = await this.profile(access);
     const result: PermissionSet = {
       toolIds: [...profile.toolIds],
@@ -136,11 +143,16 @@ export class AccessService {
       for (const kind of Object.keys(result) as PermissionKind[])
         result[kind] = [...new Set([...result[kind], ...grant.permissions[kind]])];
     }
-    return result;
+    return {
+      ...result,
+      toolIds: await this.deps.shares.permitted(access.ownerId, 'toolIds', result.toolIds),
+      contentIds: await this.deps.shares.permitted(access.ownerId, 'contentIds', result.contentIds),
+    };
   }
   async allows(access: Access, kind: PermissionKind, id: string) {
     const permissions = await this.effective(access);
-    return !permissions || permissions[kind].includes(id);
+    if (permissions && !permissions[kind].includes(id)) return false;
+    return (await this.deps.shares.permitted(access.ownerId, kind, [id])).includes(id);
   }
   async assert(access: Access, kind: PermissionKind, id: string) {
     if (!(await this.allows(access, kind, id)))
@@ -182,7 +194,9 @@ export class AccessService {
       if (!next || released) return;
       timer = setTimeout(
         () => {
-          void check().catch((error: unknown) => console.error('Permission expiry failed', error));
+          void check().catch(() =>
+            this.deps.logger.report('PERMISSION_EXPIRY_FAILED', input.access.ownerId),
+          );
         },
         Math.min(Math.max(1, next - Date.now() + 1), 2_147_483_647),
       );

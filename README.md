@@ -17,7 +17,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 ```
 
-分别把两次输出填入 `.env` 的 `BETTER_AUTH_SECRET`、`ENCRYPTION_KEY`，填写真实 `DATABASE_URL`。第一次注册时临时设置 `ALLOW_REGISTRATION=true`；创建个人账号后改回 `false` 并重启服务。不会生成默认管理员或共享密码。
+把第一次输出填入 `.env` 的 `BETTER_AUTH_SECRET`，第二次输出填入 `ENCRYPTION_KEY`；再独立运行一次 Base64 生成命令，将新输出填入必填的 `DEVICE_AUTH_ENCRYPTION_KEY`，分别保护和备份两把加密密钥。填写真实 `DATABASE_URL`。第一次注册时临时设置 `ALLOW_REGISTRATION=true`；创建个人账号后改回 `false` 并重启服务。不会生成默认管理员或共享密码。
 
 ```sh
 pnpm db:migrate
@@ -36,7 +36,7 @@ pnpm dev
 ## 已实现
 
 - 登录和用户隔离；MCP 工具、Prompts、Resources 和资源模板的发现、调用/读取、独立授权与目录变更通知；停止、错误诊断和稳定标识。
-- Go WSS 配对、撤销、自动重连、关联请求、取消、断线结果未知；本地 stdio、HTTP/SSE 和托管进程。
+- Go 0.3.0 WSS HMAC-SHA256 挑战应答、配对、重配、撤销、自动重连、关联请求、取消、断线结果未知；本地 stdio、HTTP/SSE 和托管进程。
 - Agent 配置按工具、Prompt/Resource/模板、Skill 版本、产物 ID 授权；同一 `/mcp/:profileId` 入口汇聚所有适配器；接入密钥和 OAuth PKCE。
 - MCP 2026-07-28 与旧会话协议双栈；完整元数据、进度和资源订阅；严格 Schema 校验，不自动重放工具调用。
 - 上游 OAuth 凭证加密、刷新、重启恢复和本地撤销；独立的可选 Pi 桥接和模型任务入口。

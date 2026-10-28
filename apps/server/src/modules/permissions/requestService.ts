@@ -1,3 +1,4 @@
+import type { DiagnosticLogger } from '../activity/systemLogger.js';
 import { approveRequest } from './requestApproval.js';
 import { subset, requestContext } from './requestPolicy.js';
 import { randomUUID } from 'node:crypto';
@@ -16,6 +17,7 @@ import { z } from 'zod';
 import { AppError, requireValue } from '../../shared/errors.js';
 import { currentExecution, withExecution } from '../mcp/executionContext.js';
 import { AccessService, subject, type Access, type PermissionKind } from './accessService.js';
+import type { ShareAccess } from '../shares/shareAccess.js';
 const kinds: PermissionKind[] = ['toolIds', 'contentIds', 'artifactIds'];
 const requestInput = z
   .object({
@@ -30,6 +32,8 @@ export class RequestService {
   constructor(
     private readonly deps: {
       db: Database;
+      logger: DiagnosticLogger;
+      shares: ShareAccess;
       access: AccessService;
       changed: (profileId: string) => Promise<void>;
       catalog: (access: Access) => Promise<unknown>;
@@ -55,7 +59,12 @@ export class RequestService {
       ? await this.deps.db
           .select()
           .from(tools)
-          .where(and(eq(tools.ownerId, access.ownerId), inArray(tools.id, permissions.toolIds)))
+          .where(
+            and(
+              await this.deps.shares.resourceFilter(access.ownerId, 'toolIds'),
+              inArray(tools.id, permissions.toolIds),
+            ),
+          )
       : [];
     const contentRows = permissions.contentIds.length
       ? await this.deps.db
@@ -63,7 +72,7 @@ export class RequestService {
           .from(mcpEntries)
           .where(
             and(
-              eq(mcpEntries.ownerId, access.ownerId),
+              await this.deps.shares.resourceFilter(access.ownerId, 'contentIds'),
               inArray(mcpEntries.id, permissions.contentIds),
             ),
           )
@@ -259,7 +268,7 @@ export class RequestService {
         void this.deps.access
           .changed()
           .then(() => this.deps.changed(profileId))
-          .catch((error: unknown) => console.error('Grant expiry failed', error));
+          .catch(() => this.deps.logger.report('GRANT_EXPIRY_FAILED'));
       },
       Math.min(Math.max(1, at.getTime() - Date.now()), 2_147_483_647),
     );

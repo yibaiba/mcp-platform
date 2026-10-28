@@ -5,6 +5,7 @@ afterEach(() => vi.useRealTimers());
 function setup(random = 0.5) {
   vi.useFakeTimers();
   const effects = {
+    diagnostic: vi.fn(),
     initialIntervalMs: 5_000,
     maxIntervalMs: 300_000,
     recover: vi.fn(async () => {}),
