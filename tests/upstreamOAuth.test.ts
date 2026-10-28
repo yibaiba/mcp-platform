@@ -1,6 +1,7 @@
 import { withExecution } from '../apps/server/src/modules/mcp/executionContext.js';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import { serve } from '@hono/node-server';
+import type { Server } from 'node:http';
 import { Hono } from 'hono';
 import { randomBytes } from 'node:crypto';
 import { fixtureMcp } from './fixtureMcp.js';
@@ -156,7 +157,7 @@ async function oauthFixture(options: { expiresIn?: number; multipleIdentities?: 
         server.close((error) => (error ? reject(error) : resolve())),
       );
       // MCP clients have closed; do not wait for proxy HTTP keep-alive sockets.
-      server.closeAllConnections();
+      (server as Server).closeAllConnections();
       await closed;
       await mcp.close();
     },
