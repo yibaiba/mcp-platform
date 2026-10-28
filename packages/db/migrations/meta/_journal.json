@@ -71,6 +71,20 @@
       "when": 1793202335666,
       "tag": "0009_serious_eternals",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793231267440,
+      "tag": "0010_tearful_excalibur",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793231447457,
+      "tag": "0011_enable_vector",
+      "breakpoints": true
     }
   ]
 }

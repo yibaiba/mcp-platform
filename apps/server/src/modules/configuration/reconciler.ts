@@ -156,6 +156,11 @@ export class ManifestReconciler {
         name: entry.name,
         instructions: '',
         discoveryMode: 'direct',
+        searchOptions: {
+          strategy: 'exact',
+          minScore: null,
+          hnsw: { m: 16, efConstruction: 64, efSearch: 100 },
+        },
         embedding: null,
         pinnedTools: [],
         tools: value.tools.map((name) => ({

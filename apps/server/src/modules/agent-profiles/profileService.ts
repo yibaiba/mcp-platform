@@ -1,3 +1,4 @@
+import { fingerprint } from '../configuration/values.js';
 import type { DiscoveryService } from '../discovery/discoveryService.js';
 import type { AccessService } from '../permissions/accessService.js';
 import { describeTools } from './toolPresentation.js';
@@ -8,6 +9,7 @@ import type { ShareService } from '../shares/shareService.js';
 import { and, eq, inArray, gt, isNull, or, sql } from 'drizzle-orm';
 import {
   profiles,
+  devices,
   artifacts,
   tools,
   mcpEntries,
@@ -48,6 +50,7 @@ export class ProfileService {
             discoveryMode: previous.discoveryMode,
             pinnedTools: previous.pinnedTools,
             embedding: previous.embedding,
+            searchOptions: previous.searchOptions,
             connectionIdentities: previous.connectionIdentities,
             ...(input as object),
           }
@@ -61,6 +64,8 @@ export class ProfileService {
       throw new AppError('DISCOVERY_PIN', '钉选工具必须包含在 Profile 的工具授权中');
     if (value.discoveryMode === 'search' && !value.embedding)
       throw new AppError('EMBEDDING_CONFIG', '搜索模式需要独立配置 Embedding 服务');
+    if (value.searchOptions.strategy === 'hnsw' && (value.embedding?.dimensions ?? 0) > 2000)
+      throw new AppError('HNSW_DIMENSIONS', 'HNSW vector 索引最多支持 2000 维；请使用精确检索');
     await this.validateRequestable(ownerId, value);
     await validateCatalogOptions(
       { db: this.db, shares: this.shares, previous: previous?.catalog },
@@ -233,7 +238,10 @@ export class ProfileService {
       await Promise.all(
         [...new Set(rows.map((row) => row.connectionId))].map(async (id) => {
           const snapshot = await (cached
-            ? this.connections.catalogForSearch(ownerId, id)
+            ? this.searchDefinitions(ownerId, {
+                id,
+                names: rows.filter((row) => row.connectionId === id).map((row) => row.name),
+              })
             : this.connections.catalogForAccess(ownerId, id));
           return [id, snapshot] as const;
         }),
@@ -363,11 +371,85 @@ export class ProfileService {
       profile.catalog,
     );
   }
-  async searchCatalog(ownerId: string, profileId: string) {
+  private async searchDefinitions(ownerId: string, input: { id: string; names: string[] }) {
+    const { metadata } = await this.connections.searchMetadata(ownerId, input.id);
+    return {
+      tools: metadata
+        ? await this.connections.bindings.searchCatalog.definitions({
+            snapshotId: metadata.id,
+            ownerId,
+            names: input.names,
+          })
+        : [],
+    };
+  }
+  async searchMetadata(ownerId: string, profileId: string) {
+    const profile = await this.owned(ownerId, profileId);
+    assertDeploymentReady(profile);
+    const effective = await this.access!.effective({ ownerId, profileId });
+    if (!(effective ?? profile).toolIds.length) return [];
+    const rows = await this.db
+      .select({ id: tools.id, connectionId: tools.connectionId, name: tools.name })
+      .from(tools)
+      .where(
+        and(
+          await this.shares.resourceFilter(ownerId, 'toolIds'),
+          inArray(tools.id, (effective ?? profile).toolIds),
+        ),
+      );
+    const sources = new Map(
+      await Promise.all(
+        [...new Set(rows.map((row) => row.connectionId))].map(async (id) => {
+          const { metadata, context } = await this.connections.searchMetadata(ownerId, id);
+          const [device] = context.config.deviceId
+            ? await this.db
+                .select({ name: devices.name })
+                .from(devices)
+                .where(and(eq(devices.id, context.config.deviceId), eq(devices.ownerId, ownerId)))
+            : [];
+          return [
+            id,
+            {
+              entries: new Map(
+                metadata?.entries.map((entry) => [entry.name, entry.definitionHash]),
+              ),
+              source: {
+                name: context.config.name,
+                device: device?.name,
+                deviceId: context.config.deviceId,
+                adapter: context.config.adapter,
+                identity: profile.connectionIdentities[id],
+                delegated: context.credentialScope?.ownerId !== ownerId,
+              },
+            },
+          ] as const;
+        }),
+      ),
+    );
+    return rows.flatMap((row) => {
+      const source = sources.get(row.connectionId)!;
+      const hash = source.entries.get(row.name);
+      return hash
+        ? [
+            {
+              ...row,
+              definitionHash: fingerprint({
+                hash,
+                source: source.source,
+                naming: profile.catalog.toolNaming,
+                alias: profile.catalog.connectionAliases[row.connectionId],
+                override: profile.catalog.tools[row.id],
+              }),
+            },
+          ]
+        : [];
+    });
+  }
+  async searchCatalog(ownerId: string, profileId: string, selected?: readonly string[]) {
     const profile = await this.owned(ownerId, profileId);
     assertDeploymentReady(profile);
     const effective = await this.access?.effective({ ownerId, profileId });
-    const ids = (effective ?? profile).toolIds;
+    const ids = (effective ?? profile).toolIds.filter((id) => !selected || selected.includes(id));
     const rows = ids.length
       ? await this.db
           .select()

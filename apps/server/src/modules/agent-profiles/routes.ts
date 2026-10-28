@@ -1,3 +1,4 @@
+import { searchInput } from '../discovery/tools.js';
 import { artifactToolset } from '../artifacts/artifactTools.js';
 import { availablePermissionTools } from '../permissions/tools.js';
 import type { Services } from '../../services.js';
@@ -32,6 +33,27 @@ export function profileRoutes(deps: {
     await deps.gateway.profileChanged(paramId(c));
     await deps.pi.revokeProfile(paramId(c));
     return c.json(profile);
+  });
+  app.get('/:id/search-index', async (c) =>
+    c.json(await deps.profiles.discovery.status(owner(c), paramId(c))),
+  );
+  app.post('/:id/search-index/rebuild', async (c) =>
+    c.json(await deps.profiles.discovery.rebuild(owner(c), paramId(c))),
+  );
+  app.post('/:id/search-test', async (c) => {
+    const started = performance.now();
+    const input = searchInput.parse(await c.req.json());
+    const profile = await deps.profiles.owned(owner(c), paramId(c));
+    const hits = await deps.profiles.discovery.search(owner(c), {
+      ...input,
+      profileId: profile.id,
+    });
+    return c.json({
+      hits,
+      count: hits.length,
+      durationMs: performance.now() - started,
+      approximate: profile.searchOptions.strategy === 'hnsw',
+    });
   });
   app.get('/:id/context-footprint', async (c) =>
     c.json(

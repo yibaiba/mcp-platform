@@ -117,6 +117,7 @@ export class ConfigExportService {
         instructions: row.instructions,
         discoveryMode: row.discoveryMode,
         embedding: row.embedding,
+        searchOptions: row.searchOptions,
         pinnedTools: row.pinnedTools.map((id) => {
           const ref = toolRef(id);
           return { connection: ref.connection, name: ref.name };

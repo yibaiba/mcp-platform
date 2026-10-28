@@ -2,7 +2,7 @@
 name: mcp-platform
 services:
   db:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:0.8.1-pg17
     environment:
       POSTGRES_USER: platform
       POSTGRES_DB: platform

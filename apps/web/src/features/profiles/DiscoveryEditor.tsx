@@ -14,6 +14,8 @@ export function DiscoveryEditor({
   tools: Tool[];
   close: () => void;
 }) {
+  const [inspection, setInspection] = useState<unknown>();
+  const [strategy, setStrategy] = useState(profile.searchOptions.strategy);
   const [mode, setMode] = useState(profile.discoveryMode);
   const [footprint, setFootprint] = useState<unknown>();
   return (
@@ -35,6 +37,19 @@ export function DiscoveryEditor({
               createdAt: undefined,
               deploymentState: undefined,
               discoveryMode: mode,
+              searchOptions:
+                mode === 'search'
+                  ? {
+                      strategy,
+                      minScore:
+                        value(data, 'minScore') === '' ? null : Number(value(data, 'minScore')),
+                      hnsw: {
+                        m: Number(value(data, 'hnswM')),
+                        efConstruction: Number(value(data, 'efConstruction')),
+                        efSearch: Number(value(data, 'efSearch')),
+                      },
+                    }
+                  : profile.searchOptions,
               pinnedTools: data.getAll('pinnedTool'),
               embedding:
                 mode === 'search'
@@ -65,6 +80,64 @@ export function DiscoveryEditor({
         </Field>
         {mode === 'search' ? (
           <>
+            <Field
+              label="检索策略"
+              hint="HNSW 是近似检索，可能返回更少结果；启用后请为各调用身份显式重建索引。"
+            >
+              <select
+                value={strategy}
+                onChange={(event) => setStrategy(event.target.value as typeof strategy)}
+              >
+                <option value="exact">精确余弦检索</option>
+                <option value="hnsw">HNSW 近似检索（最多 2000 维）</option>
+              </select>
+            </Field>
+            <Field
+              label="最低相似度"
+              hint="范围 -1 到 1；留空表示不过滤。没有达到阈值的工具时返回空结果。"
+            >
+              <Input
+                name="minScore"
+                type="number"
+                min="-1"
+                max="1"
+                step="any"
+                defaultValue={profile.searchOptions.minScore ?? ''}
+              />
+            </Field>
+            <details>
+              <summary>HNSW 参数</summary>
+              <Field label="邻居数量 m">
+                <Input
+                  name="hnswM"
+                  type="number"
+                  min="2"
+                  max="100"
+                  required
+                  defaultValue={profile.searchOptions.hnsw.m}
+                />
+              </Field>
+              <Field label="构建候选数量 efConstruction">
+                <Input
+                  name="efConstruction"
+                  type="number"
+                  min="4"
+                  max="1000"
+                  required
+                  defaultValue={profile.searchOptions.hnsw.efConstruction}
+                />
+              </Field>
+              <Field label="查询候选数量 efSearch">
+                <Input
+                  name="efSearch"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  required
+                  defaultValue={profile.searchOptions.hnsw.efSearch}
+                />
+              </Field>
+            </details>
             <Field
               label="Embedding API 地址"
               hint="OpenAI 兼容地址，例如 https://服务地址/v1；可以使用本地服务。"
@@ -124,6 +197,46 @@ export function DiscoveryEditor({
             ))}
         </fieldset>
       </Form>
+      {profile.discoveryMode === 'search' ? (
+        <>
+          <p>
+            以下操作使用已保存配置及当前管理身份，不执行业务工具。Agent 凭据拥有独立索引作用域。
+          </p>
+          <Action
+            action={async () => setInspection(await api(`/profiles/${profile.id}/search-index`))}
+          >
+            检查索引
+          </Action>
+          <Action
+            action={async () =>
+              setInspection(
+                await api(`/profiles/${profile.id}/search-index/rebuild`, { method: 'POST' }),
+              )
+            }
+          >
+            重建当前身份索引
+          </Action>
+          <Form
+            label="测试已保存检索配置"
+            submit={async (data) =>
+              setInspection(
+                await api(`/profiles/${profile.id}/search-test`, {
+                  method: 'POST',
+                  body: json({ query: value(data, 'query'), limit: Number(value(data, 'limit')) }),
+                }),
+              )
+            }
+          >
+            <Field label="测试查询">
+              <Input name="query" required />
+            </Field>
+            <Field label="最多结果数">
+              <Input name="limit" type="number" min="1" defaultValue="10" required />
+            </Field>
+          </Form>
+          {inspection ? <Code value={inspection} /> : null}
+        </>
+      ) : null}
       <Button type="button" variant="outline" onClick={close}>
         关闭
       </Button>

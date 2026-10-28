@@ -392,6 +392,15 @@ export class ConnectionService {
   async snapshot(ownerId: string, id: string) {
     return this.bindings.snapshot(await this.context(ownerId, id));
   }
+  async searchMetadata(ownerId: string, id: string) {
+    const context = await this.context(ownerId, id);
+    let metadata = await this.bindings.searchMetadata(context);
+    if (!metadata) {
+      await this.catalogForSearch(ownerId, id);
+      metadata = await this.bindings.searchMetadata(context);
+    }
+    return { context, metadata };
+  }
   async catalogForSearch(ownerId: string, id: string) {
     const context = await this.context(ownerId, id);
     const snapshot = await this.bindings.snapshot(context);

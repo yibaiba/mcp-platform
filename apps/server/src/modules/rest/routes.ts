@@ -33,6 +33,24 @@ export function restRoutes(deps: { services: Services; publicUrl: string }) {
       c.json(await exportOpenApi(profiles, { ...principal, publicUrl: deps.publicUrl })),
     );
   });
+  app.get('/:profileId/rest/search-index', async (c) => {
+    const principal = await profiles.authenticate(
+      paramId(c, 'profileId'),
+      bearer(c.req.raw.headers),
+    );
+    return context(c, principal, async () =>
+      c.json(await profiles.discovery.status(principal.ownerId, principal.profileId)),
+    );
+  });
+  app.post('/:profileId/rest/search-index/rebuild', async (c) => {
+    const principal = await profiles.authenticate(
+      paramId(c, 'profileId'),
+      bearer(c.req.raw.headers),
+    );
+    return context(c, principal, async () =>
+      c.json(await profiles.discovery.rebuild(principal.ownerId, principal.profileId)),
+    );
+  });
   app.post('/:profileId/rest/tools/:toolId', async (c) => {
     const principal = await profiles.authenticate(
       paramId(c, 'profileId'),

@@ -1,4 +1,4 @@
-import { embeddingConfig } from './discovery.js';
+import { embeddingConfig, searchOptions } from './discovery.js';
 import { z } from 'zod';
 const logicalName = z.string().regex(/^[\p{L}\p{N}][\p{L}\p{N}_. @-]*$/u);
 const tool = z
@@ -33,6 +33,7 @@ export const manifestProfile = capabilities.extend({
   instructions: z.string().default(''),
   discoveryMode: z.enum(['direct', 'search']).default('direct'),
   embedding: embeddingConfig.nullable().default(null),
+  searchOptions: searchOptions.default(() => searchOptions.parse({})),
   pinnedTools: z.array(tool.pick({ connection: true, name: true })).default([]),
   skills: z.array(logicalName).default([]),
   requestable: capabilities.default(() => capabilities.parse({})),

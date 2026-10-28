@@ -22,3 +22,25 @@ export const embeddingConfig = z
   })
   .strict();
 export type EmbeddingConfig = z.infer<typeof embeddingConfig>;
+
+export const searchOptions = z
+  .object({
+    strategy: z.enum(['exact', 'hnsw']).default('exact'),
+    minScore: z.number().finite().min(-1).max(1).nullable().default(null),
+    hnsw: z
+      .object({
+        m: z.number().int().min(2).max(100).default(16),
+        efConstruction: z.number().int().min(4).max(1000).default(64),
+        efSearch: z.number().int().min(1).max(1000).default(100),
+      })
+      .strict()
+      .default({ m: 16, efConstruction: 64, efSearch: 100 }),
+  })
+  .strict()
+  .refine((value) => value.hnsw.efConstruction >= 2 * value.hnsw.m, {
+    message: 'efConstruction 必须至少为 m 的两倍',
+    path: ['hnsw', 'efConstruction'],
+  });
+export type SearchOptions = z.infer<typeof searchOptions>;
+// Persisted profiles and old manifests deliberately retain unfiltered retrieval.
+export const newSearchOptions = () => searchOptions.parse({ minScore: 0.3 });

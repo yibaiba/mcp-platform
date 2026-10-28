@@ -1,3 +1,4 @@
+import { SearchCatalogStore } from '../discovery/searchCatalogStore.js';
 import { z } from 'zod';
 import { connectionInput, type ConnectionInput } from '@platform/contracts';
 import { and, eq, sql } from 'drizzle-orm';
@@ -9,7 +10,10 @@ import type { ConnectionContext } from '../mcp/adapter.js';
 import type { ShareService } from '../shares/shareService.js';
 
 export class BindingService {
-  constructor(private readonly deps: { db: Database; vault: Vault; shares: ShareService }) {}
+  readonly searchCatalog: SearchCatalogStore;
+  constructor(private readonly deps: { db: Database; vault: Vault; shares: ShareService }) {
+    this.searchCatalog = new SearchCatalogStore(deps);
+  }
   async resolve(input: { ownerId: string; connectionId: string; identity: string }) {
     const id = `b_${digest(`${input.connectionId}:${input.identity}`)}`;
     await this.deps.db
@@ -185,20 +189,60 @@ export class BindingService {
     if (!context.bindingId || !context.capabilityKey) return;
     const id = `${context.bindingId}:${context.capabilityKey}`;
     const encrypted = this.deps.vault.seal(catalog, `catalog:${context.ownerId}:${id}`);
-    await this.deps.db
-      .insert(catalogSnapshots)
-      .values({
-        id,
-        ownerId: context.ownerId,
-        connectionId: context.id,
-        bindingId: context.bindingId,
-        capabilityKey: context.capabilityKey,
-        encrypted,
-      })
-      .onConflictDoUpdate({
-        target: catalogSnapshots.id,
-        set: { encrypted, updatedAt: new Date() },
-      });
+    await this.deps.db.transaction(async (tx) => {
+      await tx
+        .insert(catalogSnapshots)
+        .values({
+          id,
+          ownerId: context.ownerId,
+          connectionId: context.id,
+          bindingId: context.bindingId!,
+          capabilityKey: context.capabilityKey!,
+          encrypted,
+        })
+        .onConflictDoUpdate({
+          target: catalogSnapshots.id,
+          set: { encrypted, updatedAt: new Date() },
+        });
+      await this.searchCatalog.save(
+        { snapshotId: id, ownerId: context.ownerId, tools: catalog.tools },
+        tx,
+      );
+    });
+  }
+
+  async searchMetadata(context: ConnectionContext) {
+    const id = `${context.bindingId}:${context.capabilityKey}`;
+    const [snapshot] = await this.deps.db
+      .select({ id: catalogSnapshots.id, updatedAt: catalogSnapshots.updatedAt })
+      .from(catalogSnapshots)
+      .where(and(eq(catalogSnapshots.id, id), eq(catalogSnapshots.ownerId, context.ownerId)));
+    if (!snapshot) return undefined;
+    let entries = await this.searchCatalog.metadata(id);
+    // One-time materialization of pre-upgrade encrypted snapshots; no upstream calls.
+    if (!entries.length) {
+      const catalog = await this.snapshot(context);
+      if (catalog?.tools.length) {
+        await this.deps.db.transaction(async (tx) => {
+          const [current] = await tx
+            .select()
+            .from(catalogSnapshots)
+            .where(eq(catalogSnapshots.id, id))
+            .for('update');
+          if (!current) throw new AppError('SEARCH_INDEX_CHANGED', '目录快照已失效', 409);
+          const latest = this.deps.vault.open<McpCatalog>(
+            current.encrypted,
+            `catalog:${context.ownerId}:${id}`,
+          );
+          await this.searchCatalog.save(
+            { snapshotId: id, ownerId: context.ownerId, tools: latest.tools },
+            tx,
+          );
+        });
+        entries = await this.searchCatalog.metadata(id);
+      }
+    }
+    return { ...snapshot, entries };
   }
   async snapshot(context: ConnectionContext) {
     const id = `${context.bindingId}:${context.capabilityKey}`;

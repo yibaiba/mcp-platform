@@ -1,3 +1,4 @@
+import type { HnswStore } from './hnswStore.js';
 import { parseTool, type Tool } from '@platform/mcp';
 import type { ProfileService } from '../agent-profiles/profileService.js';
 import type { ConnectionService } from '../mcp/connectionService.js';
@@ -7,7 +8,7 @@ import { scopeToolDefinition } from '../mcp/catalogEntries.js';
 import { fingerprint } from '../configuration/values.js';
 import { AppError } from '../../shared/errors.js';
 import { discoveryTools, searchInput, definitionInput, discoverCallInput } from './tools.js';
-import { cosine, type EmbeddingClient } from './embeddingClient.js';
+import { type EmbeddingClient } from './embeddingClient.js';
 import type { VectorStore } from './vectorStore.js';
 type Catalog = Awaited<ReturnType<ProfileService['searchCatalog']>>;
 export const toolDefinition = (row: Catalog[number]) =>
@@ -22,6 +23,7 @@ export class DiscoveryService {
       secrets: ConfigSecrets;
       embeddings: EmbeddingClient;
       vectors: VectorStore;
+      hnsw: HnswStore;
     },
   ) {}
   async exposed(ownerId: string, profileId: string, potential = false): Promise<Tool[]> {
@@ -50,7 +52,7 @@ export class DiscoveryService {
         ...searchInput.parse(input.arguments),
       });
     const { toolId } = definitionInput.parse(input.arguments);
-    const row = (await this.deps.profiles.searchCatalog(ownerId, input.profileId)).find(
+    const row = (await this.deps.profiles.searchCatalog(ownerId, input.profileId, [toolId])).find(
       (row) => row.id === toolId,
     );
     if (!row) throw new AppError('TOOL_FORBIDDEN', '工具不存在或当前身份未获授权', 403);
@@ -89,7 +91,7 @@ export class DiscoveryService {
   }
   private async candidate(ownerId: string, profileId: string) {
     const profile = await this.enabled(ownerId, profileId);
-    const rows = (await this.deps.profiles.searchCatalog(ownerId, profileId)).sort((a, b) =>
+    const rows = (await this.deps.profiles.searchMetadata(ownerId, profileId)).sort((a, b) =>
       a.id.localeCompare(b.id),
     );
     const contexts = await Promise.all(
@@ -110,6 +112,12 @@ export class DiscoveryService {
     const secretRevision = secret
       ? (await this.deps.secrets.list(ownerId)).find((row) => row.name === secret)?.revision
       : undefined;
+    const family = fingerprint({
+      ownerId,
+      profileId,
+      identity: currentExecution()?.credentialId ?? currentExecution()?.identity ?? 'dashboard',
+      capabilities: currentExecution()?.capabilities,
+    });
     const scope = fingerprint({
       ownerId,
       profileId,
@@ -117,36 +125,34 @@ export class DiscoveryService {
       contexts,
       embedding: profile.embedding,
       secretRevision,
+      indexOptions: profile.searchOptions.hnsw,
     });
-    const entries = rows.map((row) => ({ row, definitionHash: fingerprint(row.definition) }));
+    const entries = rows.map((row) => ({ row, definitionHash: row.definitionHash }));
     return {
       profile,
+      family,
       rows,
       entries,
       scope,
       fingerprint: fingerprint({
         scope,
+        revision: profile.revision,
         entries: entries.map(({ row, definitionHash }) => [row.id, definitionHash]),
       }),
     };
   }
-  async search(ownerId: string, input: { profileId: string; query: string; limit: number }) {
-    const initial = await this.candidate(ownerId, input.profileId);
+  private async index(ownerId: string, profileId: string, rebuild = false) {
+    const initial = await this.candidate(ownerId, profileId);
     const config = initial.profile.embedding!;
     const apiKey = config.apiKeyRef
       ? await this.deps.secrets.read(ownerId, config.apiKeyRef)
       : undefined;
-    const scope = { ownerId, profileId: input.profileId, scope: initial.scope };
+    const scope = { ownerId, profileId, scope: initial.scope };
     const stored = new Map(
-      (
-        await this.deps.vectors.read(
-          scope,
-          initial.rows.map((row) => row.id),
-        )
-      ).map((row) => [row.toolId, row]),
+      (await this.deps.vectors.metadata(scope)).map((row) => [row.toolId, row]),
     );
     const missing = initial.entries.filter(
-      ({ row, definitionHash }) => stored.get(row.id)?.definitionHash !== definitionHash,
+      ({ row, definitionHash }) => rebuild || stored.get(row.id)?.definitionHash !== definitionHash,
     );
     const key = initial.fingerprint;
     if (this.pending.has(key))
@@ -156,15 +162,23 @@ export class DiscoveryService {
     const build = async () => {
       for (let offset = 0; offset < missing.length; offset += config.batchSize) {
         const batch = missing.slice(offset, offset + config.batchSize);
-        const vectors = await embed(batch.map(({ row }) => JSON.stringify(row.definition)));
-        const entries = batch.map(({ row, definitionHash }, index) => ({
-          toolId: row.id,
-          definitionHash,
-          vector: vectors[index]!,
-        }));
-        await this.deps.vectors.save(scope, entries);
-        for (const entry of entries)
-          stored.set(entry.toolId, { ...scope, ...entry, updatedAt: new Date() });
+        const definitions = await this.deps.profiles.searchCatalog(
+          ownerId,
+          profileId,
+          batch.map(({ row }) => row.id),
+        );
+        const byId = new Map(definitions.map((row) => [row.id, row.definition]));
+        if (batch.some(({ row }) => !byId.has(row.id)))
+          throw new AppError('SEARCH_INDEX_CHANGED', '索引期间目录权限已改变', 409);
+        const vectors = await embed(batch.map(({ row }) => JSON.stringify(byId.get(row.id))));
+        await this.deps.vectors.save(
+          scope,
+          batch.map(({ row, definitionHash }, index) => ({
+            toolId: row.id,
+            definitionHash,
+            vector: vectors[index]!,
+          })),
+        );
       }
     };
     const work = build();
@@ -174,18 +188,88 @@ export class DiscoveryService {
     } finally {
       this.pending.delete(key);
     }
-    const [query] = await embed([input.query]);
-    if ((await this.candidate(ownerId, input.profileId)).fingerprint !== initial.fingerprint)
+    await this.assertUnchanged(ownerId, initial);
+    return { initial, scope, embed };
+  }
+  private async assertUnchanged(
+    ownerId: string,
+    initial: Awaited<ReturnType<DiscoveryService['candidate']>>,
+  ) {
+    if ((await this.candidate(ownerId, initial.profile.id)).fingerprint !== initial.fingerprint)
       throw new AppError('SEARCH_INDEX_CHANGED', '检索期间权限、身份或目录已改变，请重新查询', 409);
-    return initial.rows
-      .map((row) => ({
-        toolId: row.id,
-        name: row.exposedName,
-        description: row.definition.description,
-        score: cosine(query!, stored.get(row.id)!.vector),
-      }))
-      .sort((a, b) => b.score - a.score || a.toolId.localeCompare(b.toolId))
-      .slice(0, input.limit);
+  }
+  async status(ownerId: string, profileId: string) {
+    const initial = await this.candidate(ownerId, profileId);
+    const scope = { ownerId, profileId, scope: initial.scope };
+    const metadata = await this.deps.vectors.metadata(scope);
+    const hashes = new Map(metadata.map((row) => [row.toolId, row.definitionHash]));
+    const indexed = initial.rows.filter((row) => hashes.get(row.id) === row.definitionHash).length;
+    return {
+      strategy: initial.profile.searchOptions.strategy,
+      scope: initial.scope,
+      tools: initial.rows.length,
+      indexed,
+      hnsw: (await this.deps.hnsw.status(scope)) ?? { state: 'missing' },
+    };
+  }
+  async rebuild(ownerId: string, profileId: string) {
+    const { initial, scope } = await this.index(ownerId, profileId, true);
+    if (initial.profile.searchOptions.strategy === 'hnsw') {
+      const metadata = await this.deps.vectors.metadata(scope);
+      const dimensions = metadata[0]?.dimensions ?? initial.profile.embedding!.dimensions;
+      if (!dimensions)
+        throw new AppError(
+          'HNSW_DIMENSIONS',
+          '空目录需要显式配置模型维度后才能建立 HNSW 索引',
+          409,
+        );
+      await this.deps.hnsw.build({
+        ...scope,
+        family: initial.family,
+        fingerprint: initial.fingerprint,
+        dimensions,
+        ids: initial.rows.map((row) => row.id),
+        options: initial.profile.searchOptions.hnsw,
+      });
+    }
+    await this.assertUnchanged(ownerId, initial);
+    return this.status(ownerId, profileId);
+  }
+  async search(ownerId: string, input: { profileId: string; query: string; limit: number }) {
+    const { initial, scope, embed } = await this.index(ownerId, input.profileId);
+    const [query] = await embed([input.query]);
+    const ids = initial.rows.map((row) => row.id);
+    const allowed = new Set(ids);
+    const metadata = await this.deps.vectors.metadata(scope);
+    if (metadata.some((row) => allowed.has(row.toolId) && row.dimensions !== query!.length))
+      throw new AppError('EMBEDDING_DIMENSIONS', '检索向量维度与目录索引不一致', 409);
+    const options = initial.profile.searchOptions;
+    const search = { ids, vector: query!, minScore: options.minScore, limit: input.limit };
+    if (options.strategy === 'hnsw')
+      await this.deps.hnsw.sync({
+        ...scope,
+        family: initial.family,
+        fingerprint: initial.fingerprint,
+        dimensions: query!.length,
+        options: options.hnsw,
+        ids,
+      });
+    const hits =
+      options.strategy === 'exact'
+        ? await this.deps.vectors.search(scope, search)
+        : await this.deps.hnsw.search(scope, { ...search, efSearch: options.hnsw.efSearch });
+    const rows = await this.deps.profiles.searchCatalog(
+      ownerId,
+      input.profileId,
+      hits.map((hit) => hit.toolId),
+    );
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    await this.assertUnchanged(ownerId, initial);
+    return hits.map((hit) => ({
+      ...hit,
+      name: byId.get(hit.toolId)!.exposedName,
+      description: byId.get(hit.toolId)!.definition.description,
+    }));
   }
   async footprint(ownerId: string, input: { profileId: string; extra: Tool[] }) {
     const { encode } = await import('gpt-tokenizer/encoding/o200k_base');

@@ -1,3 +1,4 @@
+import { HnswStore } from './modules/discovery/hnswStore.js';
 import { RestService } from './modules/rest/restService.js';
 import { RestCallStore } from './modules/rest/callStore.js';
 import { EncryptedResultStore } from './modules/rest/resultStore.js';
@@ -256,6 +257,7 @@ export function createServices(db: Database, config: Config) {
     secrets,
     embeddings: new EmbeddingClient(fetch),
     vectors: new VectorStore(db),
+    hnsw: new HnswStore(db),
   });
   connections.watchCatalog((ownerId) => manifests.schedule(ownerId));
   const rest = new RestService({
