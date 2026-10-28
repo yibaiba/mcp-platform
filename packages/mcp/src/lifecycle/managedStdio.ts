@@ -10,6 +10,21 @@ import {
 } from '@modelcontextprotocol/client';
 import { getDefaultEnvironment } from '@modelcontextprotocol/client/stdio';
 
+const PYTHON_RUNTIME_ENV = [
+  'UV_CACHE_DIR',
+  'UV_TOOL_DIR',
+  'UV_TOOL_BIN_DIR',
+  'UV_PYTHON',
+  'UV_PYTHON_DOWNLOADS',
+] as const;
+function runtimeEnvironment() {
+  return Object.fromEntries(
+    PYTHON_RUNTIME_ENV.flatMap((key) =>
+      process.env[key] === undefined ? [] : [[key, process.env[key]!]],
+    ),
+  );
+}
+
 type Options = {
   command: string;
   args?: string[];
@@ -47,7 +62,7 @@ export class ManagedStdioTransport implements Transport {
         ]
       : (this.options.args ?? []);
     const child = spawn(command, args, {
-      env: { ...getDefaultEnvironment(), ...this.options.env },
+      env: { ...getDefaultEnvironment(), ...runtimeEnvironment(), ...this.options.env },
       cwd: this.options.cwd,
       stdio: 'pipe',
       detached: !windows,

@@ -14,7 +14,7 @@ import {
 import { isInputRequiredResult } from '@platform/mcp';
 import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import { AppError, errorMessage } from '../../shared/errors.js';
-import { CALL_TIMEOUT_MS, type ConnectionInput } from '@platform/contracts';
+import { type ConnectionInput } from '@platform/contracts';
 import type { OAuthClientProvider } from '@platform/mcp';
 import type { ConnectionAdapter, ConnectionContext } from './adapter.js';
 import { observeStdioStderr } from './stdioDiagnostics.js';
@@ -91,7 +91,7 @@ function createSession(input: {
     input.onClose();
   };
   const ready = client
-    .connect(transport, { timeout: CALL_TIMEOUT_MS, signal: input.signal })
+    .connect(transport, { timeout: config.connectTimeoutMs, signal: input.signal })
     .then(() => {
       input.signal.throwIfAborted();
       active = true;
@@ -103,7 +103,10 @@ function createSession(input: {
           promptsListChanged: capabilities?.prompts?.listChanged,
           resourcesListChanged: capabilities?.resources?.listChanged,
         };
-        if (Object.values(filter).some(Boolean)) return client.listen(filter).then(() => undefined);
+        if (Object.values(filter).some(Boolean))
+          return client
+            .listen(filter, { timeout: config.connectTimeoutMs, signal: input.signal })
+            .then(() => undefined);
       }
     })
     .catch((error: unknown) => {
@@ -150,7 +153,11 @@ export function createDirectAdapter(
       const current = acquire();
       await awaitConnection(current.ready, signal);
       signal?.throwIfAborted();
-      catalog = await discoverCatalog(current.client, signal);
+      catalog = await discoverCatalog(
+        current.client,
+        signal,
+        context.config.requestOptions.timeoutMs,
+      );
       return catalog;
     },
     async discover(signal) {
@@ -167,7 +174,11 @@ export function createDirectAdapter(
       const current = acquire();
       await awaitConnection(current.ready, input.signal);
       input.signal?.throwIfAborted();
-      catalog ??= await discoverCatalog(current.client, input.signal);
+      catalog ??= await discoverCatalog(
+        current.client,
+        input.signal,
+        context.config.requestOptions.timeoutMs,
+      );
       const tool = catalog.tools.find((tool) => tool.name === input.name);
       if (!tool) throw new AppError('TOOL_NOT_DISCOVERED', '请先刷新工具目录', 409);
       try {
@@ -186,8 +197,9 @@ export function createDirectAdapter(
     async check(signal) {
       const current = acquire();
       await awaitConnection(current.ready, signal);
-      if (current.client.getProtocolEra() === 'modern') await current.client.discover({ signal });
-      else await current.client.ping({ signal });
+      if (current.client.getProtocolEra() === 'modern')
+        await current.client.discover({ signal, timeout: context.config.health.timeoutMs });
+      else await current.client.ping({ signal, timeout: context.config.health.timeoutMs });
     },
     async close() {
       lifetime.abort(new Error('连接已关闭'));

@@ -30,6 +30,7 @@ import {
 import { AuthorizationBindings } from './AuthorizationBindings.js';
 import { ConnectorIcon } from './ConnectorIcon.js';
 import { executionLocation } from '../tools/toolCatalog.js';
+import { ConnectionRecovery } from './ConnectionRecovery.js';
 
 type Operation = { label: string; action: () => Promise<unknown>; inspect?: boolean };
 export type ConnectionInspection = { title: string; result: unknown };
@@ -216,6 +217,7 @@ export function ConnectionItem({
           </div>
         </div>
       ) : null}
+      <ConnectionRecovery connection={connection} />
       {busy || message ? (
         <p role="status" className="mt-3 text-xs text-muted-foreground">
           {busy ? `正在${busy}…` : message}

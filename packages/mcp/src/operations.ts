@@ -17,6 +17,7 @@ export type McpOperation =
       params: { uri: string };
     };
 export type McpRequestOptions = {
+  executionTimeoutMs?: number;
   signal?: AbortSignal;
   onprogress?: (progress: Progress) => void;
   requestState?: string;
@@ -29,26 +30,38 @@ export async function executeOperation(
   operation: McpOperation,
   options: McpRequestOptions = {},
 ) {
+  const requestOptions = {
+    ...options,
+    ...(options.executionTimeoutMs === undefined ? {} : { timeout: 0 }),
+  };
   switch (operation.method) {
     case 'prompts/get':
-      return client.getPrompt(operation.params, options);
+      return client.getPrompt(operation.params, requestOptions);
     case 'resources/read':
-      return client.readResource(operation.params, { ...options, cacheMode: 'refresh' });
+      return client.readResource(operation.params, { ...requestOptions, cacheMode: 'refresh' });
     case 'resources/subscribe': {
       if (client.getProtocolEra() !== 'modern')
-        return client.subscribeResource(operation.params, options);
+        return client.subscribeResource(operation.params, requestOptions);
       const active = subscriptions.get(client) ?? new Map<string, ResourceSubscription>();
       subscriptions.set(client, active);
       if (!active.has(operation.params.uri))
         active.set(
           operation.params.uri,
-          await client.listen({ resourceSubscriptions: [operation.params.uri] }, options),
+          await client.listen(
+            { resourceSubscriptions: [operation.params.uri] },
+            {
+              ...options,
+              ...(options.executionTimeoutMs === undefined
+                ? {}
+                : { timeout: options.executionTimeoutMs }),
+            },
+          ),
         );
       return {};
     }
     case 'resources/unsubscribe': {
       if (client.getProtocolEra() !== 'modern')
-        return client.unsubscribeResource(operation.params, options);
+        return client.unsubscribeResource(operation.params, requestOptions);
       const active = subscriptions.get(client);
       await active?.get(operation.params.uri)?.close();
       active?.delete(operation.params.uri);

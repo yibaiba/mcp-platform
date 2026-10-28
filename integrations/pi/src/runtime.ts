@@ -25,6 +25,9 @@ export type Context = {
   runtimeKey?: string;
   capabilities?: Record<string, unknown>;
   config: {
+    connectTimeoutMs?: number;
+    requestOptions?: { timeoutMs: number };
+    health?: { timeoutMs: number };
     transport?: string;
     command?: string;
     args?: string[];
@@ -47,6 +50,7 @@ export async function bridge(options: {
   directory: string;
   authorizationKey?: string;
 }) {
+  const bridgeContext = options.context;
   await mkdir(options.directory, { recursive: true, mode: 0o700 });
   const worker = fork(new URL('./worker.ts', import.meta.url), [], {
     execArgv: ['--import', 'tsx'],
@@ -78,6 +82,8 @@ export async function bridge(options: {
       type?: string;
       result?: unknown;
       error?: string;
+      errorName?: string;
+      errorCode?: string;
       notification?: McpNotification;
       progress?: Progress;
     }) => {
@@ -114,7 +120,13 @@ export async function bridge(options: {
       const call = pending.get(message.id);
       if (!call) return;
       pending.delete(message.id);
-      if (message.error) call.reject(new Error(message.error));
+      if (message.error)
+        call.reject(
+          Object.assign(new Error(message.error), {
+            name: message.errorName ?? 'Error',
+            code: message.errorCode,
+          }),
+        );
       else call.resolve(message.result);
     },
   );
@@ -133,8 +145,15 @@ export async function bridge(options: {
   });
   function request(method: string, params: unknown, options: McpRequestOptions = {}) {
     const inputSignal = options.signal;
-    const deadline = AbortSignal.timeout(60_000);
-    const signal = inputSignal ? AbortSignal.any([inputSignal, deadline]) : deadline;
+    const deadline =
+      options.executionTimeoutMs === undefined
+        ? AbortSignal.timeout(bridgeContext.config.connectTimeoutMs ?? 60_000)
+        : undefined;
+    const signal = AbortSignal.any([
+      lifetime.signal,
+      ...(inputSignal ? [inputSignal] : []),
+      ...(deadline ? [deadline] : []),
+    ]);
     const id = randomUUID();
     return new Promise<unknown>((resolve, reject) => {
       if (signal?.aborted) {
@@ -192,7 +211,15 @@ export async function bridge(options: {
       return () => listeners.delete(listener);
     },
     request: (operation: McpOperation, options: McpRequestOptions = {}) =>
-      request('request', { operation, progress: !!options.onprogress }, options),
+      request(
+        'request',
+        {
+          operation,
+          progress: !!options.onprogress,
+          executionTimeoutMs: options.executionTimeoutMs,
+        },
+        options,
+      ),
     call: async (
       input: { name: string; arguments: Record<string, unknown> } & McpRequestOptions,
     ) => {
@@ -227,7 +254,11 @@ export async function bridge(options: {
       return result;
     },
     check: async (signal?: AbortSignal) => {
-      await request('check', {}, { signal });
+      await request(
+        'check',
+        {},
+        { signal, executionTimeoutMs: bridgeContext.config.health?.timeoutMs },
+      );
     },
     action: (input: Record<string, unknown>) => request('action', input),
     close: async () => {

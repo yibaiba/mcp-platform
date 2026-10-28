@@ -34,7 +34,27 @@ export type Connection = {
   identityMode?: string;
   sessions?: string[];
   lifecycle?: { startup: string; idleTimeoutMs?: number; shutdownGraceMs: number };
-  health?: { enabled: boolean; intervalMs: number; timeoutMs: number; recover: boolean };
+  health?: {
+    enabled: boolean;
+    intervalMs: number;
+    timeoutMs: number;
+    recover: boolean;
+    initialIntervalMs?: number;
+    maxIntervalMs?: number;
+  };
+  connectTimeoutMs?: number;
+  requestOptions?: {
+    timeoutMs: number;
+    resetTimeoutOnProgress: boolean;
+    maxTotalTimeoutMs?: number;
+  };
+  recovery?: {
+    sessionId?: string;
+    status: string;
+    attempts: number;
+    nextAt?: string;
+    error?: string;
+  }[];
   forwardHeaders?: string[];
   source?: string;
   id: string;

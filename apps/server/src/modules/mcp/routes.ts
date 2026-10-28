@@ -30,6 +30,11 @@ export function connectionRoutes(service: ConnectionService, changed: () => Prom
     await service.stop(owner(c), paramId(c));
     return c.json({ stopped: true });
   });
+  app.delete('/:id', async (c) => {
+    await service.remove(owner(c), paramId(c));
+    await changed();
+    return c.json({ deleted: true });
+  });
   return app;
 }
 export function toolRoutes(profiles: ProfileService, invocations: InvocationService) {

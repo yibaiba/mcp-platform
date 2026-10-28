@@ -45,7 +45,7 @@ Apps 的可信代理通过 `data:` iframe 获得独立的不透明源，实际 A
 
 ## 本仓库镜像发布与验收
 
-`.github/workflows/ci.yml` 对 main 的 push 和手动运行先执行 Node.js 22/24 检查，再分别使用原生 amd64、arm64 运行器构建应用镜像，各自核对镜像源码并执行隔离 Compose 验收。两个架构均通过后，才发布统一的 `ghcr.io/yibaiba/mcp-platform:latest` 和 `sha-<完整提交号>` 标签；不依赖 QEMU 编译或验收。PR 只运行代码检查，不发布镜像。镜像名由当前 GitHub 仓库生成，源码标签固定指向本项目。发布使用该仓库的 GitHub Token，首次使用需要确认 GHCR 包的读取权限。
+`.github/workflows/ci.yml` 对 PR、main push、手动运行和 `release.published` 执行 Node.js 22/24 检查，再分别使用原生 amd64、arm64 运行器构建应用镜像，各自核对镜像源码并执行隔离 Compose 和 Python 冷/热缓存验收。只有 `release.published` 会推送镜像；两个架构均通过后，发布统一的 `ghcr.io/yibaiba/mcp-platform:latest`、Release 标签和 `sha-<完整提交号>` 标签。其他触发方式只验证，不发布。Release 同时上传六种连接器二进制、SHA256SUMS 和安装脚本。镜像名由当前 GitHub 仓库生成，源码标签固定指向本项目。发布使用该仓库的 GitHub Token，首次使用需要确认 GHCR 包的读取权限。
 
 本机执行：
 

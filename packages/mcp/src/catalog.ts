@@ -32,7 +32,7 @@ export function validateToolSchemas(tools: Tool[]) {
       try {
         validator.getValidator(schema as Parameters<typeof validator.getValidator>[0]);
       } catch (error) {
-        throw new Error(
+        throw new McpValidationError(
           `工具 ${tool.name} 的 ${field} 无法编译：${error instanceof Error ? error.message : String(error)}`,
         );
       }
@@ -69,9 +69,13 @@ async function pages<T>(
   return items;
 }
 
-export async function discoverCatalog(client: Client, signal?: AbortSignal): Promise<McpCatalog> {
+export async function discoverCatalog(
+  client: Client,
+  signal?: AbortSignal,
+  timeoutMs?: number,
+): Promise<McpCatalog> {
   const capabilities = client.getServerCapabilities() ?? {};
-  const options = { signal, cacheMode: 'refresh' as const };
+  const options = { signal, timeout: timeoutMs, cacheMode: 'refresh' as const };
   const [tools, prompts, resources, templates] = await Promise.all([
     capabilities.tools
       ? pages(async (cursor) => {

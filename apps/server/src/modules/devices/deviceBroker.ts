@@ -103,6 +103,7 @@ export class DeviceBroker {
       params: Record<string, unknown>;
       signal?: AbortSignal;
       onprogress?: (progress: Progress) => void;
+      executionTimeoutMs?: number;
     },
   ) {
     const socket = this.sockets.get(deviceId);
@@ -119,12 +120,18 @@ export class DeviceBroker {
           new AppError('RESULT_UNKNOWN', '已请求取消或达到截止时间；请确认设备执行结果', 409),
         );
       };
-      const timer = setTimeout(cancel, CALL_TIMEOUT_MS);
+      const timeoutMs = input.executionTimeoutMs ?? CALL_TIMEOUT_MS;
+      const deadlineAt = Date.now() + timeoutMs;
+      // This deadline is the remaining platform budget, not a separate 60s cap.
+      const timer = setTimeout(cancel, timeoutMs);
       const finish = (value: unknown, error?: Error) => {
         clearTimeout(timer);
         input.signal?.removeEventListener('abort', cancel);
         this.pending.delete(id);
-        if (error) reject(error);
+        // Older connectors can report their deadline before the platform timer runs.
+        if (error && Date.now() >= deadlineAt)
+          reject(new AppError('RESULT_UNKNOWN', '设备截止时间已到；请确认上游执行结果', 502));
+        else if (error) reject(error);
         else resolve(value);
       };
       this.pending.set(id, { deviceId, socket, finish, onprogress: input.onprogress });
@@ -135,7 +142,7 @@ export class DeviceBroker {
         id,
         method: input.method,
         params: { ...input.params, ...(input.onprogress ? { progressToken: id } : {}) },
-        deadline: new Date(Date.now() + CALL_TIMEOUT_MS).toISOString(),
+        deadline: new Date(deadlineAt).toISOString(),
       };
       socket.send(JSON.stringify(request), (error) => {
         if (error)

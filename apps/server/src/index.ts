@@ -49,9 +49,9 @@ async function shutdown() {
   server.close();
   services.broker.close();
   sockets.close();
-  await services.pi.close();
   await services.gateway.close();
   await services.connections.shutdown();
+  await services.pi.close();
   await pool.end();
 }
 let stopping = false;

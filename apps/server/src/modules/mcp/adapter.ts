@@ -4,6 +4,7 @@ import type { ConnectionInput } from '@platform/contracts';
 import type { McpCatalog, McpOperation, McpNotification, Progress } from '@platform/mcp';
 export type ConnectionContext = {
   profileId?: string;
+  revision?: number;
   id: string;
   ownerId: string;
   config: ConnectionInput;
@@ -25,6 +26,7 @@ export interface ConnectionAdapter {
     name: string;
     arguments: Record<string, unknown>;
     signal?: AbortSignal;
+    executionTimeoutMs?: number;
     onprogress?: (progress: Progress) => void;
     requestState?: string;
     inputResponses?: Record<string, unknown>;
