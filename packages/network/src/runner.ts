@@ -20,7 +20,12 @@ export function runner(input: PackageCommand) {
   const args = input.args ?? [];
   const offset = definition.prefix.length;
   if (args.slice(0, offset).join(' ') !== definition.prefix.join(' ')) return undefined;
-  return { ecosystem: definition.ecosystem, args: args.slice(offset), offset };
+  return {
+    ecosystem: definition.ecosystem,
+    args: args.slice(offset),
+    offset,
+    interspersed: command === 'npm',
+  };
 }
 function argumentAt(args: string[], index: number): SourceArgument {
   const arg = args[index]!;
@@ -32,25 +37,33 @@ function argumentAt(args: string[], index: number): SourceArgument {
 function isSource(flag: string) {
   return sourceFlags.has(flag) || /^--@[\w.-]+:registry$/.test(flag);
 }
-function argumentsFor(args: string[]) {
+function recordOption(
+  value: SourceArgument,
+  state: { candidates: string[]; sources: Map<string, SourceArgument> },
+) {
+  if (packageFlags.has(value.flag)) state.candidates.push(value.value ?? '');
+  else if (isSource(value.flag)) state.sources.set(value.flag, value);
+  else return false;
+  return true;
+}
+function argumentsFor(args: string[], interspersed: boolean) {
   const candidates: string[] = [];
   const sources = new Map<string, SourceArgument>();
   let positional: string | undefined;
   for (let index = 0; index < args.length; index++) {
     const arg = args[index]!;
     if (arg === '--') {
-      positional = args[index + 1];
+      positional ??= args[index + 1];
       break;
     }
     if (!arg.startsWith('-')) {
-      positional = arg;
-      break;
+      positional ??= arg;
+      if (!interspersed) break;
+      continue;
     }
+    if (switches.has(arg)) continue;
     const value = argumentAt(args, index);
-    if (packageFlags.has(value.flag)) candidates.push(value.value ?? '');
-    else if (isSource(value.flag)) sources.set(value.flag, value);
-    else if (switches.has(arg)) continue;
-    else return undefined;
+    if (!recordOption(value, { candidates, sources })) return undefined;
     if (!value.inline) index++;
   }
   return { candidates, positional, sources };
@@ -58,7 +71,7 @@ function argumentsFor(args: string[]) {
 export function identifyPackage(input: PackageCommand): Omit<PackageSpec, 'source'> | undefined {
   const run = runner(input);
   if (!run) return undefined;
-  const args = argumentsFor(run.args);
+  const args = argumentsFor(run.args, run.interspersed);
   if (!args || args.candidates.length > 1) return undefined;
   const declared = args.candidates[0] ?? args.positional;
   if (!declared) return undefined;
@@ -81,7 +94,7 @@ function packageDeclaration(declared: string, ecosystem: Ecosystem) {
 export function sourceArgument(input: PackageCommand, spec: Omit<PackageSpec, 'source'>) {
   const run = runner(input);
   if (!run) return undefined;
-  const sources = argumentsFor(run.args)?.sources;
+  const sources = argumentsFor(run.args, run.interspersed)?.sources;
   if (!sources) return undefined;
   const scoped = sources.get(`--${spec.name.split('/')[0]}:registry`);
   if (spec.ecosystem === 'npm') return scoped ?? sources.get('--registry');

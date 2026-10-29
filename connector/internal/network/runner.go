@@ -57,37 +57,51 @@ func optionAt(args []string, index int) (string, sourceOption, error) {
 	}
 	return flag, sourceOption{index + 1, "", args[index+1]}, nil
 }
-func parseArguments(args []string, offset int) (runnerArguments, error) {
+func parseArguments(args []string, offset int, interspersed bool) (runnerArguments, error) {
 	result := runnerArguments{sources: map[string]sourceOption{}}
 	for i := offset; i < len(args); i++ {
 		arg := args[i]
 		if arg == "--" {
-			result.positional = nextArgument(args, i+1)
+			if result.positional == "" {
+				result.positional = nextArgument(args, i+1)
+			}
 			break
 		}
 		if !strings.HasPrefix(arg, "-") {
-			result.positional = arg
-			break
-		}
-		flag, _, _ := strings.Cut(arg, "=")
-		if packageFlags[flag] || isSourceFlag(flag) {
-			_, option, err := optionAt(args, i)
-			if err != nil {
-				return result, err
+			if result.positional == "" {
+				result.positional = arg
 			}
-			if packageFlags[flag] {
-				result.candidates = append(result.candidates, option.value)
-			} else {
-				result.sources[flag] = option
+			if !interspersed {
+				break
 			}
-			i = option.index
 			continue
 		}
-		if !packageSwitches[arg] {
-			return result, fmt.Errorf("无法识别动态或复杂命令")
+		next, err := result.option(args, i)
+		if err != nil {
+			return result, err
 		}
+		i = next
 	}
 	return result, nil
+}
+func (r *runnerArguments) option(args []string, index int) (int, error) {
+	flag, _, _ := strings.Cut(args[index], "=")
+	if packageSwitches[args[index]] {
+		return index, nil
+	}
+	if !packageFlags[flag] && !isSourceFlag(flag) {
+		return index, fmt.Errorf("无法识别动态或复杂命令")
+	}
+	_, option, err := optionAt(args, index)
+	if err != nil {
+		return index, err
+	}
+	if packageFlags[flag] {
+		r.candidates = append(r.candidates, option.value)
+	} else {
+		r.sources[flag] = option
+	}
+	return option.index, nil
 }
 func nextArgument(args []string, index int) string {
 	if index >= len(args) {
@@ -109,7 +123,7 @@ func Identify(input Command) (*Package, error) {
 	if ecosystem == "" {
 		return nil, fmt.Errorf("无法识别明确的 npm/Python 包声明")
 	}
-	args, err := parseArguments(input.Args, offset)
+	args, err := parseArguments(input.Args, offset, ecosystem == "npm" && offset > 0)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +159,7 @@ func sourceArg(input Command) (int, string, string) {
 		return -1, "", ""
 	}
 	_, offset := runner(input)
-	args, err := parseArguments(input.Args, offset)
+	args, err := parseArguments(input.Args, offset, p.Ecosystem == "npm" && offset > 0)
 	if err != nil {
 		return -1, "", ""
 	}
