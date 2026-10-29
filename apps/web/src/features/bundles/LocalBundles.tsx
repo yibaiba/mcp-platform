@@ -64,6 +64,9 @@ export function LocalBundles({ api }: { api: ManagementApi }) {
           <h3>
             {pkg.manifest.name} · {pkg.manifest.version}
           </h3>
+          {pkg.environment.configurationRevision ? (
+            <p>此包已有本机配置。保存将替换该修订，运行中的服务需要重新连接。</p>
+          ) : null}
           <Form
             label="预览本机配置"
             submit={async (data) => {
@@ -105,6 +108,7 @@ export function LocalBundles({ api }: { api: ManagementApi }) {
                     archive: pkg.archive,
                     config: review.config,
                     operationId: review.operationId,
+                    revision: pkg.environment.configurationRevision,
                   },
                 }),
               );

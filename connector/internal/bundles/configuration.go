@@ -81,7 +81,7 @@ func (s *Store) saveConfiguration(input Install) error {
 	}
 	opSum := sha256.Sum256([]byte(input.OperationID))
 	opPath := filepath.Join(s.Dir, hex.EncodeToString(opSum[:])+".operation")
-	fingerprint := sha256.Sum256(input.Config)
+	fingerprint := sha256.Sum256(append([]byte(input.SHA256+":"+input.Revision+":"), input.Config...))
 	if old, err := os.ReadFile(opPath); err == nil {
 		if string(old) != hex.EncodeToString(fingerprint[:]) {
 			return fmt.Errorf("operation ID already used with different configuration")
@@ -89,6 +89,13 @@ func (s *Store) saveConfiguration(input Install) error {
 		return nil
 	} else if !os.IsNotExist(err) {
 		return err
+	}
+	revision, err := s.configurationRevision(input.SHA256)
+	if err != nil {
+		return err
+	}
+	if revision != input.Revision {
+		return fmt.Errorf("本机包配置已改变，请重新解析并预览后再保存")
 	}
 	nonce := make([]byte, aead.NonceSize())
 	if _, err = rand.Read(nonce); err != nil {
@@ -149,4 +156,16 @@ func (s *Store) List() ([]map[string]string, error) {
 		result = append(result, map[string]string{"sha256": hash, "name": manifest.Name, "version": manifest.Version})
 	}
 	return result, nil
+}
+
+func (s *Store) configurationRevision(hash string) (string, error) {
+	data, err := os.ReadFile(filepath.Join(s.Dir, hash+".enc"))
+	if os.IsNotExist(err) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
 }

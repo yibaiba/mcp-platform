@@ -58,6 +58,7 @@ export type BundleEnvironment = {
   platform: 'darwin' | 'linux' | 'win32';
   home: string;
   root: string;
+  configurationRevision?: string;
 };
 export type BundleLaunch = {
   command: string;

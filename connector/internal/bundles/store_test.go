@@ -93,3 +93,37 @@ func TestConfigurationEncryptedAndOperationBound(t *testing.T) {
 		t.Fatal("operation ID accepted new input")
 	}
 }
+
+func TestConfigurationRevisionPreventsLostUpdatesAndReplay(t *testing.T) {
+	s := &Store{Dir: t.TempDir()}
+	input := fixture(t, "server.js", 0600)
+	input.Config = raw(t, map[string]any{"command": "node", "cwd": filepath.Join(s.Dir, "packages", input.SHA256)})
+	if _, err := s.Install(raw(t, input)); err != nil {
+		t.Fatal(err)
+	}
+	original := input
+	input.OperationID = "replace"
+	input.Config = raw(t, map[string]any{"command": "python", "cwd": filepath.Join(s.Dir, "packages", input.SHA256)})
+	if _, err := s.Install(raw(t, input)); err == nil {
+		t.Fatal("replacement without revision succeeded")
+	}
+	revision, err := s.configurationRevision(input.SHA256)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input.Revision = revision
+	if _, err := s.Install(raw(t, input)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Install(raw(t, original)); err != nil {
+		t.Fatal(err)
+	}
+	current, err := s.Configuration(input.SHA256)
+	if err != nil || !bytes.Equal(current, input.Config) {
+		t.Fatal("old receipt replay replaced current configuration", err)
+	}
+	input.OperationID = "stale"
+	if _, err := s.Install(raw(t, input)); err == nil {
+		t.Fatal("stale revision succeeded")
+	}
+}

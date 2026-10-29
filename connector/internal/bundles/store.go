@@ -28,6 +28,7 @@ type Install struct {
 	SHA256      string          `json:"sha256"`
 	Archive     string          `json:"archive"`
 	OperationID string          `json:"operationId"`
+	Revision    string          `json:"revision,omitempty"`
 	Config      json.RawMessage `json:"config,omitempty"`
 }
 
@@ -43,7 +44,11 @@ func (s *Store) Environment(hash string) (any, error) {
 	if platform == "windows" {
 		platform = "win32"
 	}
-	return map[string]string{"platform": platform, "home": home, "root": filepath.Join(s.Dir, "packages", hash)}, nil
+	revision, err := s.configurationRevision(hash)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]string{"platform": platform, "home": home, "root": filepath.Join(s.Dir, "packages", hash), "configurationRevision": revision}, nil
 }
 func (s *Store) Install(raw json.RawMessage) (any, error) {
 	s.mu.Lock()
