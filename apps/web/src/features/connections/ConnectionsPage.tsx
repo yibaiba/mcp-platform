@@ -78,6 +78,7 @@ export default function ConnectionsPage() {
   const connections = useQuery({
     queryKey: ['connections'],
     queryFn: () => api<Connection[]>('/connections'),
+    select: (rows) => rows.filter((row) => row.source !== 'library'),
     refetchInterval: (query) =>
       query.state.data?.some((connection) => connection.health?.recover) ? 5000 : false,
   });

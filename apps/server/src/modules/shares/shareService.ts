@@ -91,7 +91,15 @@ export class ShareService extends ShareAccess {
     );
   }
   async save(ownerId: string, connectionId: string, input: unknown) {
-    await this.source(ownerId, connectionId);
+    const source = await this.source(ownerId, connectionId);
+    if (
+      this.deps.vault.open<ConnectionInput>(source.config, `${ownerId}:${connectionId}`).source ===
+      'library'
+    )
+      throw new AppError(
+        'LIBRARY_SHARE_UNSUPPORTED',
+        '内容库通过当前账号的 Profile 授权，不提供跨账号共享',
+      );
     const value = grantInput.parse(input);
     const [recipient] = await this.db
       .select()

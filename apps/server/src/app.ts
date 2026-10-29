@@ -1,3 +1,4 @@
+import { libraryRoutes } from './modules/library/routes.js';
 import { platformUpdateRoutes } from './modules/updates/platformRoutes.js';
 import { packageUpdateRoutes } from './modules/updates/routes.js';
 import { networkRoutes } from './modules/network/routes.js';
@@ -241,6 +242,7 @@ export function createApp(deps: {
       readAsset: (name) => readFile(join(platformRoot, 'connector/ssh/windows', name)),
     }),
   );
+  app.route('/api/v1/library', libraryRoutes(s.library));
   app.route('/api/v1/devices', localRoutes(s.local));
   app.route('/api/v1/devices', deviceRoutes(s.devices));
   app.route('/api/v1/activity/calls', activityRoutes(s.activity));

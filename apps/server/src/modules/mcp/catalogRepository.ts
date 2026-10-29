@@ -63,7 +63,12 @@ export class CatalogRepository {
             target: mcpEntries.id,
             set:
               context.identity === 'default'
-                ? { definition: row.definition, name: row.name, available: true }
+                ? {
+                    definition: row.definition,
+                    name: row.name,
+                    locator: row.locator,
+                    available: true,
+                  }
                 : { id: row.id },
           });
       }

@@ -1,3 +1,5 @@
+import { LibraryService } from './modules/library/service.js';
+import { createLibraryAdapter } from './modules/library/adapter.js';
 import { homedir } from 'node:os';
 import { PlatformUpdateService } from './modules/updates/platformService.js';
 import { readBuildInfo } from './modules/updates/buildInfo.js';
@@ -149,6 +151,7 @@ export function createServices(db: Database, config: Config) {
     devices,
     publicUrl: config.PUBLIC_URL,
     factory: async (context) => {
+      if (context.config.source === 'library') return createLibraryAdapter(context);
       if (context.config.source === 'openapi')
         return createOpenApiAdapter(context, {
           fetch,
@@ -327,6 +330,23 @@ export function createServices(db: Database, config: Config) {
     now: () => new Date(),
   });
   return {
+    library: new LibraryService({
+      db,
+      vault,
+      connections,
+      changed: async (ownerId, contentId) => {
+        await access.changed();
+        for (const profile of await profiles.list(ownerId)) {
+          if (
+            profile.contentIds.includes(contentId) ||
+            profile.requestable.contentIds.includes(contentId)
+          ) {
+            await gateway.permissionsChanged(profile.id);
+            await gateway.profileChanged(profile.id);
+          }
+        }
+      },
+    }),
     platformUpdates: new PlatformUpdateService({ db, network, build, now: () => new Date() }),
     packageUpdates,
     network,
