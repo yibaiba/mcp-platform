@@ -1,3 +1,5 @@
+import { gitEnvironment } from '../network/checks.js';
+import type { NetworkService } from '../network/service.js';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -19,25 +21,38 @@ const gitInput = z
     dependencies: z.array(z.string()).default([]),
   })
   .strict();
-export async function importGit(input: unknown) {
+export async function importGit(input: unknown, network?: Pick<NetworkService, 'git'>) {
   const value = gitInput.parse(input);
   if (value.path) safeRelativePath(value.path);
+  const target = network ? await network.git(value.url) : { url: value.url, env: {} };
   const directory = await mkdtemp(join(tmpdir(), 'platform-skill-'));
   const run = (args: string[]) =>
-    execute('git', ['-c', 'core.hooksPath=/dev/null', '-c', 'protocol.file.allow=never', ...args], {
-      cwd: directory,
-      timeout: 60_000,
-      maxBuffer: 32 * 1024 * 1024,
-      encoding: 'buffer',
-      env: {
-        PATH: process.env.PATH,
-        HOME: directory,
-        GIT_CONFIG_NOSYSTEM: '1',
-        GIT_TERMINAL_PROMPT: '0',
+    execute(
+      'git',
+      [
+        '-c',
+        'http.followRedirects=false',
+        '-c',
+        'core.hooksPath=/dev/null',
+        '-c',
+        'protocol.file.allow=never',
+        ...args,
+      ],
+      {
+        cwd: directory,
+        timeout: 60_000,
+        maxBuffer: 32 * 1024 * 1024,
+        encoding: 'buffer',
+        env: {
+          ...gitEnvironment(target),
+          HOME: directory,
+          GIT_CONFIG_NOSYSTEM: '1',
+          GIT_TERMINAL_PROMPT: '0',
+        },
       },
-    });
+    );
   try {
-    await run(['clone', '--no-checkout', '--', value.url, 'repo']);
+    await run(['clone', '--no-checkout', '--', target.url, 'repo']);
     const prefix = value.path ? `${value.path}/` : '';
     const { stdout } = await run([
       '-C',
@@ -68,6 +83,12 @@ export async function importGit(input: unknown) {
       source: value.url,
       revision: value.revision,
     };
+  } catch {
+    throw new AppError(
+      'GIT_IMPORT_FAILED',
+      'Git 导入失败；请检查地址、固定提交、目录、代理与凭证',
+      502,
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

@@ -4,13 +4,15 @@ FROM node:24-bookworm-slim AS node-base
 
 FROM node-base AS build
 WORKDIR /app
+ARG PLATFORM_COMMIT
+ARG PLATFORM_RELEASE_TAG
 ENV COREPACK_HOME=/usr/local/share/corepack
 RUN corepack enable && corepack prepare pnpm@10.12.4 --activate
 COPY . .
 RUN pnpm install --frozen-lockfile
 RUN pnpm check-types \
     && node scripts/check.mjs 60 pnpm exec vitest run tests/web.test.ts \
-    && pnpm build \
+    && PLATFORM_COMMIT="$PLATFORM_COMMIT" PLATFORM_RELEASE_TAG="$PLATFORM_RELEASE_TAG" pnpm build \
     && pnpm --filter web build:local
 
 FROM golang:1.27.3-bookworm AS connector-build

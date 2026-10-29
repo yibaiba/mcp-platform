@@ -23,6 +23,7 @@ import { awaitConnection } from './awaitConnection.js';
 import { toolDispatchFetch } from '@platform/mcp';
 
 type DirectEffects = {
+  version?: string;
   logStderr: (message: string) => void;
   fetch?: typeof fetch;
   beforeCall?: () => Promise<unknown>;
@@ -62,7 +63,7 @@ function createSession(input: {
 }) {
   const { config } = input.context;
   const client = new Client(
-    { name: 'mcp-platform', version: '0.1.0' },
+    { name: 'mcp-platform', version: input.effects.version ?? 'dev' },
     {
       capabilities: input.context.capabilities,
       versionNegotiation: { mode: config.transport === 'sse' ? 'legacy' : 'auto' },

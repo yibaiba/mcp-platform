@@ -145,3 +145,19 @@ OpenSSH 验收需要 `ssh`、`ssh-keygen`、`/usr/sbin/sshd`（可用 `SSHD_BIN`
 客户端验收使用已安装的 `codex` 与 `claude`，可用 `CODEX_BIN` / `CLAUDE_BIN` 指定可执行文件。只在独立临时 HOME 修改配置并调用客户端的 MCP 配置读取命令，不请求模型。浏览器验收由环境提供 Chrome 和 Playwright（`PLAYWRIGHT_MODULE` 可指定现有模块），检查离线修改、选择同步、平台写回、冲突、恢复、重新配对、375px 布局及 SSH 创建/编辑/下载/删除，截图写入 `.data/local-browser-acceptance`。不使用业务账号或业务数据库。
 
 Windows CI 用 Windows PowerShell 5.1 执行 `scripts/verify-ssh-windows.ps1`，验证解析、原生命令参数边界、带空格私钥路径、多端口参数和退出码。该 argv 夹具不连接 SSH，不能替代真实 Windows 登录启动、远端设备网络和密钥配置验收。迁移细节见[本机管理](local-management.md)和[SSH 接入](ssh-access.md)。
+
+## 网络与版本更新
+
+实现与来源规则见[网络、安装源与版本更新](network-updates.md)，环境、初次失败修复和真实环境限制见[本轮交付记录](network-updates-progress.md)。最终分组入口为 22 组，每个后端进程硬超时仍为 60 秒。
+
+```sh
+pnpm test tests/network.test.ts tests/networkGit.test.ts tests/packageUpdates.test.ts tests/platformUpdates.test.ts
+node scripts/check.mjs 60 go -C connector test -timeout 60s ./...
+node scripts/check.mjs 60 go -C connector vet ./...
+node scripts/check.mjs 60 pnpm --filter web build
+node scripts/check.mjs 60 pnpm --filter web build:local
+node scripts/check.mjs 60 go -C connector build -o bin/connector ./cmd/connector
+node scripts/check.mjs 60 pnpm exec tsx scripts/verify-network-browser.mts
+```
+
+浏览器脚本需要已迁移的独立 PostgreSQL `DATABASE_URL`、Chrome 和环境提供的 Playwright（可用 `PLAYWRIGHT_MODULE` 指定），创建并清理专用账号；会写入并清理平台网络配置及平台更新单例，因此只能用于隔离验收数据库，不能连接业务数据库。它启动自己的 HTTP/npm/GitHub 协议夹具与本机 Go 管理进程，不请求模型。构建发布版本时传 `PLATFORM_RELEASE_TAG`，无 Git 的 Docker/源码归档构建传完整 `PLATFORM_COMMIT`。

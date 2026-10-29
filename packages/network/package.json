@@ -1,0 +1,13 @@
+{
+  "name": "@platform/network",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@platform/contracts": "workspace:*",
+    "smol-toml": "1.9.1",
+    "undici": "6.29.1"
+  }
+}

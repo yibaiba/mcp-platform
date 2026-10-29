@@ -26,7 +26,7 @@ export function openApiRoutes(services: Services, webOrigin: string) {
         ownerId: owner(c),
         value: await c.req.json(),
         artifacts: services.artifacts,
-        fetch,
+        fetch: services.network.fetch,
       }),
     ),
   );

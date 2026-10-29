@@ -1,3 +1,4 @@
+import type { NetworkConfig } from '@platform/network';
 import { fork } from 'node:child_process';
 import { authorizationCoordinator } from './authorizationCoordinator.js';
 import { randomUUID } from 'node:crypto';
@@ -18,6 +19,7 @@ import { isInputRequiredResult } from '@platform/mcp';
 type Tool = { name: string; description?: string; inputSchema: Record<string, unknown> };
 type Result = { content: { type: string; [key: string]: unknown }[]; [key: string]: unknown };
 export type Context = {
+  network?: NetworkConfig;
   oauthRedirectUri?: string;
   id: string;
   ownerId: string;
@@ -48,11 +50,13 @@ export type Context = {
 };
 export async function bridge(options: {
   context: Context;
+  network?: () => Promise<{ revision: number; config: NetworkConfig }>;
   directory: string;
   authorizationKey?: string;
   diagnostic?: (code: string) => void;
 }) {
   const bridgeContext = options.context;
+  const optionsNetwork = options.network;
   const diagnostic = options.diagnostic ?? ((code: string) => console.error(code));
   await mkdir(options.directory, { recursive: true, mode: 0o700 });
   const worker = fork(new URL('./worker.ts', import.meta.url), [], {
@@ -190,13 +194,21 @@ export async function bridge(options: {
         },
       });
       signal?.addEventListener('abort', abort, { once: true });
-      worker.send({ type: 'request', id, method, params }, (error) => {
-        if (error) {
+      void (optionsNetwork?.() ?? Promise.resolve(undefined))
+        .then((network) => {
+          if (!pending.has(id)) return;
+          worker.send({ type: 'request', id, method, params, network }, (error) => {
+            if (error) {
+              pending.delete(id);
+              cleanup();
+              reject(error);
+            }
+          });
+        })
+        .catch((error) => {
+          pending.get(id)?.reject(error);
           pending.delete(id);
-          cleanup();
-          reject(error);
-        }
-      });
+        });
     });
   }
   try {

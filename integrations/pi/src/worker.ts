@@ -1,3 +1,4 @@
+import { NetworkClient, type NetworkConfig } from '@platform/network';
 import {
   discoverCatalog,
   executeOperation,
@@ -46,6 +47,15 @@ const { createMcpAdapter, getMcpClient, configurePlatformEmbedding } = (await im
   getMcpClient(options: { pi: ExtensionAPI; name: string }): Client;
   createMcpAdapter(options: { config: Record<string, unknown> }): ExtensionFactory;
 };
+let networkClient: NetworkClient | undefined;
+let networkRevision = -1;
+function updateNetwork(snapshot?: { revision: number; config: NetworkConfig }) {
+  if (!snapshot || snapshot.revision === networkRevision) return;
+  const previous = networkClient;
+  networkClient = new NetworkClient(snapshot.config);
+  networkRevision = snapshot.revision;
+  if (previous) void previous.retire().catch(() => console.error('PI_NETWORK_POOL_CLOSE_FAILED'));
+}
 let session: AgentSession | undefined;
 let extension: ExtensionAPI;
 let catalog: McpCatalog | undefined;
@@ -137,16 +147,19 @@ async function dispatch(
     const context = params as Context;
     requestTimeoutMs = context.config.requestOptions?.timeoutMs;
     healthTimeoutMs = context.config.health?.timeoutMs;
+    if (!networkClient && context.network) updateNetwork({ revision: 0, config: context.network });
+    const networkFetch: typeof fetch = (input, init) =>
+      networkClient ? networkClient.fetch(input, init) : fetch(input, init);
     configurePlatformEmbedding({
       oauthRedirectUri: context.oauthRedirectUri,
       authorize,
-      wrapFetch: (delegate, authorization) =>
-        toolDispatchFetch(delegate, async (): Promise<Record<string, string>> => {
+      wrapFetch: (_delegate, authorization) =>
+        toolDispatchFetch(networkFetch, async (): Promise<Record<string, string>> => {
           if (!authorization) return {};
           const { provider, serverUrl } = authorization;
           let tokens = await provider.tokens();
           if (tokens?.expires_in !== undefined && tokens.expires_in <= 0) {
-            if ((await auth(provider, { serverUrl, fetchFn: delegate })) !== 'AUTHORIZED')
+            if ((await auth(provider, { serverUrl, fetchFn: networkFetch })) !== 'AUTHORIZED')
               throw new Error('Pi 上游授权已过期，请重新授权');
             tokens = await provider.tokens();
           }
@@ -303,7 +316,13 @@ async function dispatch(
 }
 process.on(
   'message',
-  (message: { type: string; id: string; method: string; params: Record<string, unknown> }) => {
+  (message: {
+    type: string;
+    id: string;
+    method: string;
+    params: Record<string, unknown>;
+    network?: { revision: number; config: NetworkConfig };
+  }) => {
     if (message.type === 'cancel') {
       active.get(message.id)?.abort();
       return;
@@ -316,6 +335,7 @@ process.on(
       return;
     }
     const abort = new AbortController();
+    updateNetwork(message.network);
     active.set(message.id, abort);
     void dispatch(message.method, message.params, abort.signal, message.id)
       .then(

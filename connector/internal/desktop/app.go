@@ -14,6 +14,7 @@ import (
 const appName = "MCP Platform Connector"
 
 type App struct {
+	network                               networkDraft
 	home                                  string
 	preferences                           Preferences
 	diagnostics                           io.Writer

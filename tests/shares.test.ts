@@ -68,6 +68,13 @@ test('independent is the default; pending is explicit and never borrows owner cr
   const { connection, tools } = await source();
   const share = await grant({ connectionId: connection.id, toolIds: [tools[0]!.id] });
   expect(share.credentialMode).toBe('independent');
+  for (const method of ['GET', 'POST', 'PATCH']) {
+    const result = await receiver.request(`/connections/${connection.id}/package-update`, {
+      method,
+      ...(method === 'PATCH' ? { body: JSON.stringify({ scheduled: true }) } : {}),
+    });
+    expect(result.status).toBe(404);
+  }
   const incoming = await (await receiver.request('/shares')).json();
   expect(incoming).toEqual(
     expect.arrayContaining([expect.objectContaining({ id: share.id, status: 'pending' })]),

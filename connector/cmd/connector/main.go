@@ -49,11 +49,19 @@ func execute() error {
 		defer cancel()
 		return manage(ctx, managementOptions{ConfigPath: *path, DataDir: *dataDir, Client: client, Offline: *offline})
 	}
+	pairingClient := client
+	if action == "pair" || action == "connect" || action == "re-pair" {
+		pairingClient, err = pairingHTTPClient(client, runtimeOptions{ConfigPath: *path, DataDir: *dataDir})
+		if err != nil {
+			return err
+		}
+		defer pairingClient.CloseIdleConnections()
+	}
 	if action == "re-pair" {
-		return pairingCommand(client, repairOptions{Action: action, Path: *path, Server: *server, DeviceID: *deviceID})
+		return pairingCommand(pairingClient, repairOptions{Action: action, Path: *path, Server: *server, DeviceID: *deviceID})
 	}
 	if action == "pair" || action == "connect" {
-		options := pairingOptions{Path: *path, Server: *server, Client: client, Input: os.Stdin, Output: os.Stderr}
+		options := pairingOptions{Path: *path, Server: *server, Client: pairingClient, Input: os.Stdin, Output: os.Stderr}
 		if err := prepareConnection(context.Background(), options, action == "connect"); err != nil {
 			return err
 		}

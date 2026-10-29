@@ -183,6 +183,7 @@ async function verifyExternalAgent(toolId: string) {
 
 test('only built-in inference tasks require model configuration', async () => {
   const pi = new PiService({
+    network: h.services.network,
     logger: h.services.logger,
     db: h.db,
     config: { ...h.config, PI_ENABLED: 'true' },

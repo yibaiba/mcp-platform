@@ -1,3 +1,4 @@
+import type { NetworkService } from '../network/service.js';
 import type { DiagnosticLogger } from '../activity/systemLogger.js';
 import { assertCredentialManager } from '../authorizations/credentialScope.js';
 import { TaskStore } from './taskStore.js';
@@ -35,6 +36,7 @@ export class PiService {
   >();
   constructor(
     private readonly deps: {
+      network: NetworkService;
       db: Database;
       logger: DiagnosticLogger;
       config: Config;
@@ -49,6 +51,7 @@ export class PiService {
     this.bridges = new PiBridges({
       config: deps.config,
       load: () => this.load(),
+      network: deps.network,
       logger: deps.logger,
     });
   }

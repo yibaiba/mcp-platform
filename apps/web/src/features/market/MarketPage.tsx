@@ -136,7 +136,11 @@ function MarketDetail({ name, close }: { name: string; close: () => void }) {
 function Installation({ detail }: { detail: Detail }) {
   const [choiceIndex, setChoiceIndex] = useState(0);
   const [adapter, setAdapter] = useState<MarketSelection['adapter']>('direct');
-  const [preview, setPreview] = useState<{ config: unknown; previewHash: string }>();
+  const [preview, setPreview] = useState<{
+    config: unknown;
+    previewHash: string;
+    installationSource?: { package?: { source: string }; reason?: string };
+  }>();
   const [selection, setSelection] = useState<MarketSelection>();
   const [installed, setInstalled] = useState<{ connectionId: string; status: string }>();
   const devices = useQuery({ queryKey: ['devices'], queryFn: () => api<Device[]>('/devices') });
@@ -281,6 +285,14 @@ function Installation({ detail }: { detail: Detail }) {
             安装版本：{selection.version}
             。下载或启动失败会保留连接诊断；只有真实发现成功才显示已连接。
           </p>
+          {preview.installationSource ? (
+            <p style={{ overflowWrap: 'anywhere' }}>
+              最终安装源：
+              {preview.installationSource.package?.source ??
+                preview.installationSource.reason ??
+                '无法识别唯一来源'}
+            </p>
+          ) : null}
           <Code value={preview.config} />
           <Action
             action={async () =>

@@ -15,6 +15,7 @@ import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as SystemLogsRouteImport } from './routes/system-logs'
 import { Route as SkillsRouteImport } from './routes/skills'
 import { Route as ProfilesRouteImport } from './routes/profiles'
+import { Route as NetworkRouteImport } from './routes/network'
 import { Route as MarketRouteImport } from './routes/market'
 import { Route as DevicesRouteImport } from './routes/devices'
 import { Route as ConnectionsRouteImport } from './routes/connections'
@@ -25,6 +26,7 @@ import { Route as AuthorizationsRouteImport } from './routes/authorizations'
 import { Route as ArtifactsRouteImport } from './routes/artifacts'
 import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as AccountRouteImport } from './routes/account'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 
 const UsersRoute = UsersRouteImport.update({
@@ -55,6 +57,11 @@ const SkillsRoute = SkillsRouteImport.update({
 const ProfilesRoute = ProfilesRouteImport.update({
   id: '/profiles',
   path: '/profiles',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NetworkRoute = NetworkRouteImport.update({
+  id: '/network',
+  path: '/network',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MarketRoute = MarketRouteImport.update({
@@ -107,6 +114,11 @@ const AccountRoute = AccountRouteImport.update({
   path: '/account',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -115,6 +127,7 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/account': typeof AccountRoute
   '/activity': typeof ActivityRoute
   '/artifacts': typeof ArtifactsRoute
@@ -125,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/connections': typeof ConnectionsRoute
   '/devices': typeof DevicesRoute
   '/market': typeof MarketRoute
+  '/network': typeof NetworkRoute
   '/profiles': typeof ProfilesRoute
   '/skills': typeof SkillsRoute
   '/system-logs': typeof SystemLogsRoute
@@ -134,6 +148,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/account': typeof AccountRoute
   '/activity': typeof ActivityRoute
   '/artifacts': typeof ArtifactsRoute
@@ -144,6 +159,7 @@ export interface FileRoutesByTo {
   '/connections': typeof ConnectionsRoute
   '/devices': typeof DevicesRoute
   '/market': typeof MarketRoute
+  '/network': typeof NetworkRoute
   '/profiles': typeof ProfilesRoute
   '/skills': typeof SkillsRoute
   '/system-logs': typeof SystemLogsRoute
@@ -154,6 +170,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/account': typeof AccountRoute
   '/activity': typeof ActivityRoute
   '/artifacts': typeof ArtifactsRoute
@@ -164,6 +181,7 @@ export interface FileRoutesById {
   '/connections': typeof ConnectionsRoute
   '/devices': typeof DevicesRoute
   '/market': typeof MarketRoute
+  '/network': typeof NetworkRoute
   '/profiles': typeof ProfilesRoute
   '/skills': typeof SkillsRoute
   '/system-logs': typeof SystemLogsRoute
@@ -175,6 +193,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
     | '/account'
     | '/activity'
     | '/artifacts'
@@ -185,6 +204,7 @@ export interface FileRouteTypes {
     | '/connections'
     | '/devices'
     | '/market'
+    | '/network'
     | '/profiles'
     | '/skills'
     | '/system-logs'
@@ -194,6 +214,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
     | '/account'
     | '/activity'
     | '/artifacts'
@@ -204,6 +225,7 @@ export interface FileRouteTypes {
     | '/connections'
     | '/devices'
     | '/market'
+    | '/network'
     | '/profiles'
     | '/skills'
     | '/system-logs'
@@ -213,6 +235,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/about'
     | '/account'
     | '/activity'
     | '/artifacts'
@@ -223,6 +246,7 @@ export interface FileRouteTypes {
     | '/connections'
     | '/devices'
     | '/market'
+    | '/network'
     | '/profiles'
     | '/skills'
     | '/system-logs'
@@ -233,6 +257,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
   AccountRoute: typeof AccountRoute
   ActivityRoute: typeof ActivityRoute
   ArtifactsRoute: typeof ArtifactsRoute
@@ -243,6 +268,7 @@ export interface RootRouteChildren {
   ConnectionsRoute: typeof ConnectionsRoute
   DevicesRoute: typeof DevicesRoute
   MarketRoute: typeof MarketRoute
+  NetworkRoute: typeof NetworkRoute
   ProfilesRoute: typeof ProfilesRoute
   SkillsRoute: typeof SkillsRoute
   SystemLogsRoute: typeof SystemLogsRoute
@@ -293,6 +319,13 @@ declare module '@tanstack/react-router' {
       path: '/profiles'
       fullPath: '/profiles'
       preLoaderRoute: typeof ProfilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/network': {
+      id: '/network'
+      path: '/network'
+      fullPath: '/network'
+      preLoaderRoute: typeof NetworkRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/market': {
@@ -365,6 +398,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -377,6 +417,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
   AccountRoute: AccountRoute,
   ActivityRoute: ActivityRoute,
   ArtifactsRoute: ArtifactsRoute,
@@ -387,6 +428,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConnectionsRoute: ConnectionsRoute,
   DevicesRoute: DevicesRoute,
   MarketRoute: MarketRoute,
+  NetworkRoute: NetworkRoute,
   ProfilesRoute: ProfilesRoute,
   SkillsRoute: SkillsRoute,
   SystemLogsRoute: SystemLogsRoute,
