@@ -1,3 +1,4 @@
+import { LocalBundles } from '../bundles/LocalBundles.js';
 import { LocalNetwork } from '../network/LocalNetwork.js';
 import { useCallback, useEffect, useState } from 'react';
 import type { LocalRequest, LocalResource } from '@platform/contracts';
@@ -72,7 +73,12 @@ export function LocalManager({ api }: { api: ManagementApi }) {
             ['mcp', 'MCP'],
             ['skill', 'Skills'],
             ['history', '同步记录'],
-            ...(!api.remote ? [['network', '网络与安装源']] : []),
+            ...(!api.remote
+              ? [
+                  ['network', '网络与安装源'],
+                  ['bundles', 'MCPB 扩展包'],
+                ]
+              : []),
           ].map(([id, label]) => (
             <button role="tab" aria-selected={tab === id} key={id} onClick={() => setTab(id!)}>
               {label}
@@ -113,7 +119,9 @@ export function LocalManager({ api }: { api: ManagementApi }) {
             </p>
           ))}
           <Sources state={state} busy={busy} request={(input) => act(() => request(input))} />
-          {tab === 'network' && !api.remote ? (
+          {tab === 'bundles' && !api.remote ? (
+            <LocalBundles api={api} />
+          ) : tab === 'network' && !api.remote ? (
             <LocalNetwork api={api} />
           ) : tab === 'history' ? (
             <div className="local-history">

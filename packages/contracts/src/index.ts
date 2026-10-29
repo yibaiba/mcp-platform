@@ -1,3 +1,4 @@
+export * from './mcpb.js';
 import { libraryItem } from './library.js';
 export * from './library.js';
 export * from './network.js';
@@ -310,6 +311,8 @@ export type DeviceRequest = {
     | 'check'
     | 'package.preview'
     | 'package.check'
+    | 'mcpb.environment'
+    | 'mcpb.install'
     | 'oauth.request'
     | 'call'
     | 'close'

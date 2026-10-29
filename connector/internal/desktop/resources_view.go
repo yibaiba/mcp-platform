@@ -36,6 +36,11 @@ func (a *App) resourcesView(c *ui.Context, kind string) {
 				a.request(model.Request{Action: "scan"})
 			}
 		})
+		if kind == "mcp" {
+			if ui.Button(c, "导入 MCPB（本机管理页）").Disabled(a.busy).Clicked() {
+				a.openBundleManager()
+			}
+		}
 		ui.Divider(c)
 		ui.Row(c).Grow(1).MinHeight(0).FillWidth().Children(func() {
 			a.resourceList(c, kind)

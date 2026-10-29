@@ -1,3 +1,4 @@
+import { bundleRoutes } from './modules/bundles/routes.js';
 import { libraryRoutes } from './modules/library/routes.js';
 import { platformUpdateRoutes } from './modules/updates/platformRoutes.js';
 import { packageUpdateRoutes } from './modules/updates/routes.js';
@@ -242,6 +243,7 @@ export function createApp(deps: {
       readAsset: (name) => readFile(join(platformRoot, 'connector/ssh/windows', name)),
     }),
   );
+  app.route('/api/v1/bundles/mcpb', bundleRoutes(s.bundles));
   app.route('/api/v1/library', libraryRoutes(s.library));
   app.route('/api/v1/devices', localRoutes(s.local));
   app.route('/api/v1/devices', deviceRoutes(s.devices));

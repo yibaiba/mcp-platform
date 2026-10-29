@@ -2,15 +2,18 @@ package desktop
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"mcplatform/connector/internal/config"
 	"mcplatform/connector/internal/local/model"
+	"mcplatform/connector/internal/localhttp"
 	"mcplatform/connector/internal/pairing"
 	"mcplatform/connector/internal/platformclient"
 	"time"
 )
 
 type worker struct {
+	localHTTP   *localhttp.Server
 	app         *App
 	session     *Session
 	preferences Preferences
@@ -58,16 +61,17 @@ func (a *App) runWorker() {
 }
 
 func (w *worker) close() error {
+	httpErr := w.closeLocalHTTP()
 	if w.unsubscribe != nil {
 		w.unsubscribe()
 		w.unsubscribe = nil
 	}
 	if w.session == nil {
-		return nil
+		return httpErr
 	}
 	session := w.session
 	w.session = nil
-	err := session.Runtime.Close()
+	err := errors.Join(httpErr, session.Runtime.Close())
 	session.Client.CloseIdleConnections()
 	return err
 }

@@ -1,3 +1,4 @@
+import { BundlePanel } from '../bundles/BundlePanel.js';
 import { ConnectionSettings } from './ConnectionSettings.js';
 import { OpenApiPanel } from './OpenApiPanel.js';
 import { useState } from 'react';
@@ -202,6 +203,7 @@ export default function ConnectionsPage() {
         </DialogContent>
       </Dialog>
       <IncomingShares devices={devices.data ?? []} />
+      <BundlePanel devices={devices.data ?? []} connections={connections.data ?? []} />
       <OpenApiPanel />
       <Dialog
         open={Boolean(sharing)}

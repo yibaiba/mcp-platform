@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mcplatform/connector/internal/bundles"
 	"mcplatform/connector/internal/local/documents"
 	"mcplatform/connector/internal/local/model"
 	"mcplatform/connector/internal/local/sources"
@@ -23,6 +24,7 @@ type Runtime interface {
 	Status() []map[string]string
 }
 type Options struct {
+	Bundles       *bundles.Store
 	Network       *network.Store
 	NetworkClient *http.Client
 	SyncTarget    string
@@ -139,6 +141,9 @@ func (s *Service) mergeScan(resources map[string]model.Resource, issues []string
 	s.state.Issues = issues
 }
 func (s *Service) Execute(ctx context.Context, request model.Request, remote bool) (any, error) {
+	if strings.HasPrefix(request.Action, "mcpb.") {
+		return s.bundleRequest(ctx, request, remote)
+	}
 	if strings.HasPrefix(request.Action, "network.") {
 		return s.networkRequest(ctx, request, remote)
 	}

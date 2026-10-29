@@ -1,3 +1,5 @@
+import { BundleService } from './modules/bundles/service.js';
+import { BundleDiskStore } from './modules/bundles/diskStore.js';
 import { LibraryService } from './modules/library/service.js';
 import { createLibraryAdapter } from './modules/library/adapter.js';
 import { homedir } from 'node:os';
@@ -330,6 +332,14 @@ export function createServices(db: Database, config: Config) {
     now: () => new Date(),
   });
   return {
+    bundles: new BundleService({
+      db,
+      connections,
+      devices,
+      broker,
+      files: new DiskFileStore(resolve(config.DATA_DIR, 'mcpb-archives')),
+      disk: new BundleDiskStore(resolve(config.DATA_DIR, 'mcpb-installed')),
+    }),
     library: new LibraryService({
       db,
       vault,

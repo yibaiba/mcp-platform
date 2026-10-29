@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"mcplatform/connector/internal/agent"
+	"mcplatform/connector/internal/bundles"
 	"mcplatform/connector/internal/config"
 	"mcplatform/connector/internal/files"
 	"mcplatform/connector/internal/local"
@@ -96,7 +97,7 @@ func Open(parent context.Context, options Options) (*Runtime, error) {
 	if options.Config.DeviceID != "" {
 		target = sources.ID(options.Config.Server, options.Config.DeviceID)
 	}
-	r.Local, err = local.New(ctx, local.Options{Network: settings, NetworkClient: &client, Store: store, SyncTarget: target,
+	r.Local, err = local.New(ctx, local.Options{Bundles: &bundles.Store{Dir: filepath.Join(options.DataDir, "mcpb")}, Network: settings, NetworkClient: &client, Store: store, SyncTarget: target,
 		Locations: options.Locations, Runtime: r.local, Changed: r.remote.InvalidateResource, Error: options.Error})
 	if err != nil {
 		return nil, errors.Join(err, r.Close())

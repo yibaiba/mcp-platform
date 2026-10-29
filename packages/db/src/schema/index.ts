@@ -17,3 +17,5 @@ export * from './sshAccess.js';
 export * from './updates.js';
 
 export * from './library.js';
+
+export * from './bundles.js';

@@ -161,3 +161,16 @@ node scripts/check.mjs 60 pnpm exec tsx scripts/verify-network-browser.mts
 ```
 
 浏览器脚本需要已迁移的独立 PostgreSQL `DATABASE_URL`、Chrome 和环境提供的 Playwright（可用 `PLAYWRIGHT_MODULE` 指定），创建并清理专用账号；会写入并清理平台网络配置及平台更新单例，因此只能用于隔离验收数据库，不能连接业务数据库。它启动自己的 HTTP/npm/GitHub 协议夹具与本机 Go 管理进程，不请求模型。构建发布版本时传 `PLATFORM_RELEASE_TAG`，无 Git 的 Docker/源码归档构建传完整 `PLATFORM_COMMIT`。
+
+## 内容库、MCPB 与分类节选
+
+专项与当前限制见[迁入记录](mcphub-management-progress.md)和[使用说明](mcphub-management.md)。完整测试入口现在按功能划分为 26 组，每个后端进程仍保留 60 秒硬超时。浏览器使用隔离 PostgreSQL、Chrome 和环境提供的 Playwright：
+
+```sh
+node scripts/check.mjs 60 pnpm --filter web build
+node scripts/check.mjs 60 pnpm --filter web build:local
+node scripts/check.mjs 60 go -C connector build -o bin/connector ./cmd/connector
+node scripts/check.mjs 60 pnpm exec tsx scripts/verify-management-browser.mts
+```
+
+先完成本机页面构建，再运行 Go test/vet；不要在 Go 编译读取 embed 文件时并行重建该目录。
