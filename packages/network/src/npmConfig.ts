@@ -49,20 +49,32 @@ export function npmAuthorization(
   config: Record<string, string>,
 ): Record<string, string> {
   const url = new URL(source);
-  const keys = Object.keys(config)
-    .filter((key) => key.startsWith(`//${url.host}/`) && key.endsWith(':_authToken'))
+  const scopes = [
+    ...new Set(
+      Object.keys(config)
+        .filter(
+          (key) =>
+            key.startsWith(`//${url.host}/`) &&
+            /:(?:_authToken|_auth|username|_password)$/.test(key),
+        )
+        .map((key) => key.slice(0, key.lastIndexOf(':'))),
+    ),
+  ]
+    .filter((scope) => npmPathMatches(url.pathname, scope.slice(`//${url.host}`.length)))
     .sort((a, b) => b.length - a.length);
-  const token = keys.find((key) =>
-    npmPathMatches(url.pathname, key.slice(`//${url.host}`.length, -':_authToken'.length)),
-  );
-  if (token) return { Authorization: `Bearer ${config[token]}` };
-  const prefix = `//${url.host}${url.pathname.endsWith('/') ? url.pathname : url.pathname + '/'}:`;
-  if (config[`${prefix}_auth`]) return { Authorization: `Basic ${config[`${prefix}_auth`]}` };
-  if (config[`${prefix}username`] && config[`${prefix}_password`])
-    return {
-      Authorization: `Basic ${Buffer.from(`${config[`${prefix}username`]}:${Buffer.from(config[`${prefix}_password`]!, 'base64').toString()}`).toString('base64')}`,
-    };
+  for (const scope of scopes) {
+    const auth = authorizationAt(config, `${scope}:`);
+    if (auth) return { Authorization: auth };
+  }
   return {};
+}
+
+function authorizationAt(config: Record<string, string>, prefix: string) {
+  if (config[`${prefix}_authToken`]) return `Bearer ${config[`${prefix}_authToken`]}`;
+  if (config[`${prefix}_auth`]) return `Basic ${config[`${prefix}_auth`]}`;
+  if (config[`${prefix}username`] && config[`${prefix}_password`])
+    return `Basic ${Buffer.from(`${config[`${prefix}username`]}:${Buffer.from(config[`${prefix}_password`]!, 'base64').toString()}`).toString('base64')}`;
+  return undefined;
 }
 
 async function readNpmConfiguration(input: PackageCommand & { cwd?: string }, files: Files) {

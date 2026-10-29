@@ -108,6 +108,13 @@ func (t *Transport) RoundTrip(r *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("network request failed (check endpoint, proxy, credentials and certificates)")
 	}
+	response.Request = request
+	if target.String() != r.URL.String() {
+		if err := resolveRedirect(response); err != nil {
+			response.Body.Close()
+			return nil, err
+		}
+	}
 	return response, nil
 }
 func (t *Transport) CloseIdleConnections() {
@@ -125,20 +132,6 @@ func strip(headers http.Header) {
 			headers.Del(name)
 		}
 	}
-}
-func Redirect(req *http.Request, via []*http.Request) error {
-	if len(via) >= 20 {
-		return fmt.Errorf("too many redirects")
-	}
-	previous := via[len(via)-1]
-	if req.URL.Host != previous.URL.Host || req.URL.Scheme != previous.URL.Scheme {
-		github := previous.URL.Hostname() == "github.com" || strings.HasSuffix(previous.URL.Hostname(), ".github.com")
-		if github && req.Body != nil {
-			return fmt.Errorf("cannot redirect a GitHub request body to another origin")
-		}
-		strip(req.Header)
-	}
-	return nil
 }
 func Rewrite(u *url.URL, c Config) (*url.URL, string, error) {
 	raw, token := u.String(), ""

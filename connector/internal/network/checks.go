@@ -27,6 +27,8 @@ func CloneURL(raw string, c Config) (string, error) {
 	return strings.NewReplacer("{owner}", parts[0], "{repo}", strings.TrimSuffix(parts[1], ".git")).Replace(c.GitHubClone), nil
 }
 func Check(ctx context.Context, store *Store, client *http.Client) []map[string]any {
+	probe := *client
+	probe.CheckRedirect = Redirect
 	c, _ := store.Snapshot()
 	results := []map[string]any{}
 	for _, entry := range []struct{ kind, raw string }{{"api", "https://api.github.com/repos/yibaiba/mcp-platform"}, {"download", "https://raw.githubusercontent.com/yibaiba/mcp-platform/main/README.md"}, {"git", "https://github.com/yibaiba/mcp-platform.git"}} {
@@ -45,7 +47,7 @@ func Check(ctx context.Context, store *Store, client *http.Client) []map[string]
 			req, err = http.NewRequestWithContext(callCtx, "HEAD", entry.raw, nil)
 			if err == nil {
 				var res *http.Response
-				res, err = client.Do(req)
+				res, err = probe.Do(req)
 				if err == nil {
 					res.Body.Close()
 					if res.StatusCode < 200 || res.StatusCode >= 300 {
