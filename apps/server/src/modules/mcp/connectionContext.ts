@@ -17,6 +17,8 @@ export async function connectionContext(
   const source = connectionInput.parse(
     deps.vault.open<ConnectionInput>(row.config, `${row.ownerId}:${id}`),
   );
+  if (share && source.source === 'library')
+    throw new AppError('LIBRARY_SHARE_UNSUPPORTED', '内容库不能通过跨账号共享访问', 403);
   const config =
     share?.credentialMode === 'independent' ? deps.shares.config(ownerId, share) : source;
   const caller = currentExecution();

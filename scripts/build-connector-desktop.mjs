@@ -5,7 +5,13 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { readMetadata } from './connector-packaging/metadata.mjs';
 
+execFileSync(
+  process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
+  ['--filter', 'web', 'build:local'],
+  { cwd: fileURLToPath(new URL('../', import.meta.url)), stdio: 'inherit', timeout: 60_000 },
+);
 const root = fileURLToPath(new URL('../connector/', import.meta.url));
+readFileSync(join(root, 'internal/localhttp/assets/index.html'));
 const destination = join(root, 'bin', 'desktop');
 const metadata = readMetadata();
 const { name: appName, identifier, version, numericVersion } = metadata;

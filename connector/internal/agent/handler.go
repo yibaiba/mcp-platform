@@ -24,6 +24,17 @@ func (d *Dispatch) Execute(ctx context.Context, method string, params json.RawMe
 		return nil, err
 	}
 	switch method {
+	case "mcpb.environment", "mcpb.install":
+		if d.Local == nil {
+			return nil, fmt.Errorf("MCPB management unavailable")
+		}
+		var input struct {
+			SHA256 string `json:"sha256"`
+		}
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, err
+		}
+		return d.Local.Execute(ctx, model.Request{Action: method, ID: input.SHA256, Content: params}, true)
 	case "local.request":
 		if d.Local == nil {
 			return nil, fmt.Errorf("local management unavailable")
@@ -85,7 +96,7 @@ func (d *Dispatch) Capabilities() []string {
 		values = append(values, "package-updates")
 	}
 	if d.Local != nil {
-		values = append(values, "local-management", "local-sync", "package-updates")
+		values = append(values, "local-management", "local-sync", "package-updates", "mcpb")
 	}
 	return values
 }

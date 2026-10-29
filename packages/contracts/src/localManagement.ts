@@ -70,6 +70,11 @@ export const localState = z
 export const localRequest = z
   .object({
     action: z.enum([
+      'mcpb.environment',
+      'mcpb.install',
+      'mcpb.list',
+      'mcpb.start',
+      'mcpb.stop',
       'network.get',
       'network.save',
       'network.check',

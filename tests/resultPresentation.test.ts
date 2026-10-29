@@ -47,7 +47,7 @@ test('UTF-8 proportional excerpts preserve order, head/tail, structured data and
   expect(manifestProfile.parse({ name: 'old' }).resultPresentation.enabled).toBe(false);
   expect(() => resultPresentation.parse({ thresholdBytes: 10, retainBytes: 20 })).toThrow();
 });
-async function setup() {
+async function setup(strategy?: 'json' | 'auto') {
   const account = await h.signup();
   const connection = await h.services.connections.create(account.ownerId, {
     name: 'excerpt',
@@ -60,7 +60,7 @@ async function setup() {
   const profile = (await h.services.profiles.save(account.ownerId, {
     name: 'excerpt',
     toolIds: [tool!.id],
-    resultPresentation: { enabled: true, thresholdBytes: 100, retainBytes: 30 },
+    resultPresentation: { enabled: true, thresholdBytes: 100, retainBytes: 30, strategy },
   }))!;
   const key = await h.services.profiles.issue(account.ownerId, profile.id);
   const base = `${h.baseURL}/mcp/${profile.id}`;
@@ -180,4 +180,19 @@ test('error results and Apps contexts keep the complete result without creating 
     expect(await present(original)).toBe(original);
   });
   expect(await h.db.select().from(artifacts).where(eq(artifacts.ownerId, s.ownerId))).toEqual([]);
+});
+
+test('selected strategies survive persistence and REST replay retains one original and one invocation', async () => {
+  const s = await setup('json');
+  const before = upstream.count();
+  const response = await s.invoke();
+  expect(response.status).toBe(200);
+  const result = await response.json();
+  expect(result._meta['platform/resultExcerpt'].strategies).toEqual(['json']);
+  expect(result.content[0].text).toContain('内容与指定策略不匹配，保留原文');
+  expect(result.content[0].text).toContain('完整结尾');
+  expect(await (await s.invoke()).json()).toEqual(result);
+  expect(upstream.count()).toBe(before + 1);
+  const stored = await h.services.profiles.owned(s.ownerId, s.profile.id);
+  expect(stored.resultPresentation.strategy).toBe('json');
 });

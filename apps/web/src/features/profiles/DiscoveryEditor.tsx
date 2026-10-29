@@ -41,6 +41,7 @@ export function DiscoveryEditor({
                 enabled: data.get('excerpt') === 'on',
                 thresholdBytes: Number(value(data, 'thresholdBytes')),
                 retainBytes: Number(value(data, 'retainBytes')),
+                strategy: value(data, 'resultStrategy'),
               },
               searchOptions:
                 mode === 'search'
@@ -196,10 +197,28 @@ export function DiscoveryEditor({
             启用明确节选并保存完整原文
           </CheckChoice>
           <p>
-            成功结果的普通文本超过阈值时按各块长度比例保留头尾，并标明省略。完整结果以 JSON
+            成功结果的普通文本超过阈值时按各块长度分配预算，使用所选策略节选并标明省略。完整结果以
+            JSON
             产物保存，会增加磁盘占用；读取仍需原调用身份及当前工具权限。结构化内容、媒体、错误与
             Apps 结果保持完整。
           </p>
+          <Field
+            label="节选策略"
+            hint="自动识别失败时使用普通文本；指定策略不匹配时保留原文并说明。"
+          >
+            <select
+              name="resultStrategy"
+              defaultValue={profile.resultPresentation.strategy ?? 'head-tail'}
+            >
+              <option value="head-tail">保留头尾（默认）</option>
+              <option value="auto">自动识别</option>
+              <option value="json">JSON 样本</option>
+              <option value="log">日志与错误上下文</option>
+              <option value="search">搜索文件分组</option>
+              <option value="diff">文件修改块</option>
+              <option value="text">普通文本</option>
+            </select>
+          </Field>
           <Field label="触发阈值（字节）">
             <Input
               name="thresholdBytes"

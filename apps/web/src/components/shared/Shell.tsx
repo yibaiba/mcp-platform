@@ -31,6 +31,7 @@ const navigation = [
   ['/profiles', 'Agent 配置', KeyRound],
   ['/configuration', '配置模板', BookOpen],
   ['/authorizations', '授权连接', ShieldCheck],
+  ['/library', '内容库', BookOpen],
   ['/skills', 'Skills', BookOpen],
   ['/artifacts', '产物', FolderOpen],
   ['/activity', '运行记录', History],

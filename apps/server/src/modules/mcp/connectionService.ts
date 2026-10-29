@@ -1,3 +1,4 @@
+import { indexLibrary, libraryConflict } from '../library/indexStore.js';
 import type { DiagnosticLogger } from '../activity/systemLogger.js';
 import { activeUser } from '../users/userAccess.js';
 import { randomUUID } from 'node:crypto';
@@ -211,16 +212,22 @@ export class ConnectionService {
   async createIdentified(ownerId: string, input: { id: string; config: unknown }) {
     const config = await this.validate(ownerId, input.config);
     await this.deps.db
-      .insert(connections)
-      .values({
-        id: input.id,
-        ownerId,
-        name: config.name,
-        adapter: config.adapter,
-        deviceId: config.deviceId,
-        config: this.deps.vault.seal(config, `${ownerId}:${input.id}`),
+      .transaction(async (tx) => {
+        const inserted = await tx
+          .insert(connections)
+          .values({
+            id: input.id,
+            ownerId,
+            name: config.name,
+            adapter: config.adapter,
+            deviceId: config.deviceId,
+            config: this.deps.vault.seal(config, `${ownerId}:${input.id}`),
+          })
+          .onConflictDoNothing()
+          .returning({ id: connections.id });
+        if (inserted.length) await indexLibrary(tx, { id: input.id, ownerId, config });
       })
-      .onConflictDoNothing();
+      .catch(libraryConflict);
     return this.owned(ownerId, input.id);
   }
   async createMany(ownerId: string, inputs: unknown[]) {
@@ -237,7 +244,17 @@ export class ConnectionService {
         config: this.deps.vault.seal(config, `${ownerId}:${id}`),
       };
     });
-    return this.deps.db.insert(connections).values(rows).returning({ id: connections.id });
+    return this.deps.db
+      .transaction(async (tx) => {
+        const inserted = await tx
+          .insert(connections)
+          .values(rows)
+          .returning({ id: connections.id });
+        for (const [index, row] of rows.entries())
+          await indexLibrary(tx, { id: row.id, ownerId, config: configs[index]! });
+        return inserted;
+      })
+      .catch(libraryConflict);
   }
 
   async owned(ownerId: string, id: string) {
@@ -488,18 +505,24 @@ export class ConnectionService {
     const config = await this.validate(ownerId, replace ? patch : { ...old, ...patch });
     await this.close(ownerId, id);
     const updated = await this.deps.db
-      .update(connections)
-      .set({
-        revision: row.revision + 1,
-        name: config.name,
-        adapter: config.adapter,
-        deviceId: config.deviceId ?? null,
-        config: this.deps.vault.seal(config, `${ownerId}:${id}`),
-        status: 'disconnected',
-        error: null,
+      .transaction(async (tx) => {
+        const updated = await tx
+          .update(connections)
+          .set({
+            revision: row.revision + 1,
+            name: config.name,
+            adapter: config.adapter,
+            deviceId: config.deviceId ?? null,
+            config: this.deps.vault.seal(config, `${ownerId}:${id}`),
+            status: 'disconnected',
+            error: null,
+          })
+          .where(and(eq(connections.id, id), eq(connections.revision, row.revision)))
+          .returning({ id: connections.id });
+        if (updated.length) await indexLibrary(tx, { id, ownerId, config });
+        return updated;
       })
-      .where(and(eq(connections.id, id), eq(connections.revision, row.revision)))
-      .returning({ id: connections.id });
+      .catch(libraryConflict);
     if (!updated.length) throw new AppError('REVISION_CONFLICT', '连接配置已变化，请重新加载', 409);
     await this.deps.db.delete(catalogSnapshots).where(eq(catalogSnapshots.connectionId, id));
     return { id };

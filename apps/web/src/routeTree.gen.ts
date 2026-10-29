@@ -17,6 +17,7 @@ import { Route as SkillsRouteImport } from './routes/skills'
 import { Route as ProfilesRouteImport } from './routes/profiles'
 import { Route as NetworkRouteImport } from './routes/network'
 import { Route as MarketRouteImport } from './routes/market'
+import { Route as LibraryRouteImport } from './routes/library'
 import { Route as DevicesRouteImport } from './routes/devices'
 import { Route as ConnectionsRouteImport } from './routes/connections'
 import { Route as ConfigurationRouteImport } from './routes/configuration'
@@ -67,6 +68,11 @@ const NetworkRoute = NetworkRouteImport.update({
 const MarketRoute = MarketRouteImport.update({
   id: '/market',
   path: '/market',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryRoute = LibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DevicesRoute = DevicesRouteImport.update({
@@ -137,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/configuration': typeof ConfigurationRoute
   '/connections': typeof ConnectionsRoute
   '/devices': typeof DevicesRoute
+  '/library': typeof LibraryRoute
   '/market': typeof MarketRoute
   '/network': typeof NetworkRoute
   '/profiles': typeof ProfilesRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/configuration': typeof ConfigurationRoute
   '/connections': typeof ConnectionsRoute
   '/devices': typeof DevicesRoute
+  '/library': typeof LibraryRoute
   '/market': typeof MarketRoute
   '/network': typeof NetworkRoute
   '/profiles': typeof ProfilesRoute
@@ -180,6 +188,7 @@ export interface FileRoutesById {
   '/configuration': typeof ConfigurationRoute
   '/connections': typeof ConnectionsRoute
   '/devices': typeof DevicesRoute
+  '/library': typeof LibraryRoute
   '/market': typeof MarketRoute
   '/network': typeof NetworkRoute
   '/profiles': typeof ProfilesRoute
@@ -203,6 +212,7 @@ export interface FileRouteTypes {
     | '/configuration'
     | '/connections'
     | '/devices'
+    | '/library'
     | '/market'
     | '/network'
     | '/profiles'
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
     | '/configuration'
     | '/connections'
     | '/devices'
+    | '/library'
     | '/market'
     | '/network'
     | '/profiles'
@@ -245,6 +256,7 @@ export interface FileRouteTypes {
     | '/configuration'
     | '/connections'
     | '/devices'
+    | '/library'
     | '/market'
     | '/network'
     | '/profiles'
@@ -267,6 +279,7 @@ export interface RootRouteChildren {
   ConfigurationRoute: typeof ConfigurationRoute
   ConnectionsRoute: typeof ConnectionsRoute
   DevicesRoute: typeof DevicesRoute
+  LibraryRoute: typeof LibraryRoute
   MarketRoute: typeof MarketRoute
   NetworkRoute: typeof NetworkRoute
   ProfilesRoute: typeof ProfilesRoute
@@ -333,6 +346,13 @@ declare module '@tanstack/react-router' {
       path: '/market'
       fullPath: '/market'
       preLoaderRoute: typeof MarketRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library': {
+      id: '/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof LibraryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/devices': {
@@ -427,6 +447,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConfigurationRoute: ConfigurationRoute,
   ConnectionsRoute: ConnectionsRoute,
   DevicesRoute: DevicesRoute,
+  LibraryRoute: LibraryRoute,
   MarketRoute: MarketRoute,
   NetworkRoute: NetworkRoute,
   ProfilesRoute: ProfilesRoute,

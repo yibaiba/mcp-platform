@@ -1,3 +1,6 @@
+export * from './mcpb.js';
+import { libraryItem } from './library.js';
+export * from './library.js';
 export * from './network.js';
 export * from './localManagement.js';
 import { resultPresentation } from './resultPresentation.js';
@@ -52,7 +55,8 @@ export const connectionInput = z
       timeoutMs: CALL_TIMEOUT_MS,
       resetTimeoutOnProgress: false,
     }),
-    source: z.enum(['mcp', 'openapi']).default('mcp'),
+    source: z.enum(['mcp', 'openapi', 'library']).default('mcp'),
+    library: libraryItem.optional(),
     openapi: z
       .object({
         document: z.record(z.string(), z.unknown()),
@@ -153,6 +157,26 @@ export const connectionInput = z
         )
       )
         fail(`请求头 ${header} 不允许动态转发`);
+    if (v.source === 'library') {
+      if (!v.library || v.adapter !== 'direct' || v.mode !== 'existing' || v.transport !== 'http')
+        fail('内容库必须使用平台内置内容来源');
+      if (
+        v.url ||
+        v.command ||
+        v.deviceId ||
+        v.oauth ||
+        v.openapi ||
+        v.args.length ||
+        Object.keys(v.env).length ||
+        Object.keys(v.headers).length ||
+        v.health.enabled ||
+        v.forwardHeaders.length ||
+        v.identityMode !== 'shared'
+      )
+        fail('内容库不使用外部地址、进程、凭证或健康探测');
+      return;
+    }
+    if (v.library) fail('只有内容库来源可以声明本地内容');
     if (v.source === 'openapi') {
       if (v.adapter !== 'direct' || !v.openapi) fail('OpenAPI 来源必须配置文档并在平台执行');
       if (v.transport !== 'http' || v.mode !== 'existing')
@@ -287,6 +311,8 @@ export type DeviceRequest = {
     | 'check'
     | 'package.preview'
     | 'package.check'
+    | 'mcpb.environment'
+    | 'mcpb.install'
     | 'oauth.request'
     | 'call'
     | 'close'

@@ -1,3 +1,4 @@
+import { BundlePanel } from '../bundles/BundlePanel.js';
 import { ConnectionSettings } from './ConnectionSettings.js';
 import { OpenApiPanel } from './OpenApiPanel.js';
 import { useState } from 'react';
@@ -78,6 +79,7 @@ export default function ConnectionsPage() {
   const connections = useQuery({
     queryKey: ['connections'],
     queryFn: () => api<Connection[]>('/connections'),
+    select: (rows) => rows.filter((row) => row.source !== 'library'),
     refetchInterval: (query) =>
       query.state.data?.some((connection) => connection.health?.recover) ? 5000 : false,
   });
@@ -201,6 +203,7 @@ export default function ConnectionsPage() {
         </DialogContent>
       </Dialog>
       <IncomingShares devices={devices.data ?? []} />
+      <BundlePanel devices={devices.data ?? []} connections={connections.data ?? []} />
       <OpenApiPanel />
       <Dialog
         open={Boolean(sharing)}

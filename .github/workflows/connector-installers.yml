@@ -63,6 +63,12 @@ jobs:
       - name: Prepare packaging tools
         if: steps.tools.outputs.cache-hit != 'true'
         run: corepack pnpm@10.12.4 connector:installers:setup
+      - name: Install dependencies and build local management UI
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.12.4 --activate
+          node scripts/check.mjs 300 pnpm install --frozen-lockfile
+          node scripts/check.mjs 60 pnpm --filter web build:local
       - name: Test connector
         run: |
           CGO_ENABLED=0 node scripts/check.mjs 60 go -C connector test -count=1 -timeout 60s ./...

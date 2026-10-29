@@ -2,6 +2,7 @@ import { z } from 'zod';
 export const resultPresentation = z
   .object({
     enabled: z.boolean().default(false),
+    strategy: z.enum(['head-tail', 'auto', 'json', 'log', 'search', 'diff', 'text']).optional(),
     thresholdBytes: z
       .number()
       .int()
