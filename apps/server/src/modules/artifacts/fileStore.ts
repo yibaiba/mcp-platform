@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream, createWriteStream, openAsBlob } from 'node:fs';
-import { mkdir, rename, rm } from 'node:fs/promises';
+import { mkdir, rename, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -12,6 +12,7 @@ export interface FileStore {
     sha256?: string;
   }): Promise<{ size: number; sha256: string }>;
   blob(id: string): Promise<Blob>;
+  exists(id: string): Promise<boolean>;
   read(id: string): ReadableStream<Uint8Array>;
   remove(id: string): Promise<void>;
 }
@@ -47,6 +48,15 @@ export class DiskFileStore implements FileStore {
   }
   blob(id: string) {
     return openAsBlob(join(this.directory, id));
+  }
+  async exists(id: string) {
+    try {
+      await stat(join(this.directory, id));
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+      throw error;
+    }
   }
   read(id: string) {
     return Readable.toWeb(createReadStream(join(this.directory, id))) as ReadableStream<Uint8Array>;

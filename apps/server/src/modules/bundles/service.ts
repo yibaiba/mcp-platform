@@ -74,12 +74,14 @@ export class BundleService {
           .where(and(eq(mcpbPackages.ownerId, ownerId), eq(mcpbPackages.sha256, saved.sha256)))
           .for('update');
         const found = requireValue(existing);
-        // Re-upload also repairs an archive lost before a cleanup transaction rolled back.
-        await this.deps.files.write({
-          id: found.id,
-          body: (await this.deps.files.blob(id)).stream(),
-          sha256: found.sha256,
-        });
+        // Preserve files opened by installations; only repair archives lost during cleanup.
+        if (!(await this.deps.files.exists(found.id))) {
+          await this.deps.files.write({
+            id: found.id,
+            body: (await this.deps.files.blob(id)).stream(),
+            sha256: found.sha256,
+          });
+        }
         if (found.removedAt) {
           await tx
             .update(mcpbPackages)

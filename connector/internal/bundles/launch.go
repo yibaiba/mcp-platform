@@ -87,6 +87,12 @@ func (s *Store) Descriptor(hash, executable string) (map[string]any, error) {
 
 // RemoveConfiguration retains immutable package files: platform installations may share them.
 func (s *Store) RemoveConfiguration(hash, revision string) error {
+	return s.RemoveConfigurationAfterValidation(hash, revision, nil)
+}
+
+// The callback runs under the store lock so a stale request cannot stop a newer configuration.
+// It must not call back into Store methods.
+func (s *Store) RemoveConfigurationAfterValidation(hash, revision string, beforeRemove func() error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !hashPattern.MatchString(hash) || revision == "" {
@@ -98,6 +104,11 @@ func (s *Store) RemoveConfiguration(hash, revision string) error {
 	}
 	if current != revision {
 		return fmt.Errorf("MCPB configuration changed; reload before removing")
+	}
+	if beforeRemove != nil {
+		if err := beforeRemove(); err != nil {
+			return err
+		}
 	}
 	return os.Remove(filepath.Join(s.Dir, hash+".enc"))
 }

@@ -203,3 +203,50 @@ test('a failed reupload write propagates its error and never reports repaired by
   await expect(upload(ownerId)).rejects.toBe(failure);
   await expect(readFile(archivePath(pkg.id))).rejects.toMatchObject({ code: 'ENOENT' });
 });
+
+test('same-digest reupload does not invalidate the archive already opened by an installation', async () => {
+  const { ownerId } = await h.signup();
+  const data = archive();
+  const upload = () =>
+    h.services.bundles.upload(ownerId, new Blob([new Uint8Array(data)]).stream());
+  const pkg = await upload();
+  const destination = { adapter: 'direct', values: { key: 'review-fixture' } };
+  const preview = await h.services.bundles.preview(ownerId, pkg.id, destination);
+  let opened!: () => void, release!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    opened = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const blob = DiskFileStore.prototype.blob;
+  vi.spyOn(DiskFileStore.prototype, 'blob').mockImplementation(async function (
+    this: DiskFileStore,
+    id,
+  ) {
+    const result = await blob.call(this, id);
+    if (id === pkg.id) {
+      opened();
+      await gate;
+    }
+    return result;
+  });
+  const installing = h.services.bundles
+    .install(ownerId, pkg.id, {
+      ...destination,
+      operationId: randomUUID(),
+      previewDigest: preview.previewDigest,
+    })
+    .then(
+      (result) => ({ result }),
+      (error) => ({ error }),
+    );
+  await ready;
+  try {
+    expect((await upload()).id).toBe(pkg.id);
+  } finally {
+    release();
+  }
+  const outcome = await installing;
+  expect(outcome).toHaveProperty('result.state', 'succeeded');
+});

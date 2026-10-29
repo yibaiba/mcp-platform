@@ -45,10 +45,9 @@ func (s *Service) bundleRequest(ctx context.Context, request model.Request, remo
 			if err != nil {
 				return nil, err
 			}
-			if err = s.invalidate(resource.ID); err != nil {
-				return nil, err
-			}
-			if err = s.options.Bundles.RemoveConfiguration(request.ID, input.Revision); err != nil {
+			if err = s.options.Bundles.RemoveConfigurationAfterValidation(request.ID, input.Revision, func() error {
+				return s.invalidate(resource.ID)
+			}); err != nil {
 				return nil, err
 			}
 			return map[string]bool{"removed": true, "packageFilesRetained": true}, nil
