@@ -7,11 +7,25 @@ export async function fixtureConnector(h: Awaited<ReturnType<typeof harness>>, o
   const pairing = await h.services.devices.createPairing(ownerId, 'Capability connector');
   const device = await h.services.devices.pair(pairing.code);
   const path = join(h.directory, `${device.deviceId}.json`);
-  await writeFile(path, JSON.stringify({ server: h.baseURL, ...device }), { mode: 0o600 });
+  await writeFile(
+    path,
+    JSON.stringify({
+      server: h.baseURL,
+      ...device,
+      localDataDir: join(h.directory, `${device.deviceId}-local`),
+    }),
+    { mode: 0o600 },
+  );
   let child: ReturnType<typeof spawn>;
   async function start() {
     child = spawn(resolve('connector/bin/connector'), ['run', '--config', path], {
       stdio: ['ignore', 'ignore', 'pipe'],
+      env: {
+        ...process.env,
+        HOME: h.directory,
+        CODEX_HOME: join(h.directory, 'empty-codex'),
+        PI_CODING_AGENT_DIR: join(h.directory, 'empty-pi'),
+      },
     });
     child.stderr!.on('data', (data: Buffer) => process.stderr.write(data));
     const deadline = Date.now() + 5000;

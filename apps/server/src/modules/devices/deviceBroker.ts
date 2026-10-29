@@ -24,6 +24,11 @@ type Pending = {
   onprogress?: (progress: Progress) => void;
 };
 export class DeviceBroker {
+  private readonly localListeners = new Set<(id: string) => void>();
+  watchLocal(listener: (id: string) => void) {
+    this.localListeners.add(listener);
+    return () => this.localListeners.delete(listener);
+  }
   private readonly capabilities = new Map<string, readonly string[]>();
   hasCapability(id: string, capability: string) {
     return this.capabilities.get(id)?.includes(capability) ?? false;
@@ -89,7 +94,16 @@ export class DeviceBroker {
   private async receive(id: string, socket: WebSocket, raw: string) {
     if (this.sockets.get(id) !== socket) return;
     const message = deviceResponse.parse(JSON.parse(raw));
-    if (message.type === 'hello') this.capabilities.set(id, message.capabilities ?? []);
+    if (message.type === 'hello') {
+      this.capabilities.set(id, message.capabilities ?? []);
+      if (this.hasCapability(id, 'local-sync'))
+        for (const listener of this.localListeners) listener(id);
+    }
+    if (message.type === 'local.changed') {
+      this.requireCapability(id, 'local-sync');
+      for (const listener of this.localListeners) listener(id);
+      return;
+    }
     if (message.type === 'notification') {
       if (message.method === 'notifications/progress') {
         const pending = message.requestId ? this.pending.get(message.requestId) : undefined;

@@ -24,7 +24,10 @@
     "backup": "node scripts/backup.mjs",
     "user:role": "tsx scripts/user-role.mts",
     "config:manifest": "tsx scripts/config-manifest.mts",
-    "cli": "pnpm --filter @platform/cli start"
+    "cli": "pnpm --filter @platform/cli start",
+    "connector:desktop:build": "node scripts/build-connector-desktop.mjs",
+    "connector:installers:setup": "node scripts/setup-connector-packaging.mjs",
+    "connector:installers:build": "node scripts/package-connector-desktop.mjs"
   },
   "packageManager": "pnpm@10.12.4",
   "dependencies": {

@@ -1,3 +1,4 @@
+import { localRoutes } from './modules/local/routes.js';
 import { cliPublicRoutes, cliManagementRoutes } from './modules/management-auth/routes.js';
 import { restRoutes } from './modules/rest/routes.js';
 import { marketRoutes } from './modules/market/routes.js';
@@ -227,6 +228,7 @@ export function createApp(deps: {
       }),
     ),
   );
+  app.route('/api/v1/devices', localRoutes(s.local));
   app.route('/api/v1/devices', deviceRoutes(s.devices));
   app.route('/api/v1/activity/calls', activityRoutes(s.activity));
   app.route('/api/v1/admin/logs', logRoutes({ db, logs: s.logs, logger: s.logger }));

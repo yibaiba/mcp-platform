@@ -1,0 +1,9 @@
+{
+  "name": "MCP Platform Connector",
+  "slug": "mcplatform-connector",
+  "identifier": "dev.mcplatform.connector",
+  "version": "0.3.0",
+  "maintainer": "MCP Platform contributors",
+  "homepage": "https://github.com/yibaiba/mcp-platform",
+  "license": "Apache-2.0"
+}

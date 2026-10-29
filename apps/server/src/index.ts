@@ -101,6 +101,7 @@ async function shutdown() {
   await stopManifests();
   server.close();
   services.broker.close();
+  await services.local.close();
   sockets.close();
   await services.gateway.close();
   await services.connections.shutdown();

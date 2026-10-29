@@ -6,13 +6,8 @@ import (
 	"fmt"
 	"github.com/kardianos/service"
 	"log"
-	"mcplatform/connector/internal/agent"
-	"mcplatform/connector/internal/config"
-	"mcplatform/connector/internal/files"
 	"mcplatform/connector/internal/install"
-	"mcplatform/connector/internal/mcpclient"
 	"mcplatform/connector/internal/processtree"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -32,6 +27,7 @@ func execute() error {
 	action := os.Args[1]
 	flags := flag.NewFlagSet(action, flag.ContinueOnError)
 	grace := flags.Duration("grace", 5*time.Second, "managed process shutdown grace period")
+	dataDir := flags.String("data-dir", "", "absolute local management storage directory")
 	path := flags.String("config", "connector.json", "configuration path")
 	certificatePath := flags.String("ca-cert", "", "additional platform CA certificate PEM file")
 	server := flags.String("server", "", "platform origin")
@@ -60,7 +56,9 @@ func execute() error {
 		}
 		action = "run"
 	}
-	program := &install.Program{Run: func(ctx context.Context) error { return run(ctx, *path, client) }}
+	program := &install.Program{Run: func(ctx context.Context) error {
+		return runConnector(ctx, runtimeOptions{ConfigPath: *path, DataDir: *dataDir, Client: client})
+	}}
 	if action != "run" {
 		return install.Control(program, *path, *scope, action)
 	}
@@ -74,19 +72,4 @@ func execute() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	return program.Run(ctx)
-}
-func run(ctx context.Context, path string, client *http.Client) error {
-	cfg, err := config.Load(path)
-	if err != nil {
-		return err
-	}
-	manager := mcpclient.New(ctx, os.Stderr, http.DefaultTransport)
-	defer func() {
-		if err := manager.CloseAll(); err != nil {
-			log.Printf("MCP shutdown: %v", err)
-		}
-	}()
-	handler := &agent.Dispatch{MCP: manager, Skills: &files.SkillInstaller{Roots: cfg.SkillRoots}, Artifacts: &files.ArtifactTransfer{Roots: cfg.ArtifactRoots, Client: client, Server: cfg.Server}}
-	runner := agent.Runner{Config: cfg, Handler: handler, Client: client, Logger: log.New(os.Stderr, "connector ", log.LstdFlags)}
-	return runner.Run(ctx)
 }

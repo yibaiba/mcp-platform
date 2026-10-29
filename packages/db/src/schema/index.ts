@@ -1,3 +1,4 @@
+export * from './localManagement.js';
 export * from './auth.js';
 export * from './platform.js';
 export * from './workspace.js';

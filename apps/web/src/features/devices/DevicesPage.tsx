@@ -1,3 +1,4 @@
+import { lazy, Suspense, useState } from 'react';
 import { RePairDevice } from './RePairDevice.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
 import { Card } from '../../components/ui/card.js';
@@ -7,7 +8,9 @@ import { api, type Device } from '../../lib/api.js';
 import { DevicePairing } from './DevicePairing.js';
 import { DeviceToolsDialog } from './DeviceToolsDialog.js';
 import { Action, Code, date, Empty, Feedback, Status } from '../../components/shared/Controls.js';
+const DeviceLocalManager = lazy(() => import('../local/DeviceLocalManager.js'));
 export default function DevicesPage() {
+  const [localDevice, setLocalDevice] = useState<string>();
   const platform = useQuery({
     queryKey: ['me'],
     queryFn: () => api<{ platformOrigin: string }>('/me'),
@@ -60,6 +63,17 @@ export default function DevicesPage() {
                 />
               </div>
               <div className="row-actions">
+                {!device.revoked ? (
+                  <button
+                    className="button"
+                    aria-expanded={localDevice === device.id}
+                    onClick={() =>
+                      setLocalDevice(localDevice === device.id ? undefined : device.id)
+                    }
+                  >
+                    管理本机 MCP / Skills
+                  </button>
+                ) : null}
                 <small>最近通信：{date(device.lastSeen)}</small>
                 {!device.revoked ? <DeviceToolsDialog device={device} /> : null}
                 {!device.revoked ? (
@@ -70,6 +84,11 @@ export default function DevicesPage() {
               </div>
               {!device.revoked && platform.data ? (
                 <RePairDevice device={device} platformOrigin={platform.data.platformOrigin} />
+              ) : null}
+              {localDevice === device.id && !device.revoked ? (
+                <Suspense fallback={<p>正在加载资源管理…</p>}>
+                  <DeviceLocalManager deviceId={device.id} />
+                </Suspense>
               ) : null}
               {device.services.length ? (
                 <Disclosure title="MCP 服务诊断">

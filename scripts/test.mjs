@@ -88,6 +88,8 @@ const groups = requested.length
         'tests/cliAuth.test.ts',
         '--exclude',
         'tests/resultPresentation.test.ts',
+        '--exclude',
+        'tests/localManagement.test.ts',
       ],
       [
         'tests/workspacePermissions.test.ts',
@@ -101,6 +103,7 @@ const groups = requested.length
         'tests/resultPresentation.test.ts',
       ],
       ['tests/cliAuth.test.ts'],
+      ['tests/localManagement.test.ts'],
       ['tests/workspaceOutputArtifacts.test.ts'],
       ['tests/pi.test.ts'],
       ['tests/core.test.ts', 'tests/openapiOAuth.test.ts', 'tests/mcpReliability.test.ts'],
