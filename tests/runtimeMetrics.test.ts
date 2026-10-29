@@ -1,4 +1,4 @@
-import { expect, test, beforeAll, afterAll } from 'vitest';
+import { expect, test, beforeAll, afterAll, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { calls } from '../packages/db/src/index.js';
 import { RuntimeMetrics } from '../apps/server/src/modules/activity/runtimeMetrics.js';
@@ -85,4 +85,33 @@ test('real REST idempotency and deleting retained history do not duplicate or re
   );
   await h.db.delete(calls).where(eq(calls.ownerId, ownerId));
   expect(h.services.metrics.render().join('\n')).toBe(before);
+});
+
+test('permission monitor setup failure finishes the logical call and releases the active gauge before dispatch', async () => {
+  const { ownerId } = await h.signup();
+  const connection = await h.services.connections.create(ownerId, {
+    name: 'monitor-error',
+    adapter: 'direct',
+    mode: 'existing',
+    transport: 'http',
+    url: upstream.url,
+  });
+  const [tool] = await h.services.connections.discover(ownerId, connection.id);
+  const before = upstream.count();
+  const monitor = vi
+    .spyOn(h.services.access, 'monitor')
+    .mockRejectedValueOnce(new Error('monitor unavailable'));
+  try {
+    await expect(
+      h.services.invocations.dispatch({ ownerId, toolId: tool!.id, arguments: {} }),
+    ).rejects.toMatchObject({ code: 'CALL_FAILED' });
+  } finally {
+    monitor.mockRestore();
+  }
+  expect(upstream.count()).toBe(before);
+  const output = h.services.metrics.render().join('\n');
+  expect(output).toContain(
+    'platform_calls_total{entry="dashboard",adapter="direct",status="failed"} 1',
+  );
+  expect(output).toContain('platform_active_calls{entry="dashboard",adapter="direct"} 0');
 });

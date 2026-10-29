@@ -151,20 +151,6 @@ export class InvocationService {
       credentialId: input.principal?.credentialId,
       abort,
     });
-    releasePermission =
-      (await this.deps.profiles.access?.monitor({
-        access: input,
-        kind: 'toolIds',
-        id: tool.id,
-        cancel: () => abort.abort(new Error('工具授权已失效')),
-      })) ?? (() => {});
-    this.deps.events.publish({
-      ownerId: input.ownerId,
-      kind: 'call',
-      id,
-      status: 'running',
-      revision: 1,
-    });
     const interrupted = () => {
       if (!this.active.has(id)) return;
       this.active.delete(id);
@@ -184,6 +170,22 @@ export class InvocationService {
       let waiting = false;
       clearTimeout(deadlineTimer);
       try {
+        if (!continuation) {
+          releasePermission =
+            (await this.deps.profiles.access?.monitor({
+              access: input,
+              kind: 'toolIds',
+              id: tool.id,
+              cancel: () => abort.abort(new Error('工具授权已失效')),
+            })) ?? (() => {});
+          this.deps.events.publish({
+            ownerId: input.ownerId,
+            kind: 'call',
+            id,
+            status: 'running',
+            revision: 1,
+          });
+        }
         signal.throwIfAborted();
         if (input.principal)
           await this.deps.profiles.authenticate(input.principal.profileId, input.principal.token);
