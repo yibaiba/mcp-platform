@@ -1,3 +1,4 @@
+import { PresentationService } from './modules/result-presentation/presentationService.js';
 import { CliAuthService } from './modules/management-auth/cliAuthService.js';
 import { RuntimeMetrics } from './modules/activity/runtimeMetrics.js';
 import { HnswStore } from './modules/discovery/hnswStore.js';
@@ -168,6 +169,7 @@ export function createServices(db: Database, config: Config) {
   });
   const interactions = new InteractionService({ db, vault, logger });
   const invocations: InvocationService = new InvocationService({
+    presentation: new PresentationService({ artifacts, profiles }),
     metrics,
     logger,
     db,

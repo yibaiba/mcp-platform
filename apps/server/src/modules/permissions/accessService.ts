@@ -1,3 +1,4 @@
+import { resultOriginals } from '@platform/db';
 import { assertDeploymentReady } from '../configuration/readiness.js';
 import type { DiagnosticLogger } from '../activity/systemLogger.js';
 import { and, eq, gt, isNull, or } from 'drizzle-orm';
@@ -152,6 +153,19 @@ export class AccessService {
     };
   }
   async allows(access: Access, kind: PermissionKind, id: string) {
+    if (kind === 'artifactIds') {
+      const [original] = await this.deps.db
+        .select()
+        .from(resultOriginals)
+        .where(eq(resultOriginals.artifactId, id));
+      if (
+        original &&
+        (original.profileId !== access.profileId ||
+          original.subject !== subject() ||
+          !(await this.allows(access, 'toolIds', original.toolId)))
+      )
+        return false;
+    }
     const permissions = await this.effective(access);
     if (permissions && !permissions[kind].includes(id)) return false;
     return (await this.deps.shares.permitted(access.ownerId, kind, [id])).includes(id);

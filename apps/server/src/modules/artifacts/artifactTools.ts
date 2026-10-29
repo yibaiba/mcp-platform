@@ -14,6 +14,7 @@ export async function artifactToolset(
   const effective = await deps.access.effective(access);
   const profile = await deps.profiles.owned(access.ownerId, access.profileId!);
   const tools: Tool[] =
+    profile.resultPresentation.enabled ||
     effective?.artifactIds.length ||
     profile.requestable.artifactIds.length ||
     (await deps.profiles.hasArtifactOutputs(access.ownerId, access.profileId!))

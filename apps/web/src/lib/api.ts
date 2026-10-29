@@ -97,6 +97,7 @@ export type ContentEntry = {
 export type Profile = {
   discoveryMode: 'direct' | 'search';
   searchOptions: import('@platform/contracts').SearchOptions;
+  resultPresentation: import('@platform/contracts').ResultPresentation;
   pinnedTools: string[];
   embedding: import('@platform/contracts').EmbeddingConfig | null;
   deploymentState: string;

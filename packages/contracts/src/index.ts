@@ -1,3 +1,4 @@
+import { resultPresentation } from './resultPresentation.js';
 import { embeddingConfig, searchOptions, newSearchOptions } from './discovery.js';
 export * from './deviceAuth.js';
 import { z } from 'zod';
@@ -179,6 +180,7 @@ export const profileInput = z
     discoveryMode: z.enum(['direct', 'search']).default('direct'),
     pinnedTools: z.array(z.string()).default([]),
     embedding: embeddingConfig.nullable().default(null),
+    resultPresentation: resultPresentation.default(() => resultPresentation.parse({})),
     searchOptions: searchOptions.default(newSearchOptions),
     catalog: catalogOptions.default(() => catalogOptions.parse({})),
     name: z.string().trim().min(1),
@@ -284,3 +286,5 @@ export * from './registry.js';
 
 export * from './discovery.js';
 export * from './managementAuth.js';
+
+export * from './resultPresentation.js';

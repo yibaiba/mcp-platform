@@ -93,8 +93,18 @@ export class RestService {
         error instanceof AppError &&
         ['RESULT_UNKNOWN', 'INTERACTION_INTERRUPTED'].includes(error.code);
       await this.deps.store.update(row.id, {
-        status: unknown ? 'unknown' : 'failed',
-        errorCode: unknown ? 'RESULT_UNKNOWN' : 'CALL_FAILED',
+        status:
+          error instanceof AppError && error.code === 'RESULT_ORIGINAL_SAVE_FAILED'
+            ? 'result_error'
+            : unknown
+              ? 'unknown'
+              : 'failed',
+        errorCode:
+          error instanceof AppError && error.code === 'RESULT_ORIGINAL_SAVE_FAILED'
+            ? error.code
+            : unknown
+              ? 'RESULT_UNKNOWN'
+              : 'CALL_FAILED',
         endedAt: new Date(),
       });
       throw error;

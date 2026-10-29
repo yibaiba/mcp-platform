@@ -54,3 +54,11 @@ histogram_quantile(0.95, sum by (le, strategy) (rate(platform_search_duration_se
 凭据在操作系统用户配置目录保存（macOS Application Support、Linux XDG_CONFIG_HOME、Windows APPDATA），POSIX 目录 0700 / 文件 0600；Windows 使用当前用户 ACL。`MCP_PLATFORM_CONFIG_DIR` 可为自动化指定独立目录。退出成功前服务端必须完成撤销；失败时保留本地信息并返回非零。退出码：0 成功，2 参数错误，3 认证/权限错误，4 网络/服务错误，5 业务工具失败。
 
 真实 HTTP 与本机回调协议测试覆盖一次性授权码、错误 PKCE、刷新轮换、撤销、停用账号、只读 scope、角色与 Origin、Agent/管理凭据隔离、随机回环回调错误 state、文件权限、多环境、JSON 输出、退出码、密钥签发和真实 MCP 夹具业务调用。浏览器与供应商 SSO 实机验收仍单独记录；此类协议测试不替代实机。
+
+## 长结果节选
+
+Profile 与声明式模板的 resultPresentation 默认关闭。开启后普通 text 总计超过 32768 字节时，按各块 UTF-8 字节长度比例分配 8192 字节的原文保留预算，保留头尾并显式标记省略；标记和读取说明额外显示。阈值和保留预算均可配置。结果内容顺序、structuredContent、媒体及资源保持不变；错误、交互及 Apps 结果不节选，也不改变输出 Schema 校验。
+
+完整上游结果先以 JSON 产物保存，并与调用 Profile、产生主体、工具和调用 ID 绑定，再产生展示结果。元数据和文本均包含产物 ID、文件大小、SHA-256 与读取方式。沿用产物字节读取与认证下载；原调用身份及当前工具权限必须仍有效，不能通过把原文加入其他 Profile 授权来绕过。REST 幂等重取使用已保存的展示结果，不重复创建原文。保存失败返回 RESULT_ORIGINAL_SAVE_FAILED 及调用 ID，记录 result_error，不返回成功或重放上游。
+
+2026-10-29 结果节选与既有产物专项共 10 项通过（隔离 PostgreSQL，60 秒硬超时）。覆盖中文/UTF-8、多块与媒体不变、原文一致、结构化保留、跨凭据拒绝、撤权、持久化失败和 REST 重取不重放。CLI HTTP/回环协议专项 3 项通过；类型检查及 Lint 通过。原文沿用临时产物授权的有效期、Profile 修订和上游绑定失效语义；磁盘文件不因界面关闭节选而删除。

@@ -37,6 +37,11 @@ export function DiscoveryEditor({
               createdAt: undefined,
               deploymentState: undefined,
               discoveryMode: mode,
+              resultPresentation: {
+                enabled: data.get('excerpt') === 'on',
+                thresholdBytes: Number(value(data, 'thresholdBytes')),
+                retainBytes: Number(value(data, 'retainBytes')),
+              },
               searchOptions:
                 mode === 'search'
                   ? {
@@ -181,6 +186,42 @@ export function DiscoveryEditor({
             </Field>
           </>
         ) : null}
+        <fieldset>
+          <legend>长结果展示</legend>
+          <CheckChoice
+            name="excerpt"
+            value="on"
+            defaultChecked={profile.resultPresentation.enabled}
+          >
+            启用明确节选并保存完整原文
+          </CheckChoice>
+          <p>
+            成功结果的普通文本超过阈值时按各块长度比例保留头尾，并标明省略。完整结果以 JSON
+            产物保存，会增加磁盘占用；读取仍需原调用身份及当前工具权限。结构化内容、媒体、错误与
+            Apps 结果保持完整。
+          </p>
+          <Field label="触发阈值（字节）">
+            <Input
+              name="thresholdBytes"
+              type="number"
+              min="1"
+              required
+              defaultValue={profile.resultPresentation.thresholdBytes}
+            />
+          </Field>
+          <Field
+            label="保留原文字节总数"
+            hint="省略标记和原文读取说明额外显示。关闭后新调用恢复完整返回，已有原文仍遵循产物权限规则。"
+          >
+            <Input
+              name="retainBytes"
+              type="number"
+              min="1"
+              required
+              defaultValue={profile.resultPresentation.retainBytes}
+            />
+          </Field>
+        </fieldset>
         <fieldset>
           <legend>始终展示的授权工具</legend>
           {tools

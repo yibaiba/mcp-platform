@@ -1,3 +1,4 @@
+import type { PresentationService } from '../result-presentation/presentationService.js';
 import type { RuntimeMetrics } from '../activity/runtimeMetrics.js';
 import type { DiagnosticLogger } from '../activity/systemLogger.js';
 import { CallToolResultSchema, type CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -46,6 +47,7 @@ export class InvocationService {
     private readonly deps: {
       db: Database;
       metrics: RuntimeMetrics;
+      presentation: PresentationService;
       logger: DiagnosticLogger;
       profiles: ProfileService;
       connections: ConnectionService;
@@ -100,6 +102,14 @@ export class InvocationService {
     const context = await this.deps.connections.context(input.ownerId, connection.id);
     const budget = new ExecutionBudget(context.config.requestOptions);
     const adapter = await this.deps.connections.adapter(input.ownerId, connection.id);
+    const present = await this.deps.presentation.prepare({
+      ownerId: input.ownerId,
+      profileId: input.profileId,
+      connectionId: connection.id,
+      toolId: tool.id,
+      callId: id,
+      definition: tool.definition,
+    });
     const lease = await this.deps.connections.lease(input.ownerId, connection.id);
     const signal = AbortSignal.any([
       abort.signal,
@@ -244,16 +254,20 @@ export class InvocationService {
             field: 'outputSchema',
             value: result.structuredContent,
           });
+        const displayed = scopeResult(connection.id, await present(result));
+        const captured =
+          execution?.entry === 'rest'
+            ? displayed
+            : await this.deps.onResult({
+                ownerId: input.ownerId,
+                connectionId: connection.id,
+                toolId: tool.id,
+                definition: tool.definition,
+                arguments: input.arguments,
+                result: displayed,
+              });
         await this.finish(id, result.isError ? 'tool_error' : 'succeeded');
-        if (execution?.entry === 'rest') return scopeResult(connection.id, result);
-        return this.deps.onResult({
-          ownerId: input.ownerId,
-          connectionId: connection.id,
-          toolId: tool.id,
-          definition: tool.definition,
-          arguments: input.arguments,
-          result: scopeResult(connection.id, result),
-        });
+        return captured;
       } catch (error) {
         const message =
           context.shareId && context.credentialScope?.ownerId !== input.ownerId
@@ -270,6 +284,7 @@ export class InvocationService {
             ? 'RESULT_UNKNOWN: 调用中断或超时；上游可能已执行，请先核实结果'
             : 'CALL_FAILED: 调用或协议校验失败；具体错误仅返回给本次调用方',
         );
+        if (error instanceof AppError && error.code === 'RESULT_ORIGINAL_SAVE_FAILED') throw error;
         throw new AppError(unknown ? 'RESULT_UNKNOWN' : 'CALL_FAILED', message, 502);
       } finally {
         if (!waiting) {

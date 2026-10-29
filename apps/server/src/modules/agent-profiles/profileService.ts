@@ -51,6 +51,7 @@ export class ProfileService {
             pinnedTools: previous.pinnedTools,
             embedding: previous.embedding,
             searchOptions: previous.searchOptions,
+            resultPresentation: previous.resultPresentation,
             connectionIdentities: previous.connectionIdentities,
             ...(input as object),
           }

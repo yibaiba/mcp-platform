@@ -3,7 +3,7 @@ import type { AccessService } from '../permissions/accessService.js';
 import { streamFinally } from '../mcp/gatewayStream.js';
 import { randomUUID } from 'node:crypto';
 import { and, eq, gt, desc, inArray } from 'drizzle-orm';
-import { artifacts, transfers, type Database } from '@platform/db';
+import { artifacts, transfers, resultOriginals, type Database } from '@platform/db';
 import { z } from 'zod';
 import { digest, secretToken } from '../../shared/crypto.js';
 import { AppError, requireValue, errorMessage } from '../../shared/errors.js';
@@ -57,6 +57,7 @@ export class ArtifactService {
       body: ReadableStream<Uint8Array> | null;
       sha256?: string;
       outputScope?: OutputScope;
+      original?: { profileId: string; subject: string; toolId: string; callId: string };
     },
   ) {
     if (!input.body) throw new AppError('BODY_REQUIRED', '缺少文件流');
@@ -80,12 +81,42 @@ export class ArtifactService {
             profileId: currentExecution()?.profileId,
           })
           .returning();
-        return requireValue(row);
+        const artifact = requireValue(row);
+        if (input.original)
+          await tx.insert(resultOriginals).values({ artifactId: artifact.id, ...input.original });
+        return artifact;
       });
     } catch (error) {
       await this.deps.files.remove(id);
       throw error;
     }
+  }
+  async originalWriter(
+    ownerId: string,
+    input: { connectionId: string; toolId: string; callId: string },
+  ) {
+    const scope = await captureOutputScope(this.deps.access, {
+      ownerId,
+      connectionId: input.connectionId,
+    });
+    if (!scope)
+      throw new AppError('ORIGINAL_SCOPE_REQUIRED', '原文产物需要明确的调用 Profile', 409);
+    const access = { ownerId, profileId: scope.profileId };
+    return async (value: { name: string; body: ReadableStream<Uint8Array> }) => {
+      await this.deps.access.assert(access, 'toolIds', input.toolId);
+      const artifact = await this.store(ownerId, {
+        ...value,
+        outputScope: scope,
+        original: {
+          profileId: scope.profileId,
+          subject: scope.subject,
+          toolId: input.toolId,
+          callId: input.callId,
+        },
+      });
+      await this.deps.access.assert(access, 'toolIds', input.toolId);
+      return artifact;
+    };
   }
   async resultWriter(ownerId: string, connectionId: string) {
     const outputScope = await captureOutputScope(this.deps.access, { ownerId, connectionId });
@@ -96,6 +127,11 @@ export class ArtifactService {
     };
   }
   async blob(ownerId: string, id: string) {
+    await this.deps.access.assert(
+      { ownerId, profileId: currentExecution()?.profileId },
+      'artifactIds',
+      id,
+    );
     const [row] = await this.deps.db
       .select()
       .from(artifacts)
@@ -111,7 +147,7 @@ export class ArtifactService {
     const artifact = requireValue(row);
     const abort = new AbortController();
     const profileId = currentExecution()?.profileId;
-    if (profileId) await this.deps.access.assert({ ownerId, profileId }, 'artifactIds', id);
+    await this.deps.access.assert({ ownerId, profileId }, 'artifactIds', id);
     const release = profileId
       ? await this.deps.access.monitor({
           access: { ownerId, profileId },

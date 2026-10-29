@@ -83,6 +83,10 @@ export const tools = pgTable(
   ],
 );
 export const profiles = pgTable('profiles', {
+  resultPresentation: jsonb('result_presentation')
+    .$type<import('@platform/contracts').ResultPresentation>()
+    .notNull()
+    .default({ enabled: false, thresholdBytes: 32768, retainBytes: 8192 }),
   discoveryMode: text('discovery_mode').$type<'direct' | 'search'>().notNull().default('direct'),
   pinnedTools: jsonb('pinned_tools').$type<string[]>().notNull().default([]),
   searchOptions: jsonb('search_options')

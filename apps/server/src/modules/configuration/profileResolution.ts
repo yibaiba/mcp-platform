@@ -85,6 +85,7 @@ export async function resolveProfile(input: {
     discoveryMode: value.discoveryMode,
     embedding: value.embedding,
     searchOptions: value.searchOptions,
+    resultPresentation: value.resultPresentation,
     pinnedTools: value.pinnedTools.map((ref) => toolId(sources.get(ref.connection)!.id, ref.name)),
     toolIds: tools(value.tools),
     contentIds: content(value.content),

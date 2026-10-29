@@ -156,6 +156,7 @@ export class ManifestReconciler {
         name: entry.name,
         instructions: '',
         discoveryMode: 'direct',
+        resultPresentation: { enabled: false, thresholdBytes: 32768, retainBytes: 8192 },
         searchOptions: {
           strategy: 'exact',
           minScore: null,
