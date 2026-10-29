@@ -130,7 +130,7 @@ const groups = requested.length
       ],
       ['tests/devices.test.ts', 'tests/deviceAuth.test.ts'],
       ['tests/library.test.ts', 'tests/bundles.test.ts', 'tests/bundlesDevice.test.ts'],
-      ['tests/bundleLifecycle.test.ts', 'tests/bundleLocal.test.ts'],
+      ['tests/bundleLifecycle.test.ts', 'tests/bundleLocal.test.ts', 'tests/bundleCleanup.test.ts'],
       [
         'tests/workspacePermissions.test.ts',
         'tests/workspaceIdentity.test.ts',

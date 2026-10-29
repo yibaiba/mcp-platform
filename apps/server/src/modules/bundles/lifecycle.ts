@@ -1,4 +1,5 @@
 import { and, desc, eq } from 'drizzle-orm';
+import { win32 } from 'node:path';
 import {
   connections,
   mcpEntries,
@@ -131,24 +132,26 @@ export class BundleLifecycle {
         .for('update');
       const row = requireValue(pkg);
       const operations = await tx.select().from(mcpbInstalls).where(eq(mcpbInstalls.packageId, id));
-      if (operations.some((op) => op.state === 'running' || op.connectionId))
-        throw new AppError(
-          'MCPB_IN_USE',
-          '仍有安装操作或关联连接，请先处理安装结果并卸载连接',
-          409,
-        );
+      if (operations.some((op) => op.state === 'running'))
+        throw new AppError('MCPB_IN_USE', '仍有安装操作，请先处理安装结果', 409);
       const directory = this.deps.disk.directory(ownerId, row.sha256);
       const owned = await tx.select().from(connections).where(eq(connections.ownerId, ownerId));
       if (
-        owned.some(
-          (connection) =>
-            this.deps.vault.open<ConnectionInput>(connection.config, `${ownerId}:${connection.id}`)
-              .cwd === directory,
-        )
+        owned.some((connection) => {
+          const config = this.deps.vault.open<ConnectionInput>(
+            connection.config,
+            `${ownerId}:${connection.id}`,
+          );
+          // Device directories differ from the platform's, but end in the same package digest.
+          return config.adapter === 'device'
+            ? win32.basename(config.cwd ?? '') === row.sha256
+            : config.cwd === directory;
+        })
       )
         throw new AppError('MCPB_IN_USE', '仍有连接使用此包目录，请先移除相关连接', 409);
-      await this.deps.files.remove(id);
+      // Keep the original archive available if removing extracted files fails partway through.
       await this.deps.disk.remove(ownerId, row.sha256);
+      await this.deps.files.remove(id);
       await tx.update(mcpbPackages).set({ removedAt: new Date() }).where(eq(mcpbPackages.id, id));
     });
     return { removed: true, deviceFilesRetained: true };
