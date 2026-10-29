@@ -1,5 +1,5 @@
 import { eq, or, sql, type SQLWrapper } from 'drizzle-orm';
-import { profiles, type Database } from '@platform/db';
+import { profiles, skillVersions, type Database } from '@platform/db';
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 export async function removeConnectionReferences(
   tx: Transaction,
@@ -12,6 +12,13 @@ export async function removeConnectionReferences(
     Object.fromEntries(Object.entries(entries).filter(([id]) => !keys.has(id)));
   const containsAny = (column: SQLWrapper, ids: string[]) =>
     sql`${column} ?| ARRAY(SELECT jsonb_array_elements_text(${JSON.stringify(ids)}::jsonb))`;
+  const dependentSkills = input.toolIds.length
+    ? await tx
+        .select({ id: skillVersions.id })
+        .from(skillVersions)
+        .where(containsAny(skillVersions.dependencies, input.toolIds))
+    : [];
+  const skillIds = new Set(dependentSkills.map((row) => row.id));
   const rows = await tx
     .select()
     .from(profiles)
@@ -21,6 +28,7 @@ export async function removeConnectionReferences(
         containsAny(sql`${profiles.requestable}->'contentIds'`, input.contentIds),
         containsAny(sql`${profiles.catalog}->'content'`, input.contentIds),
         containsAny(profiles.toolIds, input.toolIds),
+        containsAny(profiles.skillVersionIds, [...skillIds]),
         containsAny(sql`${profiles.requestable}->'toolIds'`, input.toolIds),
         containsAny(sql`${profiles.catalog}->'tools'`, input.toolIds),
         sql`(${profiles.catalog}->'connectionAliases') ? ${connectionId}`,
@@ -31,17 +39,6 @@ export async function removeConnectionReferences(
     .for('update');
   const affected: string[] = [];
   for (const row of rows) {
-    if (
-      ![...row.contentIds, ...row.requestable.contentIds, ...Object.keys(row.catalog.content)].some(
-        (id) => contents.has(id),
-      ) &&
-      ![...row.toolIds, ...row.requestable.toolIds, ...Object.keys(row.catalog.tools)].some((id) =>
-        tools.has(id),
-      ) &&
-      !Object.hasOwn(row.catalog.connectionAliases, connectionId) &&
-      !Object.hasOwn(row.connectionIdentities, connectionId)
-    )
-      continue;
     const withoutTools = (ids: string[]) => ids.filter((id) => !tools.has(id));
     const withoutContent = (ids: string[]) => ids.filter((id) => !contents.has(id));
     await tx
@@ -50,6 +47,7 @@ export async function removeConnectionReferences(
         contentIds: withoutContent(row.contentIds),
         toolIds: withoutTools(row.toolIds),
         pinnedTools: withoutTools(row.pinnedTools),
+        skillVersionIds: row.skillVersionIds.filter((id) => !skillIds.has(id)),
         requestable: {
           ...row.requestable,
           contentIds: withoutContent(row.requestable.contentIds),

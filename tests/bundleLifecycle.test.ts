@@ -39,6 +39,28 @@ test('history is owner scoped; uninstall cleans grants and package cleanup prese
     name: 'installed',
     toolIds: [tool.id],
   }))!;
+  const dependent = (await h.services.skills.import(owner.ownerId, {
+    source: 'fixture',
+    package: {
+      name: 'bundle-dependent',
+      files: {
+        'SKILL.md': Buffer.from(
+          '---\nname: bundle-dependent\ndescription: dependent fixture\n---\nUse the echo tool.',
+        ).toString('base64'),
+      },
+      dependencies: [tool.id],
+    },
+  }))!;
+  await h.services.profiles.save(
+    owner.ownerId,
+    {
+      name: profile.name,
+      toolIds: [tool.id],
+      skillVersionIds: [dependent.id],
+      revision: profile.revision,
+    },
+    profile.id,
+  );
   const history = await h.services.bundles.lifecycle.history(owner.ownerId);
   expect(history.operations[0]).toMatchObject({
     id: receipt.id,
@@ -57,6 +79,16 @@ test('history is owner scoped; uninstall cleans grants and package cleanup prese
   });
   await h.services.bundles.lifecycle.uninstall(owner.ownerId, receipt.id);
   expect((await h.services.profiles.owned(owner.ownerId, profile.id)).toolIds).toEqual([]);
+  const cleaned = await h.services.profiles.owned(owner.ownerId, profile.id);
+  expect(cleaned.skillVersionIds).toEqual([]);
+  expect((await h.services.skills.list(owner.ownerId)).map((s) => s.id)).toContain(dependent.id);
+  await expect(
+    h.services.profiles.save(
+      owner.ownerId,
+      { name: cleaned.name, revision: cleaned.revision },
+      cleaned.id,
+    ),
+  ).resolves.toBeDefined();
   await expect(h.services.configExport.export(owner.ownerId, 'uninstalled')).resolves.toBeDefined();
   await h.services.bundles.lifecycle.remove(owner.ownerId, pkg.id);
   expect(
