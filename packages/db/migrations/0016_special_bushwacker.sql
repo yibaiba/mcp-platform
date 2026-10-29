@@ -1,0 +1,1 @@
+ALTER TABLE "search_indexes" ADD COLUMN "credential_id" text;

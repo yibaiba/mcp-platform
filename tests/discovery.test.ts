@@ -165,3 +165,46 @@ test('embedding outages expose explicit errors without keyword fallback, invalid
   }
   expect(cosine(normalize([1, 2]), normalize([1, 2]))).toBeCloseTo(1);
 });
+
+test('explicit HNSW management rebuild selects the Agent credential scope, never dispatches business tools, and revocation removes its index', async () => {
+  const s = await setup();
+  await h.services.profiles.save(
+    s.ownerId,
+    {
+      name: s.profile.name,
+      toolIds: [s.tool.id],
+      searchOptions: { strategy: 'hnsw', minScore: 0.3 },
+    },
+    s.profile.id,
+  );
+  const key = await h.services.profiles.issue(s.ownerId, s.profile.id);
+  const before = upstream.count();
+  const rebuilt = await s.request(`/profiles/${s.profile.id}/search-index/rebuild`, {
+    method: 'POST',
+    body: JSON.stringify({ credentialId: key.id, capabilities: {} }),
+  });
+  expect(rebuilt.status).toBe(200);
+  const status = await rebuilt.json();
+  expect(status.hnsw).toMatchObject({ state: 'ready', credentialId: key.id });
+  const client = new Client({ name: 'hnsw-client', version: '1' });
+  await client.connect(
+    new StreamableHTTPClientTransport(new URL(`${h.baseURL}/mcp/${s.profile.id}`), {
+      requestInit: { headers: { Authorization: `Bearer ${key.token}` } },
+    }),
+  );
+  try {
+    expect(
+      JSON.stringify(
+        await client.callTool({ name: 'platform_tools_search', arguments: { query: 'echo' } }),
+      ),
+    ).toContain(s.tool.id);
+  } finally {
+    await client.close();
+  }
+  expect(upstream.count()).toBe(before);
+  expect((await s.request(`/profiles/keys/${key.id}`, { method: 'DELETE' })).status).toBe(200);
+  const { searchIndexes } = await import('../packages/db/src/index.js');
+  expect(
+    await h.db.select().from(searchIndexes).where(eq(searchIndexes.credentialId, key.id)),
+  ).toEqual([]);
+});

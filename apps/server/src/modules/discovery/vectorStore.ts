@@ -22,21 +22,28 @@ export class VectorStore {
       .select({
         toolId: toolVectors.toolId,
         definitionHash: toolVectors.definitionHash,
-        dimensions: sql<number>`cardinality(${toolVectors.vector})`,
+        dimensions: toolVectors.dimensions,
       })
       .from(toolVectors)
       .where(vectorFilter(scope));
   }
   async search(scope: VectorScope, input: VectorQuery) {
     if (!input.ids.length) return [];
-    const result = await this.db.execute<{ toolId: string; score: number }>(sql`
+    return this.db.transaction(async (tx) => {
+      // Array arithmetic is CPU-bound. Let the planner use available parallel workers,
+      // including indexed scope scans, without changing the retrieval algorithm.
+      await tx.execute(sql`select set_config('min_parallel_table_scan_size', '0', true),
+        set_config('min_parallel_index_scan_size', '0', true), set_config('parallel_setup_cost', '0', true),
+        set_config('parallel_tuple_cost', '0', true), set_config('max_parallel_workers_per_gather', '3', true)`);
+      const result = await tx.execute<{ toolId: string; score: number }>(sql`
       with scored as materialized (
         select tool_id, platform_vector_dot(vector, ${sql.param(input.vector)}::float8[]) as score
         from tool_vectors where owner_id = ${scope.ownerId} and profile_id = ${scope.profileId}
           and scope = ${scope.scope} and tool_id = any(${sql.param(input.ids)}::text[])
       ) select tool_id as "toolId", score from scored where ${input.minScore}::float8 is null or score >= ${input.minScore}::float8
       order by score desc, tool_id collate "C" limit ${input.limit}`);
-    return result.rows;
+      return result.rows;
+    });
   }
   async save(
     scope: VectorScope,

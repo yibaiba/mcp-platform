@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   pgTable,
   integer,
@@ -23,6 +24,9 @@ export const toolVectors = pgTable(
     toolId: text('tool_id').notNull(),
     definitionHash: text('definition_hash').notNull(),
     vector: doublePrecision('vector').array().notNull(),
+    dimensions: integer('dimensions')
+      .generatedAlwaysAs(sql`cardinality(vector)`)
+      .notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -38,6 +42,7 @@ export const searchIndexes = pgTable('search_indexes', {
   profileId: uuid('profile_id').references(() => profiles.id, { onDelete: 'set null' }),
   scope: text('scope').notNull().unique(),
   family: text('family').notNull(),
+  credentialId: text('credential_id'),
   state: text('state').$type<'building' | 'ready' | 'failed' | 'cleaning'>().notNull(),
   fingerprint: text('fingerprint').notNull(),
   dimensions: integer('dimensions').notNull(),

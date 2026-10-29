@@ -1,4 +1,4 @@
-import { and, eq, inArray, or } from 'drizzle-orm';
+import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import {
   artifacts,
   connectionShares,
@@ -32,7 +32,10 @@ export class ShareAccess {
     const table = kind === 'toolIds' ? tools : kind === 'contentIds' ? mcpEntries : artifacts;
     if (kind === 'artifactIds') return eq(table.ownerId, ownerId);
     const ids = (await this.grants(ownerId)).flatMap((grant) => grant[kind]);
-    return or(eq(table.ownerId, ownerId), ids.length ? inArray(table.id, ids) : undefined)!;
+    return or(
+      eq(table.ownerId, ownerId),
+      ids.length ? sql`${table.id} = any(${sql.param(ids)}::text[])` : undefined,
+    )!;
   }
   async permitted(ownerId: string, kind: PermissionKind, ids: string[]) {
     if (!ids.length) return [];
@@ -40,7 +43,14 @@ export class ShareAccess {
     const rows = await this.db
       .select({ id: table.id })
       .from(table)
-      .where(and(await this.resourceFilter(ownerId, kind), inArray(table.id, ids)));
+      .where(
+        and(
+          await this.resourceFilter(ownerId, kind),
+          kind === 'artifactIds'
+            ? inArray(table.id, ids)
+            : sql`${table.id} = any(${sql.param(ids)}::text[])`,
+        ),
+      );
     return rows.map((row) => row.id);
   }
   async connection(ownerId: string, id: string) {

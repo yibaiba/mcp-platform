@@ -61,6 +61,7 @@ await services.pi.recover();
 await services.requests.recover();
 await services.interactions.recover();
 await services.rest.recover();
+await services.discovery.recover();
 await applyStartupManifest({
   file: config.CONFIG_MANIFEST_FILE,
   ownerEmail: config.CONFIG_MANIFEST_OWNER,

@@ -6,6 +6,7 @@ import type { VectorScope, VectorQuery } from './vectorStore.js';
 const MAX_DIMENSIONS = 2000;
 type IndexInput = VectorScope & {
   family: string;
+  credentialId?: string;
   fingerprint: string;
   dimensions: number;
   options: SearchOptions['hnsw'];
@@ -49,7 +50,7 @@ export class HnswStore {
         `HNSW 索引状态：${existing.state}；${existing.error ?? '等待重建完成'}`,
         409,
       );
-    if (existing.fingerprint !== input.fingerprint) await this.build(input);
+    if (existing.fingerprint !== input.fingerprint) await this.update(existing.id, input);
   }
   async build(input: IndexInput) {
     if (input.dimensions > MAX_DIMENSIONS || input.dimensions < 1)
@@ -69,9 +70,9 @@ export class HnswStore {
         await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${input.scope}, 0))`);
         await tx.execute(sql`drop table if exists ${table(id)}`);
         await tx.execute(
-          sql`create table ${table(id)} (tool_id text primary key, embedding vector(${sql.raw(String(input.dimensions))}) not null)`,
+          sql`create table ${table(id)} (tool_id text primary key, definition_hash text not null, embedding vector(${sql.raw(String(input.dimensions))}) not null)`,
         );
-        await tx.execute(sql`insert into ${table(id)} select tool_id, vector::vector from tool_vectors
+        await tx.execute(sql`insert into ${table(id)} select tool_id, definition_hash, vector::vector from tool_vectors
           where owner_id = ${input.ownerId} and profile_id = ${input.profileId} and scope = ${input.scope}
           and tool_id = any(${sql.param(input.ids)}::text[])`);
         await tx.execute(sql`create index on ${table(id)} using hnsw (embedding vector_cosine_ops)
@@ -98,6 +99,38 @@ export class HnswStore {
         .where(eq(searchIndexes.id, id));
       throw error;
     }
+  }
+  private async update(id: string, input: IndexInput) {
+    await this.db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${input.scope}, 0))`);
+      await tx.execute(
+        sql`delete from ${table(id)} where not (tool_id = any(${sql.param(input.ids)}::text[]))`,
+      );
+      await tx.execute(sql`insert into ${table(id)} select tool_id, definition_hash, vector::vector from tool_vectors
+        where owner_id = ${input.ownerId} and profile_id = ${input.profileId} and scope = ${input.scope}
+        and tool_id = any(${sql.param(input.ids)}::text[])
+        on conflict (tool_id) do update set definition_hash = excluded.definition_hash, embedding = excluded.embedding
+        where ${table(id)}.definition_hash <> excluded.definition_hash`);
+      await tx
+        .update(searchIndexes)
+        .set({ fingerprint: input.fingerprint, updatedAt: new Date() })
+        .where(eq(searchIndexes.id, id));
+    });
+  }
+  async recover() {
+    await this.db
+      .update(searchIndexes)
+      .set({ state: 'failed', error: '平台在索引创建期间重启；请显式重建索引' })
+      .where(eq(searchIndexes.state, 'building'));
+    await this.cleanup({ family: '', scope: '' });
+  }
+  async invalidateCredential(credentialId: string) {
+    await this.remove(
+      await this.db
+        .select()
+        .from(searchIndexes)
+        .where(eq(searchIndexes.credentialId, credentialId)),
+    );
   }
   async search(scope: VectorScope, input: VectorQuery & { efSearch: number }) {
     const record = await this.status(scope);
@@ -128,9 +161,20 @@ export class HnswStore {
         or(
           isNull(searchIndexes.ownerId),
           isNull(searchIndexes.profileId),
+          eq(searchIndexes.state, 'cleaning'),
+          sql`not exists (select 1 from "user" u where u.id = ${searchIndexes.ownerId} and u.enabled)`,
+          sql`(${searchIndexes.credentialId} is not null and not exists (
+            select 1 from access_keys k where k.id::text = ${searchIndexes.credentialId} and not k.revoked
+              and (k.expires_at is null or k.expires_at > now())
+            union all
+            select 1 from oauth_grants g where g.id::text = ${searchIndexes.credentialId} and not g.revoked and g.expires_at > now()
+          ))`,
           and(eq(searchIndexes.family, input.family), ne(searchIndexes.scope, input.scope)),
         ),
       );
+    await this.remove(stale);
+  }
+  private async remove(stale: (typeof searchIndexes.$inferSelect)[]) {
     for (const row of stale) {
       await this.db
         .update(searchIndexes)

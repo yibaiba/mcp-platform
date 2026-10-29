@@ -353,6 +353,7 @@ function registerManagement(
       .set({ revoked: true })
       .where(and(eq(oauthGrants.id, paramId(c)), eq(oauthGrants.ownerId, owner(c))));
     await s.access.changed();
+    await s.discovery.invalidateCredential(paramId(c));
     await s.gateway.revoke(paramId(c));
     return c.json({ revoked: true });
   });
@@ -416,7 +417,10 @@ function registerAgentOAuth(
     const input = z
       .object({ token: z.string().min(1) })
       .parse(Object.fromEntries(new URLSearchParams(await c.req.text())));
-    for (const id of await s.agentOAuth.revoke(input.token)) await s.gateway.revoke(id);
+    for (const id of await s.agentOAuth.revoke(input.token)) {
+      await s.discovery.invalidateCredential(id);
+      await s.gateway.revoke(id);
+    }
     await s.access.changed();
     return c.body(null, 200);
   });

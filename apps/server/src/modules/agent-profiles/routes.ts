@@ -1,3 +1,4 @@
+import { withExecution } from '../mcp/executionContext.js';
 import { searchInput } from '../discovery/tools.js';
 import { artifactToolset } from '../artifacts/artifactTools.js';
 import { availablePermissionTools } from '../permissions/tools.js';
@@ -37,24 +38,42 @@ export function profileRoutes(deps: {
   app.get('/:id/search-index', async (c) =>
     c.json(await deps.profiles.discovery.status(owner(c), paramId(c))),
   );
-  app.post('/:id/search-index/rebuild', async (c) =>
-    c.json(await deps.profiles.discovery.rebuild(owner(c), paramId(c))),
-  );
-  app.post('/:id/search-test', async (c) => {
-    const started = performance.now();
-    const input = searchInput.parse(await c.req.json());
-    const profile = await deps.profiles.owned(owner(c), paramId(c));
-    const hits = await deps.profiles.discovery.search(owner(c), {
-      ...input,
-      profileId: profile.id,
-    });
-    return c.json({
-      hits,
-      count: hits.length,
-      durationMs: performance.now() - started,
-      approximate: profile.searchOptions.strategy === 'hnsw',
-    });
+  app.post('/:id/search-index/rebuild', async (c) => {
+    const body = await c.req.text();
+    const input = z
+      .object({
+        credentialId: z.string().min(1),
+        capabilities: z.record(z.string(), z.unknown()).default({}),
+        headers: z.record(z.string(), z.string()).optional(),
+      })
+      .strict()
+      .optional()
+      .parse(body.trim() ? JSON.parse(body) : undefined);
+    const rebuild = async () => c.json(await deps.profiles.discovery.rebuild(owner(c), paramId(c)));
+    return input
+      ? withExecution(
+          {
+            ownerId: owner(c),
+            profileId: paramId(c),
+            credentialId: input.credentialId,
+            identity: input.credentialId,
+            capabilities: input.capabilities,
+            headers: input.headers,
+            entry: 'gateway',
+            sessionId: 'index-management',
+          },
+          rebuild,
+        )
+      : rebuild();
   });
+  app.post('/:id/search-test', async (c) =>
+    c.json(
+      await deps.profiles.discovery.searchDetailed(owner(c), {
+        ...searchInput.parse(await c.req.json()),
+        profileId: paramId(c),
+      }),
+    ),
+  );
   app.get('/:id/context-footprint', async (c) =>
     c.json(
       await deps.profiles.discovery.footprint(owner(c), {
@@ -106,6 +125,7 @@ export function profileRoutes(deps: {
   app.get('/keys/all', async (c) => c.json(await deps.profiles.keys(owner(c))));
   app.delete('/keys/:id', async (c) => {
     await deps.profiles.revoke(owner(c), paramId(c));
+    await deps.profiles.discovery.invalidateCredential(paramId(c));
     await deps.access.changed();
     for (const profile of await deps.profiles.list(owner(c)))
       await deps.requests.reconcile(profile.id);

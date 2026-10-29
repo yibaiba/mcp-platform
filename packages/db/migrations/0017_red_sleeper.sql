@@ -1,0 +1,1 @@
+ALTER TABLE "tool_vectors" ADD COLUMN "dimensions" integer GENERATED ALWAYS AS (cardinality(vector)) STORED NOT NULL;

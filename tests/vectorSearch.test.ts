@@ -1,5 +1,6 @@
 import { beforeAll, afterAll, expect, test } from 'vitest';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
+import { searchIndexes } from '../packages/db/src/index.js';
 import { searchOptions, profileInput, manifestProfile } from '../packages/contracts/src/index.js';
 import { VectorStore } from '../apps/server/src/modules/discovery/vectorStore.js';
 import { HnswStore } from '../apps/server/src/modules/discovery/hnswStore.js';
@@ -88,6 +89,26 @@ test('HNSW requires an explicit build, rejects unsupported dimensions, isolates 
     }),
   ).toEqual([]);
   const record = (await hnsw.status(scope))!;
+  await store.save(scope, [{ toolId: 'b', definitionHash: 'changed', vector: [1, 0, 0] }]);
+  await hnsw.sync({ ...input, fingerprint: 'updated', ids: ['b'] });
+  expect((await hnsw.status(scope))?.id).toBe(record.id);
+  expect(
+    await hnsw.search(scope, {
+      ids: ['a', 'b'],
+      vector: [1, 0, 0],
+      minScore: 0.3,
+      limit: 10,
+      efSearch: 100,
+    }),
+  ).toEqual([{ toolId: 'b', score: 1 }]);
+  await h.db
+    .update(searchIndexes)
+    .set({ state: 'building' })
+    .where(eq(searchIndexes.id, record.id));
+  await hnsw.recover();
+  expect((await hnsw.status(scope))?.state).toBe('failed');
+  await expect(hnsw.sync(input)).rejects.toMatchObject({ code: 'SEARCH_INDEX_NOT_READY' });
+  await hnsw.build(input);
   await hnsw.cleanup({ family: input.family, scope: 'replacement' });
   expect(await hnsw.status(scope)).toBeUndefined();
   const result = await h.db.execute(
