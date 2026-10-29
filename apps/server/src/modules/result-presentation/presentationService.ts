@@ -31,7 +31,11 @@ export class PresentationService {
         });
         const path = `/mcp/${input.profileId}/artifacts/${artifact.id}`;
         const marker = `完整原文产物 ${artifact.id}，${artifact.size} 字节，SHA-256 ${artifact.sha256}；使用 platform_artifacts_read 按字节读取 JSON 或凭原调用身份下载 ${path}`;
-        const presentation = excerpt(result, { retainBytes: options.retainBytes, marker });
+        const presentation = excerpt(result, {
+          retainBytes: options.retainBytes,
+          marker,
+          strategy: options.strategy,
+        });
         return {
           ...presentation.result,
           _meta: {
@@ -46,6 +50,7 @@ export class PresentationService {
               readTool: 'platform_artifacts_read',
               textBytes: textBytes(result),
               retainedTextBytes: presentation.retainedBytes,
+              strategies: presentation.strategies,
             },
           },
         };

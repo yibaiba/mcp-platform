@@ -1,3 +1,5 @@
+import { selectText } from './strategies.js';
+import type { ResultPresentation } from '@platform/contracts';
 import type { CallToolResult } from '@platform/mcp';
 export function textBytes(result: CallToolResult) {
   return result.content.reduce(
@@ -18,12 +20,16 @@ function headTail(text: string, budget: number) {
     retained: headEnd + bytes.length - tailStart,
   };
 }
-export function excerpt(result: CallToolResult, input: { retainBytes: number; marker: string }) {
+export function excerpt(
+  result: CallToolResult,
+  input: { retainBytes: number; marker: string; strategy?: ResultPresentation['strategy'] },
+) {
   const lengths = result.content.map((block) =>
     block.type === 'text' ? Buffer.byteLength(block.text, 'utf8') : 0,
   );
   const total = lengths.reduce((sum, length) => sum + length, 0);
-  if (total <= input.retainBytes) return { result, retainedBytes: total };
+  if (total <= input.retainBytes)
+    return { result, retainedBytes: total, strategies: [] as string[] };
   const budgets = lengths.map((length) => Math.floor((input.retainBytes * length) / total));
   const remaining = input.retainBytes - budgets.reduce((sum, budget) => sum + budget, 0);
   const byRemainder = lengths
@@ -31,12 +37,24 @@ export function excerpt(result: CallToolResult, input: { retainBytes: number; ma
     .sort((a, b) => b.remainder - a.remainder || a.index - b.index);
   for (const { index } of byRemainder.slice(0, remaining)) budgets[index] = budgets[index]! + 1;
   let retainedBytes = 0;
+  const strategies: string[] = [];
   const content = result.content.map((block, index) => {
     if (block.type !== 'text') return block;
     if (lengths[index]! <= budgets[index]!) {
       retainedBytes += lengths[index]!;
       return block;
     }
+    const selected = selectText(block.text, budgets[index]!, input.strategy ?? 'head-tail');
+    if (selected) {
+      retainedBytes += Buffer.byteLength(selected.text);
+      strategies.push(selected.strategy);
+      const detail = selected.skipped ?? `省略 ${selected.omitted} ${selected.unit}`;
+      return {
+        ...block,
+        text: `${selected.text}\n[明确节选：策略 ${selected.strategy}；${detail}。${input.marker}]`,
+      };
+    }
+    strategies.push(input.strategy === 'auto' ? 'text' : (input.strategy ?? 'head-tail'));
     const sliced = headTail(block.text, budgets[index]!);
     retainedBytes += sliced.retained;
     return {
@@ -44,5 +62,5 @@ export function excerpt(result: CallToolResult, input: { retainBytes: number; ma
       text: `${sliced.head}\n[明确节选：省略 ${sliced.omitted} 字节。${input.marker}]\n${sliced.tail}`,
     };
   });
-  return { result: { ...result, content }, retainedBytes };
+  return { result: { ...result, content }, retainedBytes, strategies };
 }
