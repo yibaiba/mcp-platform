@@ -6,10 +6,7 @@ export function latestStable(ecosystem: PackageSpec['ecosystem'], versions: stri
   const stable = versions.filter((version) =>
     ecosystem === 'npm'
       ? Boolean(semver.valid(version)) && !semver.prerelease(version)
-      : Boolean(pep440.valid(version)) &&
-        !pep440.parse(version)?.is_prerelease &&
-        !pep440.parse(version)?.is_devrelease &&
-        !pep440.parse(version)?.local,
+      : stablePython(version),
   );
   return (
     stable.sort((a, b) =>
@@ -52,19 +49,12 @@ export function pythonVersions(text: string, contentType: string) {
     ),
   ];
 }
-export async function queryPackage(spec: PackageSpec, fetch: typeof globalThis.fetch) {
-  const root = new URL(spec.source.endsWith('/') ? spec.source : `${spec.source}/`);
-  const headers: Record<string, string> = {
-    Accept:
-      spec.ecosystem === 'npm'
-        ? 'application/json'
-        : 'application/vnd.pypi.simple.v1+json, text/html;q=0.9',
-  };
-  if (root.username || root.password) {
-    headers.Authorization = `Basic ${Buffer.from(`${decodeURIComponent(root.username)}:${decodeURIComponent(root.password)}`).toString('base64')}`;
-    root.username = '';
-    root.password = '';
-  }
+export async function queryPackage(
+  spec: PackageSpec,
+  fetch: typeof globalThis.fetch,
+  sourceHeaders: Record<string, string> = {},
+) {
+  const { root, headers } = packageRequest(spec, sourceHeaders);
   const name =
     spec.ecosystem === 'npm'
       ? encodeURIComponent(spec.name)
@@ -84,4 +74,26 @@ export async function queryPackage(spec: PackageSpec, fetch: typeof globalThis.f
     return Object.keys(data.versions);
   }
   return pythonVersions(await response.text(), response.headers.get('content-type') ?? '');
+}
+
+function packageRequest(spec: PackageSpec, sourceHeaders: Record<string, string>) {
+  const root = new URL(spec.source.endsWith('/') ? spec.source : `${spec.source}/`);
+  const headers: Record<string, string> = {
+    ...sourceHeaders,
+    Accept:
+      spec.ecosystem === 'npm'
+        ? 'application/json'
+        : 'application/vnd.pypi.simple.v1+json, text/html;q=0.9',
+  };
+  if (root.username || root.password) {
+    headers.Authorization = `Basic ${Buffer.from(`${decodeURIComponent(root.username)}:${decodeURIComponent(root.password)}`).toString('base64')}`;
+    root.username = '';
+    root.password = '';
+  }
+  return { root, headers };
+}
+
+function stablePython(version: string) {
+  const parsed = pep440.explain(version);
+  return parsed !== null && !parsed.is_prerelease && !parsed.is_devrelease;
 }

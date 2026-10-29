@@ -1,4 +1,4 @@
-import { NetworkClient } from '@platform/network';
+import { NetworkClient, type NetworkConfig } from '@platform/network';
 import {
   discoverCatalog,
   executeOperation,
@@ -47,6 +47,15 @@ const { createMcpAdapter, getMcpClient, configurePlatformEmbedding } = (await im
   getMcpClient(options: { pi: ExtensionAPI; name: string }): Client;
   createMcpAdapter(options: { config: Record<string, unknown> }): ExtensionFactory;
 };
+let networkClient: NetworkClient | undefined;
+let networkRevision = -1;
+function updateNetwork(snapshot?: { revision: number; config: NetworkConfig }) {
+  if (!snapshot || snapshot.revision === networkRevision) return;
+  const previous = networkClient;
+  networkClient = new NetworkClient(snapshot.config);
+  networkRevision = snapshot.revision;
+  if (previous) void previous.retire().catch(() => console.error('PI_NETWORK_POOL_CLOSE_FAILED'));
+}
 let session: AgentSession | undefined;
 let extension: ExtensionAPI;
 let catalog: McpCatalog | undefined;
@@ -138,7 +147,9 @@ async function dispatch(
     const context = params as Context;
     requestTimeoutMs = context.config.requestOptions?.timeoutMs;
     healthTimeoutMs = context.config.health?.timeoutMs;
-    const networkFetch = context.network ? new NetworkClient(context.network).fetch : fetch;
+    if (!networkClient && context.network) updateNetwork({ revision: 0, config: context.network });
+    const networkFetch: typeof fetch = (input, init) =>
+      networkClient ? networkClient.fetch(input, init) : fetch(input, init);
     configurePlatformEmbedding({
       oauthRedirectUri: context.oauthRedirectUri,
       authorize,
@@ -305,7 +316,13 @@ async function dispatch(
 }
 process.on(
   'message',
-  (message: { type: string; id: string; method: string; params: Record<string, unknown> }) => {
+  (message: {
+    type: string;
+    id: string;
+    method: string;
+    params: Record<string, unknown>;
+    network?: { revision: number; config: NetworkConfig };
+  }) => {
     if (message.type === 'cancel') {
       active.get(message.id)?.abort();
       return;
@@ -318,6 +335,7 @@ process.on(
       return;
     }
     const abort = new AbortController();
+    updateNetwork(message.network);
     active.set(message.id, abort);
     void dispatch(message.method, message.params, abort.signal, message.id)
       .then(

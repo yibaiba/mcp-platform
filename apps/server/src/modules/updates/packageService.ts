@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { and, eq } from 'drizzle-orm';
 import { updateChecks, connections, type Database } from '@platform/db';
 import { connectionInput, type ConnectionInput } from '@platform/contracts';
-import { resolvePackage, publicSource, type PackageSpec } from '@platform/network';
+import { publicSource, type PackageSpec } from '@platform/network';
 import type { NetworkService } from '../network/service.js';
 import type { DeviceService } from '../devices/deviceService.js';
 import type { DeviceBroker } from '../devices/deviceBroker.js';
@@ -46,10 +46,12 @@ export class PackageUpdateService {
       config.adapter === 'device'
         ? this.deps.broker.generation(config.deviceId!)
         : (await this.deps.network.snapshot()).revision;
+    const source =
+      config.adapter === 'device' ? undefined : await this.deps.network.package(config);
     return {
       row,
       config,
-      fingerprint: digest(JSON.stringify([ownerId, id, row.revision, row.config, network])),
+      fingerprint: digest(JSON.stringify([ownerId, id, row.revision, row.config, network, source])),
     };
   }
   private key(ownerId: string, id: string) {
@@ -67,6 +69,10 @@ export class PackageUpdateService {
       nextCheckAt: saved?.nextCheckAt,
       result: saved?.result ?? null,
       stale,
+      declaration:
+        context.config.adapter === 'device'
+          ? null
+          : (await this.preview(ownerId, context.config)).package,
       runtimeVersion: null,
       runtimeVersionReason: '没有可验证的运行包版本证据；配置版本、缓存和 MCP 自报版本均不作为证明',
     };
@@ -97,6 +103,24 @@ export class PackageUpdateService {
     this.pending.set(key, pending);
     return pending;
   }
+  async preview(ownerId: string, config: ConnectionInput) {
+    if (config.adapter !== 'device') {
+      const { spec } = await this.deps.network.package(config);
+      return { package: spec ? { ...spec, source: publicSource(spec.source) } : null };
+    }
+    await this.deps.devices.owned(ownerId, config.deviceId!);
+    if (!this.deps.broker.online(config.deviceId!))
+      return { package: null, reason: '设备离线，无法确认本机来源' };
+    if (!this.deps.broker.hasCapability(config.deviceId!, 'package-updates'))
+      return { package: null, reason: '设备连接器需要升级才能预览本机来源' };
+    const result = deviceResult.parse(
+      await this.deps.broker.request(config.deviceId!, {
+        method: 'package.preview',
+        params: { config: { ...config, localIdentity: 'default' } },
+      }),
+    );
+    return { package: result.package, revision: result.networkRevision };
+  }
   private async inspect(ownerId: string, config: ConnectionInput) {
     if (config.source !== 'mcp' || (!config.command && !config.deviceResourceId))
       throw new Error('此连接没有可识别的托管 npm/Python 包');
@@ -118,13 +142,12 @@ export class PackageUpdateService {
         deviceNetworkRevision: result.networkRevision,
       };
     }
-    const settings = await this.deps.network.snapshot();
-    const spec = resolvePackage(config, settings.config);
+    const { spec, headers } = await this.deps.network.package(config);
     if (!spec)
       throw new Error(
         '无法识别唯一的静态包声明；请使用明确的 npx、npm exec、uvx 或 uv tool run 参数',
       );
-    return { spec, versions: await queryPackage(spec, this.deps.network.fetch) };
+    return { spec, versions: await queryPackage(spec, this.deps.network.fetch, headers) };
   }
   private async perform(input: {
     ownerId: string;
@@ -177,7 +200,7 @@ export class PackageUpdateService {
         .for('share');
       if (!row || row.revision !== context.row.revision)
         throw new AppError('CHECK_SUPERSEDED', '连接配置已变化', 409);
-      await this.deps.db
+      await tx
         .insert(updateChecks)
         .values({ id: key, ownerId, connectionId: id, fingerprint: context.fingerprint, result })
         .onConflictDoUpdate({

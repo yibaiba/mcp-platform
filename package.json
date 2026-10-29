@@ -8,10 +8,10 @@
   ],
   "type": "module",
   "scripts": {
-    "dev": "pnpm --parallel --filter server --filter web dev",
-    "dev:server": "pnpm --filter server dev",
+    "dev": "node scripts/build-info.mjs && pnpm --parallel --filter server --filter web dev",
+    "dev:server": "node scripts/build-info.mjs && pnpm --filter server dev",
     "dev:web": "pnpm --filter web dev",
-    "build": "pnpm --filter server build && pnpm --filter web build && pnpm --filter @platform/cli build",
+    "build": "node scripts/build-info.mjs && pnpm --filter server build && pnpm --filter web build && pnpm --filter @platform/cli build",
     "check-types": "tsc --noEmit && pnpm --filter @platform/pi-runtime check-types && pnpm --filter web check-types",
     "lint": "eslint apps packages integrations/pi/src tests --max-warnings 0",
     "format": "prettier --write apps packages tests integrations/pi/src scripts docs *.json *.yaml *.mjs",

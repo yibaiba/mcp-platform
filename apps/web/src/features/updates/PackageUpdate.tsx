@@ -11,6 +11,7 @@ type Result = {
   lastSuccess?: Result;
 };
 type Status = {
+  declaration?: Result['package'];
   scheduled: boolean;
   stale: boolean;
   result: Result | null;
@@ -20,6 +21,7 @@ export function PackageUpdate({ id }: { id: string }) {
   const path = `/connections/${id}/package-update`;
   const query = useQuery({ queryKey: ['package-update', id], queryFn: () => api<Status>(path) });
   const result = query.data?.result;
+  const declared = query.data?.declaration;
   const success = result?.state === 'checked' ? result : result?.lastSuccess;
   return (
     <section className="space-y-3" aria-label="MCP 包更新">
@@ -32,10 +34,17 @@ export function PackageUpdate({ id }: { id: string }) {
       {result?.state === 'failed' ? (
         <p role="alert">检查失败：{result.error}。历史成功结果仅供参考，已过期。</p>
       ) : null}
+      {declared ? (
+        <p style={{ overflowWrap: 'anywhere' }}>
+          配置：{declared.name} · {declared.configured}
+          <br />
+          来源：{declared.source}
+        </p>
+      ) : null}
       {success?.package ? (
         <dl className="grid gap-2 text-sm" style={{ overflowWrap: 'anywhere' }}>
           <div>
-            <dt>包 / 配置版本</dt>
+            <dt>检查时的包 / 配置版本</dt>
             <dd>
               {success.package.name} · {success.package.configured}
             </dd>

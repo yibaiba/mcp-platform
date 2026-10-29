@@ -1,3 +1,4 @@
+import { authPeer, authResponse } from './fixtureDeviceAuth.js';
 import { fixtureConnector } from './fixtureConnector.js';
 import { beforeAll, afterAll, test, expect } from 'vitest';
 import { createServer } from 'node:http';
@@ -18,11 +19,27 @@ let requests = 0;
 let respond: (() => void) | undefined;
 let hold = false;
 let failed = false;
-const server = createServer((_req, res) => {
+const metadataRequests: { url?: string; auth?: string }[] = [];
+const server = createServer((req, res) => {
+  metadataRequests.push({ url: req.url, auth: req.headers.authorization });
   requests++;
   const finish = () => {
     res.writeHead(failed ? 404 : 200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ versions: { '1.0.0': {}, '1.9.0': {}, '2.0.0-rc.1': {} } }));
+    res.end(
+      JSON.stringify(
+        req.url?.startsWith('/simple/')
+          ? {
+              files: [
+                { filename: 'fixture_pkg-1.0-py3-none-any.whl' },
+                { filename: 'fixture_pkg-1.1.post1-py3-none-any.whl' },
+                { filename: 'fixture_pkg-2.0rc1-py3-none-any.whl' },
+                { filename: 'fixture_pkg-2.1.dev1-py3-none-any.whl' },
+                { filename: 'fixture_pkg-3.0-py3-none-any.whl', yanked: true },
+              ],
+            }
+          : { versions: { '1.0.0': {}, '1.9.0': {}, '2.0.0-rc.1': {} } },
+      ),
+    );
   };
   if (hold) respond = finish;
   else finish();
@@ -53,9 +70,11 @@ async function connection(extra = {}) {
 }
 test('SemVer and PEP 440 stable versions including epochs, post/dev and prerelease filtering', () => {
   expect(latestStable('npm', ['1.9.0', '2.0.0-rc.1', '1.10.0'])).toBe('1.10.0');
+  expect(latestStable('pypi', ['1.0', '1.0.post1', '2.0rc1', '2.1.dev1'])).toBe('1.0.post1');
+  expect(latestStable('pypi', ['2.0rc1', '2.1.dev1'])).toBeNull();
   expect(
     latestStable('pypi', ['1.0', '1.0.post1', '1.1.dev1', '1.1rc1', '1!0.1', '1!0.1+local']),
-  ).toBe('1!0.1');
+  ).toBe('1!0.1+local');
   expect(
     newerThanConfigured(
       { ecosystem: 'pypi', name: 'x', source: origin, configured: '==1.0' },
@@ -215,6 +234,61 @@ test('real HMAC device checks metadata locally, offline and revoked devices are 
     expect(await h.services.packageUpdates.check(account.ownerId, row.id)).toMatchObject({
       result: { state: 'failed' },
     });
+  } finally {
+    await device.close();
+  }
+});
+
+test('an authenticated old connector explicitly rejects package checks without dispatch', async () => {
+  const device = await h.services.devices.pair(
+    (await h.services.devices.createPairing(account.ownerId, 'old device')).code,
+  );
+  const peer = await authPeer(h.baseURL);
+  try {
+    peer.send(authResponse(device, peer.challenge, h.baseURL));
+    expect(await peer.next()).toMatchObject({ type: 'auth.success' });
+    const row = await connection({ adapter: 'device', deviceId: device.deviceId });
+    expect(await h.services.packageUpdates.check(account.ownerId, row.id)).toMatchObject({
+      result: { state: 'failed', error: expect.stringMatching(/升级|能力/) },
+    });
+  } finally {
+    peer.ws.terminate();
+    await peer.closed;
+  }
+});
+
+test('platform and real HMAC device check the same authenticated Python source without installing', async () => {
+  const device = await fixtureConnector(h, account.ownerId);
+  const source = new URL('simple/', origin);
+  source.username = 'fixture';
+  source.password = 'password';
+  const before = metadataRequests.length;
+  try {
+    for (const adapter of ['direct', 'device']) {
+      const row = await connection({
+        adapter,
+        deviceId: adapter === 'device' ? device.deviceId : undefined,
+        command: 'uvx',
+        args: ['--index-url', source.href, 'fixture_pkg==1.0'],
+      });
+      const status = await h.services.packageUpdates.check(account.ownerId, row.id);
+      expect(status).toMatchObject({
+        result: {
+          state: 'checked',
+          latest: '1.1.post1',
+          runtimeVersion: null,
+          updateAvailable: true,
+        },
+      });
+      expect(JSON.stringify(status)).not.toContain('password');
+      expect((await h.services.connections.owned(account.ownerId, row.id)).status).not.toBe(
+        'connected',
+      );
+    }
+    expect(metadataRequests.slice(before)).toEqual([
+      { url: '/simple/fixture-pkg/', auth: 'Basic Zml4dHVyZTpwYXNzd29yZA==' },
+      { url: '/simple/fixture-pkg/', auth: 'Basic Zml4dHVyZTpwYXNzd29yZA==' },
+    ]);
   } finally {
     await device.close();
   }

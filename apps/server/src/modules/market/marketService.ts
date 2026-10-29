@@ -10,6 +10,7 @@ export class MarketService {
       registry: RegistryClient;
       connections: ConnectionService;
       prepare?: (config: ConnectionInput) => Promise<ConnectionInput>;
+      source?: (ownerId: string, config: ConnectionInput) => Promise<unknown>;
     },
   ) {}
   search(input: { search?: string; cursor?: string }) {
@@ -42,26 +43,34 @@ export class MarketService {
       ],
     };
   }
-  private async resolve(input: unknown) {
+  private async resolve(ownerId: string, input: unknown) {
     const selected = marketSelection.parse(input);
     const record = await this.deps.registry.detail(selected.serverName, selected.version);
     const original = compileRegistry(record.server, selected);
     const config = this.deps.prepare ? await this.deps.prepare(original) : original;
-    return { config, selected, hash: fingerprint({ server: record.server, config }) };
+    const installationSource = await this.deps.source?.(ownerId, original);
+    return {
+      config,
+      original,
+      selected,
+      installationSource,
+      hash: fingerprint({ server: record.server, config, installationSource }),
+    };
   }
   async preview(ownerId: string, input: unknown) {
-    const resolved = await this.resolve(input);
+    const resolved = await this.resolve(ownerId, input);
     await this.deps.connections.validate(ownerId, resolved.config);
-    // The preview includes argv exactly as executed. It is private to the requesting account.
+    // Never expose credentials loaded from the platform administrator’s package configuration.
     return {
-      config: resolved.config,
+      config: resolved.original,
+      installationSource: resolved.installationSource,
       previewHash: resolved.hash,
       status: 'preview',
       note: '保存后才下载或启动；真实发现成功后才标记已连接',
     };
   }
   async install(ownerId: string, input: unknown) {
-    const { config, selected, hash } = await this.resolve(input);
+    const { original: config, selected, hash } = await this.resolve(ownerId, input);
     if (selected.previewHash !== hash)
       throw new AppError(
         'MARKET_PREVIEW_CHANGED',

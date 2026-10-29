@@ -155,6 +155,7 @@ func (a *App) pair(repair bool) {
 			return err
 		}
 		if w.session != nil {
+			client = w.session.Runtime.Client()
 			if err := w.session.Runtime.Disconnect(); err != nil {
 				return err
 			}

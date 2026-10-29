@@ -23,6 +23,7 @@ import { currentExecution, withExecution } from './executionContext.js';
 import { legacyToolDefinition, isInputRequiredResult } from '@platform/mcp';
 
 export type GatewayHandlers = {
+  version?: string;
   webOrigin: string;
   access: AccessService;
   artifacts: ArtifactService;
@@ -54,7 +55,7 @@ export async function createGatewayServer(
     );
   const access = () => ({ ...principal, principal });
   const server = new Server(
-    { name: 'mcp-platform', version: '0.1.0' },
+    { name: 'mcp-platform', version: input.version ?? 'dev' },
     {
       instructions: await input.profiles.instructions(principal.ownerId, principal.profileId),
       capabilities: {

@@ -1,3 +1,4 @@
+import { startUpdateChecks } from './modules/updates/scheduler.js';
 import { config as loadEnv } from 'dotenv';
 import { serve } from '@hono/node-server';
 import { createAuth } from '@platform/auth';
@@ -35,6 +36,20 @@ const auth = createAuth({
   providers: config.AUTH_PROVIDERS,
 });
 const services = createServices(db, config);
+const stopUpdates = await startUpdateChecks({
+  db,
+  clock: {
+    now: () => new Date(),
+    every: (fn, ms) => {
+      const timer = setInterval(fn, ms);
+      timer.unref();
+      return () => clearInterval(timer);
+    },
+  },
+  packageCheck: (owner, id) => services.packageUpdates.check(owner, id),
+  platformCheck: () => services.platformUpdates.check(),
+  failed: () => services.logger.report('UPDATE_CHECK_FAILED'),
+});
 const stopRetention = startRetention({
   db,
   logger: services.logger,
@@ -97,6 +112,7 @@ console.log(
   `MCP Platform listening on ${config.PORT}; Pi MCP bridge available; built-in agent tasks ${config.PI_ENABLED === 'true' ? 'enabled' : 'disabled'}`,
 );
 async function shutdown() {
+  await stopUpdates();
   await stopRetention();
   await stopManifests();
   server.close();

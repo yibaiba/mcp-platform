@@ -1,3 +1,4 @@
+import type { VersionStatus } from '../../features/updates/AboutPage.js';
 import { Button } from '../ui/button.js';
 import { Link, Outlet } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -36,6 +37,7 @@ const navigation = [
   ['/tasks', '内置 Agent', Bot],
   ['/account', '个人账号', KeyRound],
   ['/users', '用户管理', ShieldCheck],
+  ['/about', '关于与更新', BookOpen],
   ['/network', '网络与安装源', Network],
   ['/system-logs', '系统日志', History],
 ] as const;
@@ -44,6 +46,11 @@ export function Shell() {
   const info = useQuery({
     queryKey: ['me'],
     queryFn: () => api<{ piEnabled: boolean; role: 'admin' | 'member' }>('/me'),
+    enabled: Boolean(session),
+  });
+  const version = useQuery({
+    queryKey: ['version'],
+    queryFn: () => api<VersionStatus>('/version'),
     enabled: Boolean(session),
   });
   if (isPending) return <div className="auth-screen">正在加载会话…</div>;
@@ -123,7 +130,13 @@ export function Shell() {
               <i />
               自主托管
             </span>
-            <span className="version">v0.1</span>
+            <Link to="/about" className="version">
+              {version.data
+                ? version.data.build.release
+                  ? version.data.build.version
+                  : `dev · ${version.data.build.commit.slice(0, 8)}`
+                : '版本信息'}
+            </Link>
           </span>
         </header>
         <main className="page">

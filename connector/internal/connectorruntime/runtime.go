@@ -165,6 +165,7 @@ func (r *Runtime) Close() error {
 		r.networkTransport.CloseIdleConnections()
 	}
 	err := r.disconnect()
+	r.options.Client.CloseIdleConnections()
 	r.watchers.Wait()
 	if r.Local != nil {
 		r.Local.Wait()
@@ -174,8 +175,14 @@ func (r *Runtime) Close() error {
 
 func (r *Runtime) prepareNetwork(c mcpclient.Config) (mcpclient.Config, error) {
 	settings, _ := r.Network.Snapshot()
-	prepared, err := network.Prepare(network.Command{Command: c.Command, Args: c.Args, Env: c.Env, PackageSource: c.PackageSource}, settings)
+	declaration, _, err := network.Declaration(network.Command{Command: c.Command, Args: c.Args, Env: c.Env, PackageSource: c.PackageSource, Cwd: c.Cwd})
+	if err != nil {
+		return c, err
+	}
+	prepared, err := network.Prepare(declaration, settings)
 	c.Args = prepared.Args
 	c.Env = prepared.Env
 	return c, err
 }
+
+func (r *Runtime) Client() *http.Client { return r.options.Client }

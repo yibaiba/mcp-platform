@@ -100,6 +100,10 @@ const groups = requested.length
         'tests/localManagement.test.ts',
         '--exclude',
         'tests/sshAccess.test.ts',
+        '--exclude',
+        'tests/packageUpdates.test.ts',
+        '--exclude',
+        'tests/platformUpdates.test.ts',
       ],
       [
         'tests/workspacePermissions.test.ts',
@@ -113,6 +117,7 @@ const groups = requested.length
         'tests/resultPresentation.test.ts',
       ],
       ['tests/cliAuth.test.ts'],
+      ['tests/packageUpdates.test.ts', 'tests/platformUpdates.test.ts'],
       ['tests/localManagement.test.ts'],
       ['tests/sshAccess.test.ts'],
       ['tests/workspaceOutputArtifacts.test.ts'],

@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -47,7 +48,7 @@ func Check(ctx context.Context, store *Store, client *http.Client) []map[string]
 				res, err = client.Do(req)
 				if err == nil {
 					res.Body.Close()
-					if res.StatusCode >= 400 {
+					if res.StatusCode < 200 || res.StatusCode >= 300 {
 						err = fmt.Errorf("HTTP %d", res.StatusCode)
 					}
 				}
@@ -72,8 +73,15 @@ func gitCheck(ctx context.Context, raw string, c Config) error {
 	for k, v := range prepared.Env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}
-	if token := c.Secrets["githubCloneToken"]; token != "" {
+	if token := c.Secrets["githubCloneToken"]; token != "" && c.GitHubClone != "" {
 		cmd.Env = append(cmd.Env, "GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=http."+raw+".extraHeader", "GIT_CONFIG_VALUE_0=Authorization: Bearer "+token)
 	}
-	return cmd.Run()
+	output, err := cmd.Output()
+	if err != nil {
+		return err
+	}
+	if !regexp.MustCompile(`(?m)^[a-f0-9]{40,64}\s+HEAD$`).Match(output) {
+		return fmt.Errorf("Git did not return a valid HEAD")
+	}
+	return nil
 }

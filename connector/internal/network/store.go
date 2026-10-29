@@ -9,6 +9,7 @@ import (
 	"mcplatform/connector/internal/local/storage"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -29,20 +30,8 @@ func Open(dir string) (*Store, error) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, err
 	}
-	keyPath := filepath.Join(dir, "network.key")
-	key, err := os.ReadFile(keyPath)
-	if os.IsNotExist(err) {
-		if _, statErr := os.Stat(filepath.Join(dir, "network.enc")); statErr == nil {
-			return nil, fmt.Errorf("network key missing; restore original key")
-		}
-		key = make([]byte, 32)
-		if _, err = rand.Read(key); err != nil {
-			return nil, err
-		}
-		if err = storage.Atomic(keyPath, key, 0600); err != nil {
-			return nil, err
-		}
-	} else if err != nil {
+	key, err := loadKey(dir)
+	if err != nil {
 		return nil, err
 	}
 	block, err := aes.NewCipher(key)
@@ -107,32 +96,11 @@ func (s *Store) save(input Save) error {
 		return err
 	}
 	next := disk{Revision: input.Revision + 1, Config: Config{Settings: input.Settings, Secrets: map[string]string{}}}
-	for k, v := range s.state.Config.Secrets {
-		next.Config.Secrets[k] = v
+	secrets, err := editSecrets(s.state.Config.Secrets, input.Secrets)
+	if err != nil {
+		return err
 	}
-	for name, edit := range input.Secrets {
-		known := false
-		for _, n := range SecretNames {
-			if name == n {
-				known = true
-			}
-		}
-		if !known {
-			return fmt.Errorf("unknown credential")
-		}
-		switch edit.Action {
-		case "keep":
-		case "clear":
-			delete(next.Config.Secrets, name)
-		case "replace":
-			if edit.Value == "" || strings.ContainsAny(edit.Value, "\r\n") {
-				return fmt.Errorf("invalid credential")
-			}
-			next.Config.Secrets[name] = edit.Value
-		default:
-			return fmt.Errorf("invalid credential edit action")
-		}
-	}
+	next.Config.Secrets = secrets
 	plain, err := json.Marshal(next)
 	if err != nil {
 		return err
@@ -147,4 +115,73 @@ func (s *Store) save(input Save) error {
 	}
 	s.state = next
 	return nil
+}
+
+// Publish a complete key without overwriting a key created by another process.
+func createKey(path string, key []byte) ([]byte, error) {
+	staged, err := os.CreateTemp(filepath.Dir(path), ".network-key-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(staged.Name())
+	if _, err = staged.Write(key); err == nil {
+		err = staged.Sync()
+	}
+	closeErr := staged.Close()
+	if err != nil {
+		return nil, err
+	}
+	if closeErr != nil {
+		return nil, closeErr
+	}
+	if err = os.Link(staged.Name(), path); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+	return os.ReadFile(path)
+}
+
+func loadKey(dir string) ([]byte, error) {
+	keyPath := filepath.Join(dir, "network.key")
+	key, err := os.ReadFile(keyPath)
+	if os.IsNotExist(err) {
+		if _, statErr := os.Stat(filepath.Join(dir, "network.enc")); statErr == nil {
+			return nil, fmt.Errorf("network key missing; restore original key")
+		}
+		key = make([]byte, 32)
+		if _, err = rand.Read(key); err != nil {
+			return nil, err
+		}
+		key, err = createKey(keyPath, key)
+		if err != nil {
+			return nil, err
+		}
+	} else if err != nil {
+		return nil, err
+	}
+	return key, nil
+}
+
+func editSecrets(current map[string]string, edits map[string]Edit) (map[string]string, error) {
+	secrets := map[string]string{}
+	for k, v := range current {
+		secrets[k] = v
+	}
+	for name, edit := range edits {
+		if !slices.Contains(SecretNames, name) {
+			return nil, fmt.Errorf("unknown credential")
+		}
+		switch edit.Action {
+		case "keep":
+		case "clear":
+			delete(secrets, name)
+		case "replace":
+			if edit.Value == "" || strings.ContainsAny(edit.Value, "\r\n") {
+				return nil, fmt.Errorf("invalid credential")
+			}
+			secrets[name] = edit.Value
+		default:
+			return nil, fmt.Errorf("invalid credential edit action")
+		}
+	}
+	return secrets, nil
 }

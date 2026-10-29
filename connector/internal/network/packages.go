@@ -18,17 +18,29 @@ type PackageResult struct {
 	NetworkRevision int      `json:"networkRevision"`
 }
 
-func CheckPackage(ctx context.Context, input Command, store *Store, client *http.Client) (PackageResult, error) {
-	c, revision := store.Snapshot()
+type PackageCheckOptions struct {
+	Input  Command
+	Store  *Store
+	Client *http.Client
+}
+
+func CheckPackage(ctx context.Context, options PackageCheckOptions) (PackageResult, error) {
+	input, auth, err := Declaration(options.Input)
+	if err != nil {
+		return PackageResult{}, err
+	}
+	c, revision := options.Store.Snapshot()
 	p, err := Resolve(input, c)
 	if err != nil {
 		return PackageResult{}, err
 	}
-	versions, err := queryPackage(ctx, *p, client)
+	metadataClient := *options.Client
+	metadataClient.CheckRedirect = Redirect
+	versions, err := queryPackage(ctx, *p, &packageClient{client: &metadataClient, auth: NPMAuthorization(p.Source, auth)})
 	if err != nil {
 		return PackageResult{}, err
 	}
-	_, current := store.Snapshot()
+	_, current := options.Store.Snapshot()
 	if revision != current {
 		return PackageResult{}, fmt.Errorf("network settings changed during package check")
 	}
@@ -39,7 +51,9 @@ func CheckPackage(ctx context.Context, input Command, store *Store, client *http
 	p.Source = u.String()
 	return PackageResult{Package: *p, Versions: versions, NetworkRevision: revision}, nil
 }
-func queryPackage(ctx context.Context, p Package, client *http.Client) ([]string, error) {
+func queryPackage(ctx context.Context, p Package, client interface {
+	Do(*http.Request) (*http.Response, error)
+}) ([]string, error) {
 	name := url.PathEscape(p.Name)
 	if p.Ecosystem == "pypi" {
 		name = regexp.MustCompile(`[-_.]+`).ReplaceAllString(strings.ToLower(p.Name), "-") + "/"
@@ -67,21 +81,77 @@ func queryPackage(ctx context.Context, p Package, client *http.Client) ([]string
 		return nil, fmt.Errorf("package source response read failed")
 	}
 	if p.Ecosystem == "npm" {
-		var body struct {
-			Versions map[string]json.RawMessage `json:"versions"`
-		}
-		if json.Unmarshal(data, &body) != nil || body.Versions == nil {
-			return nil, fmt.Errorf("invalid npm metadata")
-		}
-		versions := []string{}
-		for version := range body.Versions {
-			versions = append(versions, version)
-		}
-		return versions, nil
+		return npmVersions(data)
 	}
 	return pythonVersions(data, res.Header.Get("Content-Type"))
 }
 func pythonVersions(data []byte, contentType string) ([]string, error) {
+	names, err := pythonFilenames(data, contentType)
+	if err != nil {
+		return nil, err
+	}
+	wheel := regexp.MustCompile(`^[^-]+-([^-]+)-.+\.whl$`)
+	archive := regexp.MustCompile(`-([0-9][^-]*)\.(?:tar\.gz|tar\.bz2|tar\.xz|zip|tgz)$`)
+	versions := []string{}
+	seen := map[string]bool{}
+	for _, name := range names {
+		match := wheel.FindStringSubmatch(name)
+		if match == nil {
+			match = archive.FindStringSubmatch(name)
+		}
+		if match != nil && !seen[match[1]] {
+			seen[match[1]] = true
+			versions = append(versions, match[1])
+		}
+	}
+	return versions, nil
+}
+
+type packageClient struct {
+	client *http.Client
+	auth   string
+}
+
+func (c *packageClient) Do(req *http.Request) (*http.Response, error) {
+	if c.auth != "" {
+		req.Header.Set("Authorization", c.auth)
+	}
+	return c.client.Do(req)
+}
+
+func PreviewPackage(input Command, store *Store) (PackageResult, error) {
+	input, _, err := Declaration(input)
+	if err != nil {
+		return PackageResult{}, err
+	}
+	c, revision := store.Snapshot()
+	p, err := Resolve(input, c)
+	if err != nil {
+		return PackageResult{}, err
+	}
+	u, _ := url.Parse(p.Source)
+	u.User = nil
+	u.RawQuery = ""
+	u.Fragment = ""
+	p.Source = u.String()
+	return PackageResult{Package: *p, NetworkRevision: revision, Versions: []string{}}, nil
+}
+
+func npmVersions(data []byte) ([]string, error) {
+	var body struct {
+		Versions map[string]json.RawMessage `json:"versions"`
+	}
+	if json.Unmarshal(data, &body) != nil || body.Versions == nil {
+		return nil, fmt.Errorf("invalid npm metadata")
+	}
+	versions := []string{}
+	for version := range body.Versions {
+		versions = append(versions, version)
+	}
+	return versions, nil
+}
+
+func pythonFilenames(data []byte, contentType string) ([]string, error) {
 	names := []string{}
 	if strings.Contains(contentType, "json") {
 		var body struct {
@@ -112,19 +182,5 @@ func pythonVersions(data []byte, contentType string) ([]string, error) {
 			names = append(names, parts[len(parts)-1])
 		}
 	}
-	wheel := regexp.MustCompile(`^[^-]+-([^-]+)-.+\.whl$`)
-	archive := regexp.MustCompile(`-([0-9][^-]*)\.(?:tar\.gz|tar\.bz2|tar\.xz|zip|tgz)$`)
-	versions := []string{}
-	seen := map[string]bool{}
-	for _, name := range names {
-		match := wheel.FindStringSubmatch(name)
-		if match == nil {
-			match = archive.FindStringSubmatch(name)
-		}
-		if match != nil && !seen[match[1]] {
-			seen[match[1]] = true
-			versions = append(versions, match[1])
-		}
-	}
-	return versions, nil
+	return names, nil
 }

@@ -43,6 +43,7 @@ test('NO_PROXY handles label boundaries, ports, IPv4/IPv6 and wildcard', () => {
     ['http://[::1]:123', '[::1]:123', true],
     ['http://[::1]:123', '::1', true],
     ['https://example.org', '*', true],
+    ['http://[::1]', '0:0:0:0:0:0:0:1', true],
   ] as const)
     expect(bypassProxy(new URL(url), pattern)).toBe(expected);
 });
@@ -174,4 +175,159 @@ test('rewrite and cross-origin redirect do not forward original or custom endpoi
   expect(mirrorAuth).toBe('Bearer mirror-token');
   expect(headers.authorization).toBeUndefined();
   expect(headers.cookie).toBeUndefined();
+});
+
+test('scoped npm credentials stay on their private registry; official scoped sources can opt into mirrors', async () => {
+  const { npmDeclaration, npmAuthorization } = await import('../packages/network/src/npmConfig.js');
+  const files = {
+    home: '/home/test',
+    cwd: '/work',
+    read: async (path: string) =>
+      path === '/home/test/.npmrc'
+        ? '@team:registry=https://private.test/npm/\n//private.test/npm/:_authToken=private-fixture-token\nregistry=https://registry.npmjs.org/'
+        : undefined,
+  };
+  const declaration = await npmDeclaration({ command: 'npx', args: ['@team/pkg@1.0.0'] }, files);
+  const settings = config({ npmRegistry: 'https://mirror.test/', replacePublicSources: true });
+  const resolved = resolvePackage(declaration.input, settings)!;
+  expect(resolved.source).toBe('https://private.test/npm/');
+  expect(processNetwork(declaration.input, settings).args).toContain(
+    '--@team:registry=https://private.test/npm/',
+  );
+  expect(npmAuthorization(resolved.source, declaration.auth)).toEqual({
+    Authorization: 'Bearer private-fixture-token',
+  });
+  expect(npmAuthorization('https://mirror.test/', declaration.auth)).toEqual({});
+  expect(
+    npmAuthorization('https://private.test/npm-evil/', {
+      '//private.test/npm:_authToken': 'fixture-token',
+    }),
+  ).toEqual({});
+  expect(
+    resolvePackage(
+      { ...declaration.input, sourceProtected: false, scopedSource: 'https://registry.npmjs.org/' },
+      settings,
+    )?.source,
+  ).toBe('https://mirror.test/');
+});
+test('uv user default index is preserved and multiple indexes do not invent a single source', async () => {
+  const { pythonDeclaration } = await import('../packages/network/src/pythonConfig.js');
+  const files = {
+    home: '/home/test',
+    read: async (path: string) =>
+      path === '/home/test/.config/uv/uv.toml'
+        ? '[[index]]\nurl="https://private.test/simple/"\ndefault=true'
+        : undefined,
+  };
+  const input = { command: 'uvx', args: ['--from', 'pkg==1.0', 'pkg'] };
+  const declared = await pythonDeclaration(input, files);
+  expect(
+    resolvePackage(
+      declared,
+      config({ pythonIndex: 'https://mirror.test/simple/', replacePublicSources: true }),
+    )?.source,
+  ).toBe('https://private.test/simple/');
+  const multiple = await pythonDeclaration(input, {
+    ...files,
+    read: async () => '[[index]]\nurl="https://private.test/simple/"',
+  });
+  expect(resolvePackage(multiple, config())).toBeUndefined();
+  expect(
+    processNetwork(multiple, config({ pythonIndex: 'https://mirror.test/simple/' })).args,
+  ).toEqual(input.args);
+});
+
+test('scoped CLI registry outranks general CLI and file registry, while explicit connection source wins', () => {
+  const input = {
+    command: 'npx',
+    args: [
+      '--@team:registry=https://private.test/',
+      '--registry',
+      'https://registry.npmjs.org/',
+      '@team/pkg@1.0.0',
+    ],
+    scopedSource: 'https://file.test/',
+  };
+  const settings = config({ npmRegistry: 'https://mirror.test/', replacePublicSources: true });
+  expect(resolvePackage(input, settings)?.source).toBe('https://private.test/');
+  const prepared = processNetwork({ ...input, packageSource: 'https://explicit.test/' }, settings);
+  expect(prepared.args).toContain('--@team:registry=https://explicit.test/');
+  expect(prepared.args.some((arg) => arg.includes('private.test'))).toBe(false);
+});
+test('rotation drains existing streams and shutdown releases unconsumed streams', async () => {
+  const origin = await listen(
+    createServer((_req, res) => {
+      res.writeHead(200);
+      res.write('open');
+    }),
+  );
+  const client = new NetworkClient(config());
+  const response = await client.fetch(origin);
+  let retired = false;
+  const draining = client.retire().then(() => {
+    retired = true;
+  });
+  expect(retired).toBe(false);
+  await client.close();
+  await draining;
+  expect(retired).toBe(true);
+  await expect(response.text()).rejects.toThrow();
+});
+test('URL-carried credentials are rejected before a GitHub acceleration request', () => {
+  const settings = config({ githubDownload: 'https://accelerator.test/{encodedUrl}' });
+  expect(() =>
+    githubTarget(
+      new URL('https://github.com/team/repo/archive/fixed.zip?access_token=private'),
+      settings,
+    ),
+  ).toThrow();
+});
+
+test('GitHub download acceleration does not rewrite OAuth or non-download pages', async () => {
+  const settings = config({
+    githubDownload: 'https://accelerator.test/{encodedUrl}',
+    githubApi: 'https://api-accelerator.test',
+  });
+  const oauth = 'https://github.com/login/oauth/access_token';
+  expect(githubTarget(new URL(oauth), settings).url.href).toBe(oauth);
+  const seen: Request[] = [];
+  const request: typeof fetch = async (input, init) => {
+    seen.push(new Request(input, init));
+    return new Response('ok');
+  };
+  const client = new NetworkClient(settings, request);
+  try {
+    await client.fetch('https://api.github.com/submission', {
+      method: 'POST',
+      body: 'client_secret=fixture',
+      headers: { Authorization: 'Bearer fixture' },
+    });
+    expect(seen[0]!.url).toBe('https://api.github.com/submission');
+    expect(await seen[0]!.text()).toBe('client_secret=fixture');
+  } finally {
+    await client.close();
+  }
+});
+
+test('GitHub OAuth POST redirects cannot replay submitted credentials across origins', async () => {
+  let calls = 0;
+  const request: typeof fetch = async () => {
+    calls++;
+    return new Response(null, {
+      status: 307,
+      headers: { Location: 'https://third-party.test/token' },
+    });
+  };
+  const client = new NetworkClient(config(), request);
+  try {
+    await expect(
+      client.fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        body: 'client_secret=fixture',
+      }),
+    ).rejects.toThrow('请求体');
+    expect(calls).toBe(1);
+  } finally {
+    await client.close();
+  }
 });

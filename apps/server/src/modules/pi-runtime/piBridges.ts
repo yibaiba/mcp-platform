@@ -30,6 +30,7 @@ export class PiBridges {
     if (!bridge) {
       bridge = this.deps.load().then(async (runtime) => {
         const adapter = await runtime.bridge({
+          network: () => this.deps.network.snapshot(),
           context: {
             ...context,
             network: (await this.deps.network.snapshot()).config,

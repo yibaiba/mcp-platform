@@ -5,12 +5,13 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 )
 
 func Bypass(u *url.URL, value string) bool {
-	host := strings.ToLower(u.Hostname())
+	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
 	port := u.Port()
 	if port == "" {
 		port = "80"
@@ -22,15 +23,7 @@ func Bypass(u *url.URL, value string) bool {
 		if entry == "*" {
 			return true
 		}
-		pattern, p, err := net.SplitHostPort(entry)
-		if err != nil {
-			pattern = entry
-		} else if port != p {
-			continue
-		}
-		pattern = strings.Trim(pattern, "[]")
-		pattern = strings.TrimPrefix(strings.TrimPrefix(pattern, "*"), ".")
-		if host == pattern || (!strings.Contains(pattern, ":") && strings.HasSuffix(host, "."+pattern)) {
+		if matchesProxyEntry(host, port, entry) {
 			return true
 		}
 	}
@@ -91,7 +84,10 @@ func (t *Transport) current(c Config, revision int) (http.RoundTripper, error) {
 }
 func (t *Transport) RoundTrip(r *http.Request) (*http.Response, error) {
 	c, revision := t.Store.Snapshot()
-	target, token, err := Rewrite(r.URL, c)
+	target, token, err := r.URL, "", error(nil)
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		target, token, err = Rewrite(r.URL, c)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -136,6 +132,10 @@ func Redirect(req *http.Request, via []*http.Request) error {
 	}
 	previous := via[len(via)-1]
 	if req.URL.Host != previous.URL.Host || req.URL.Scheme != previous.URL.Scheme {
+		github := previous.URL.Hostname() == "github.com" || strings.HasSuffix(previous.URL.Hostname(), ".github.com")
+		if github && req.Body != nil {
+			return fmt.Errorf("cannot redirect a GitHub request body to another origin")
+		}
 		strip(req.Header)
 	}
 	return nil
@@ -152,11 +152,60 @@ func Rewrite(u *url.URL, c Config) (*url.URL, string, error) {
 			token = c.Secrets["githubApiToken"]
 		}
 	case "github.com", "raw.githubusercontent.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com":
-		if c.GitHubDownload != "" {
+		if c.GitHubDownload != "" && isDownloadURL(u) {
 			raw = strings.ReplaceAll(strings.ReplaceAll(c.GitHubDownload, "{url}", u.String()), "{encodedUrl}", url.QueryEscape(u.String()))
 			token = c.Secrets["githubDownloadToken"]
 		}
 	}
 	target, err := url.Parse(raw)
+	if err != nil {
+		return nil, "", err
+	}
+	if err = validateRewrite(u, target); err != nil {
+		return nil, "", err
+	}
 	return target, token, err
+}
+
+func matchesProxyEntry(host, port, entry string) bool {
+	pattern, p, err := net.SplitHostPort(entry)
+	if err != nil {
+		pattern = entry
+	} else if port != p {
+		return false
+	}
+	pattern = strings.Trim(pattern, "[]")
+	pattern = strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(pattern, "*"), "."), ".")
+	if address := net.ParseIP(pattern); address != nil {
+		if address.Equal(net.ParseIP(host)) {
+			return true
+		}
+		return false
+	}
+	if host == pattern || (!strings.Contains(pattern, ":") && strings.HasSuffix(host, "."+pattern)) {
+		return true
+	}
+	return false
+}
+
+func validateRewrite(u, target *url.URL) error {
+	if target.Host != u.Host || target.Scheme != u.Scheme {
+		sensitive := u.User != nil
+		for name := range u.Query() {
+			if regexp.MustCompile(`(?i)(token|auth|secret|credential|signature|api.?key|^sig$)`).MatchString(name) {
+				sensitive = true
+			}
+		}
+		if sensitive {
+			return fmt.Errorf("GitHub URL contains authentication parameters; cannot forward to accelerator")
+		}
+	}
+	return nil
+}
+
+func isDownloadURL(u *url.URL) bool {
+	if u.Hostname() != "github.com" {
+		return true
+	}
+	return regexp.MustCompile(`^/[^/]+/[^/]+/(?:archive/|raw/|releases/(?:download|latest/download)/)`).MatchString(u.Path)
 }

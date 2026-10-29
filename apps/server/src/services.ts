@@ -1,3 +1,7 @@
+import { homedir } from 'node:os';
+import { PlatformUpdateService } from './modules/updates/platformService.js';
+import { readBuildInfo } from './modules/updates/buildInfo.js';
+import { platformRoot } from './config.js';
 import { PackageUpdateService } from './modules/updates/packageService.js';
 import { NetworkService } from './modules/network/service.js';
 import { LocalService } from './modules/local/localService.js';
@@ -17,7 +21,7 @@ import { ConfigExportService } from './modules/configuration/exportService.js';
 import { ManifestService } from './modules/configuration/manifestService.js';
 import { ConfigSecrets } from './modules/configuration/secretService.js';
 import { DeploymentPending } from './modules/configuration/values.js';
-import { stat } from 'node:fs/promises';
+import { stat, readFile } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
 import { RequestService } from './modules/permissions/requestService.js';
 import { requestCatalog } from './modules/permissions/requestCatalog.js';
@@ -57,6 +61,8 @@ import { LogService } from './modules/activity/logService.js';
 import { databaseLogger } from './modules/activity/systemLogger.js';
 import { ShareService } from './modules/shares/shareService.js';
 export function createServices(db: Database, config: Config) {
+  const build = readBuildInfo(platformRoot);
+  const protocolVersion = build.release ? build.version : `dev-${build.commit.slice(0, 8)}`;
   const metrics = new RuntimeMetrics();
   const vault = new Vault(config.ENCRYPTION_KEY);
   const logger = databaseLogger(db);
@@ -65,6 +71,18 @@ export function createServices(db: Database, config: Config) {
     vault,
     fetch: globalThis.fetch,
     failed: () => logger.report('NETWORK_POOL_CLOSE_FAILED'),
+    files: {
+      home: homedir(),
+      cwd: process.cwd(),
+      read: async (path) => {
+        try {
+          return await readFile(path, 'utf8');
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+          throw error;
+        }
+      },
+    },
   });
   const fetch = network.fetch;
   const shares: ShareService = new ShareService({
@@ -154,6 +172,7 @@ export function createServices(db: Database, config: Config) {
       return createDirectAdapter(runtimeContext, upstreamOAuth.provider(context), {
         fetch: upstreamOAuth.fetchFor(context),
         beforeCall: () => upstreamOAuth.headers(context),
+        version: protocolVersion,
         logStderr: () => logger.report('MCP_STDERR', context.ownerId),
       });
     },
@@ -210,6 +229,7 @@ export function createServices(db: Database, config: Config) {
     catalog: (access) => requestCatalog({ db, profiles, connections, content }, access),
   });
   const gateway: Gateway = new Gateway({
+    version: protocolVersion,
     webOrigin: config.WEB_ORIGIN,
     access,
     artifacts,
@@ -298,15 +318,17 @@ export function createServices(db: Database, config: Config) {
     store: new RestCallStore(db, vault),
     results: new EncryptedResultStore(resolve(config.DATA_DIR, 'rest-results'), vault),
   });
+  const packageUpdates = new PackageUpdateService({
+    db,
+    vault,
+    network,
+    devices,
+    broker,
+    now: () => new Date(),
+  });
   return {
-    packageUpdates: new PackageUpdateService({
-      db,
-      vault,
-      network,
-      devices,
-      broker,
-      now: () => new Date(),
-    }),
+    platformUpdates: new PlatformUpdateService({ db, network, build, now: () => new Date() }),
+    packageUpdates,
     network,
     local,
     cliAuth: new CliAuthService(db),
@@ -319,6 +341,10 @@ export function createServices(db: Database, config: Config) {
     market: new MarketService({
       registry: new RegistryClient({ fetch, baseUrl: OFFICIAL_REGISTRY }),
       connections,
+      source: (ownerId, config) =>
+        config.command || config.deviceResourceId
+          ? packageUpdates.preview(ownerId, config)
+          : Promise.resolve(null),
       prepare: async (config) => {
         if (config.adapter === 'device') return config;
         const prepared = await network.process(config);

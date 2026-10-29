@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -54,22 +55,12 @@ func validateTemplate(raw string, clone bool) error {
 	if raw == "" {
 		return nil
 	}
-	tokens := regexp.MustCompile(`\{[^{}]*\}`).FindAllString(raw, -1)
-	required := []string{"{url}", "{encodedUrl}"}
-	if clone {
-		required = []string{"{owner}", "{repo}"}
-	}
-	for _, token := range tokens {
-		if token != required[0] && token != required[1] {
-			return fmt.Errorf("unsupported template placeholder")
-		}
-	}
-	if (!clone && len(tokens) != 1) || (clone && (!strings.Contains(raw, required[0]) || !strings.Contains(raw, required[1]))) {
-		return fmt.Errorf("missing template placeholder")
+	if err := templateTokens(raw, clone); err != nil {
+		return err
 	}
 	replaced := strings.NewReplacer("{url}", "https://github.com/owner/repo", "{encodedUrl}", "https%3A%2F%2Fgithub.com%2Fowner%2Frepo", "{owner}", "owner", "{repo}", "repo").Replace(raw)
 	u, err := url.Parse(replaced)
-	if err != nil || u.User != nil || u.Fragment != "" || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") {
+	if err != nil || u.User != nil || u.Fragment != "" || u.Host == "" || !slices.Contains([]string{"https", "http"}, u.Scheme) {
 		return fmt.Errorf("invalid template URL")
 	}
 	original := strings.SplitN(raw, "://", 2)
@@ -97,4 +88,21 @@ func ParseSave(raw json.RawMessage) (Save, error) {
 		return save, err
 	}
 	return save, save.Settings.Validate()
+}
+
+func templateTokens(raw string, clone bool) error {
+	tokens := regexp.MustCompile(`\{[^{}]*\}`).FindAllString(raw, -1)
+	required := []string{"{url}", "{encodedUrl}"}
+	if clone {
+		required = []string{"{owner}", "{repo}"}
+	}
+	for _, token := range tokens {
+		if token != required[0] && token != required[1] {
+			return fmt.Errorf("unsupported template placeholder")
+		}
+	}
+	if (!clone && len(tokens) != 1) || (clone && (!strings.Contains(raw, required[0]) || !strings.Contains(raw, required[1]))) {
+		return fmt.Errorf("missing template placeholder")
+	}
+	return nil
 }

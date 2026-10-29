@@ -1,7 +1,10 @@
 import { and, eq, lte } from 'drizzle-orm';
 import { updateChecks, type Database } from '@platform/db';
 import { UPDATE_INTERVAL_MS } from './packageService.js';
-export type UpdateClock = { now: () => Date; every: (fn: () => void, ms: number) => () => void };
+export type UpdateClock = {
+  now: () => Date;
+  every: (fn: () => void | Promise<void>, ms: number) => () => void;
+};
 export async function startUpdateChecks(deps: {
   db: Database;
   clock: UpdateClock;
@@ -48,6 +51,7 @@ export async function startUpdateChecks(deps: {
       .finally(() => {
         pending = undefined;
       });
+    return pending;
   }, 60_000);
   return async () => {
     stop();

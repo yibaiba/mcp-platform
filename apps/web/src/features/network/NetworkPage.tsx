@@ -18,7 +18,7 @@ export default function NetworkPage() {
       </div>
       <Feedback error={query.error} />
       {query.data ? (
-        <section className="panel">
+        <section className="panel p-5 sm:p-6">
           <NetworkEditor
             initial={query.data}
             save={(value) => api('/admin/network-settings', { method: 'PUT', body: json(value) })}

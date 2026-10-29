@@ -3,7 +3,7 @@ import { promisify } from 'node:util';
 import { githubTarget } from '@platform/network';
 import type { NetworkService } from './service.js';
 const execute = promisify(execFile);
-export async function checkNetwork(service: NetworkService) {
+export async function checkNetwork(service: Pick<NetworkService, 'snapshot' | 'git' | 'fetch'>) {
   const { config } = await service.snapshot();
   const api = 'https://api.github.com/repos/yibaiba/mcp-platform';
   const download = 'https://raw.githubusercontent.com/yibaiba/mcp-platform/main/README.md';
@@ -28,11 +28,12 @@ export async function checkNetwork(service: NetworkService) {
       kind: 'git',
       url: clone.url,
       run: async () => {
-        await execute(
+        const { stdout } = await execute(
           'git',
           ['-c', 'http.followRedirects=false', 'ls-remote', '--', clone.url, 'HEAD'],
           { timeout: 15_000, env: gitEnvironment(clone) },
         );
+        if (!/^[a-f0-9]{40,64}\s+HEAD$/m.test(stdout)) throw new Error('Git 未返回有效 HEAD');
         return 'Git 访问成功';
       },
     },

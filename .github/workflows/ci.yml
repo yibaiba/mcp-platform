@@ -56,6 +56,8 @@ jobs:
       - name: Lint
         run: node scripts/check.mjs 120 pnpm lint
       - name: Production build
+        env:
+          PLATFORM_RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || '' }}
         run: node scripts/check.mjs 180 pnpm build
       - name: Backend integration tests (60 seconds per process)
         run: node scripts/check.mjs 1200 pnpm test
@@ -155,6 +157,9 @@ jobs:
         with:
           context: .
           target: app
+          build-args: |
+            PLATFORM_COMMIT=${{ github.sha }}
+            PLATFORM_RELEASE_TAG=${{ github.event_name == 'release' && github.event.release.tag_name || '' }}
           platforms: linux/${{ matrix.arch }}
           load: true
           tags: mcp-platform:local
@@ -185,6 +190,9 @@ jobs:
         with:
           context: .
           target: app
+          build-args: |
+            PLATFORM_COMMIT=${{ github.sha }}
+            PLATFORM_RELEASE_TAG=${{ github.event_name == 'release' && github.event.release.tag_name || '' }}
           platforms: linux/${{ matrix.arch }}
           push: true
           tags: ${{ steps.metadata.outputs.tags }}

@@ -11,10 +11,12 @@ import (
 )
 
 type Dispatch struct {
-	Local     *local.Service
-	MCP       *mcpclient.Manager
-	Skills    *files.SkillInstaller
-	Artifacts *files.ArtifactTransfer
+	PackagePreview func(json.RawMessage) (any, error)
+	PackageCheck   func(context.Context, json.RawMessage) (any, error)
+	Local          *local.Service
+	MCP            *mcpclient.Manager
+	Skills         *files.SkillInstaller
+	Artifacts      *files.ArtifactTransfer
 }
 
 func (d *Dispatch) Execute(ctx context.Context, method string, params json.RawMessage) (any, error) {
@@ -31,7 +33,18 @@ func (d *Dispatch) Execute(ctx context.Context, method string, params json.RawMe
 			return nil, err
 		}
 		return d.Local.Execute(ctx, request, true)
+	case "package.preview":
+		if d.PackagePreview != nil {
+			return d.PackagePreview(params)
+		}
+		if d.Local == nil {
+			return nil, fmt.Errorf("package preview unavailable")
+		}
+		return d.Local.PreviewPackage(params)
 	case "package.check":
+		if d.PackageCheck != nil {
+			return d.PackageCheck(ctx, params)
+		}
 		if d.Local == nil {
 			return nil, fmt.Errorf("package checks unavailable")
 		}
@@ -68,6 +81,9 @@ func (d *Dispatch) SetLocalNotifier(notify func()) {
 
 func (d *Dispatch) Capabilities() []string {
 	values := []string{"sessions", "health", "oauth", "elicitation", "apps"}
+	if d.PackageCheck != nil {
+		values = append(values, "package-updates")
+	}
 	if d.Local != nil {
 		values = append(values, "local-management", "local-sync", "package-updates")
 	}

@@ -55,3 +55,5 @@ integrations/pi/.pi/
 
 connector/internal/localhttp/assets/*
 !connector/internal/localhttp/assets/README.txt
+
+.build-info.json

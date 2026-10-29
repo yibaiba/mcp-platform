@@ -21,7 +21,7 @@ const gitInput = z
     dependencies: z.array(z.string()).default([]),
   })
   .strict();
-export async function importGit(input: unknown, network?: NetworkService) {
+export async function importGit(input: unknown, network?: Pick<NetworkService, 'git'>) {
   const value = gitInput.parse(input);
   if (value.path) safeRelativePath(value.path);
   const target = network ? await network.git(value.url) : { url: value.url, env: {} };

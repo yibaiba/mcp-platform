@@ -1,3 +1,4 @@
+import './network.css';
 import { useState } from 'react';
 import {
   networkSave,
@@ -74,7 +75,7 @@ export function NetworkEditor({
       .replaceAll('{repo}', 'mcp-platform');
   return (
     <form
-      className="form"
+      className="form network-editor"
       onSubmit={(event) => {
         event.preventDefault();
         void act(async () => {
@@ -101,6 +102,7 @@ export function NetworkEditor({
         {fields.map(([key, label, hint]) => (
           <Field key={key} label={label} hint={hint}>
             <Input
+              disabled={busy}
               value={settings[key]}
               onChange={(event) => setSettings({ ...settings, [key]: event.target.value })}
               autoComplete="off"
@@ -108,9 +110,10 @@ export function NetworkEditor({
           </Field>
         ))}
       </div>
-      <label>
+      <label className="network-source-toggle">
         <input
           type="checkbox"
+          disabled={busy}
           checked={settings.replacePublicSources}
           onChange={(event) =>
             setSettings({ ...settings, replacePublicSources: event.target.checked })
@@ -127,6 +130,7 @@ export function NetworkEditor({
           >
             <div>
               <select
+                disabled={busy}
                 aria-label={`${secretLabels[index]}操作`}
                 value={edits[name]?.action ?? 'keep'}
                 onChange={(event) =>
@@ -144,6 +148,7 @@ export function NetworkEditor({
                 <Input
                   aria-label={secretLabels[index]}
                   type="password"
+                  disabled={busy}
                   autoComplete="new-password"
                   value={edits[name]?.value ?? ''}
                   onChange={(event) =>
@@ -158,7 +163,7 @@ export function NetworkEditor({
       </div>
       <p>GitHub 第三方端点不会自动收到原 GitHub 认证信息。需要认证时，请填写对应的独立令牌。</p>
       {settings.githubDownload || settings.githubClone ? (
-        <div style={{ overflowWrap: 'anywhere' }} aria-label="地址预览">
+        <div aria-label="地址预览">
           {settings.githubDownload ? <p>下载预览：{preview(settings.githubDownload)}</p> : null}
           {settings.githubClone ? <p>Git 预览：{preview(settings.githubClone)}</p> : null}
         </div>
@@ -184,7 +189,7 @@ export function NetworkEditor({
       </div>
       <div aria-live="polite">
         {results.map((result) => (
-          <p key={result.kind} style={{ overflowWrap: 'anywhere' }}>
+          <p key={result.kind}>
             {result.kind}：{result.ok ? '成功' : '失败'} · {result.detail}
             <br />
             {result.url}

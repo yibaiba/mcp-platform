@@ -6,7 +6,15 @@ import {
   type NetworkConfig,
   type NetworkView,
 } from '@platform/contracts';
-import { NetworkClient, processNetwork, githubClone } from '@platform/network';
+import {
+  NetworkClient,
+  processNetwork,
+  githubClone,
+  pythonDeclaration,
+  npmDeclaration,
+  npmAuthorization,
+  resolvePackage,
+} from '@platform/network';
 import { eq, and } from 'drizzle-orm';
 import type { Vault } from '../../shared/crypto.js';
 import { AppError } from '../../shared/errors.js';
@@ -14,9 +22,15 @@ import { adminUser } from '../users/userAccess.js';
 const ID = 'platform';
 export class NetworkService {
   private current?: { revision: number; client: NetworkClient };
-  private readonly closing = new Set<Promise<void>>();
+  private readonly retired = new Set<NetworkClient>();
   constructor(
-    private readonly deps: { db: Database; vault: Vault; fetch: typeof fetch; failed: () => void },
+    private readonly deps: {
+      db: Database;
+      vault: Vault;
+      fetch: typeof fetch;
+      failed: () => void;
+      files: { read: (path: string) => Promise<string | undefined>; home: string; cwd: string };
+    },
   ) {}
   async snapshot() {
     const [row] = await this.deps.db
@@ -80,11 +94,12 @@ export class NetworkService {
     const snapshot = await this.snapshot();
     if (this.current?.revision !== snapshot.revision) {
       if (this.current) {
-        const closing = this.current.client
-          .close()
+        const previous = this.current.client;
+        this.retired.add(previous);
+        void previous
+          .retire()
           .catch(this.deps.failed)
-          .finally(() => this.closing.delete(closing));
-        this.closing.add(closing);
+          .finally(() => this.retired.delete(previous));
       }
       this.current = {
         revision: snapshot.revision,
@@ -97,18 +112,37 @@ export class NetworkService {
     input: T,
   ) {
     const { config } = await this.snapshot();
-    return { ...input, ...processNetwork(input, config) };
+    const declaration = await npmDeclaration(
+      await pythonDeclaration(input, this.deps.files),
+      this.deps.files,
+    );
+    return { ...input, ...processNetwork(declaration.input, config) };
+  }
+  async package(input: import('@platform/contracts').ConnectionInput) {
+    const declaration = await npmDeclaration(
+      await pythonDeclaration(input, this.deps.files),
+      this.deps.files,
+    );
+    const snapshot = await this.snapshot();
+    const spec = resolvePackage(declaration.input, snapshot.config);
+    return {
+      spec,
+      headers: spec?.ecosystem === 'npm' ? npmAuthorization(spec.source, declaration.auth) : {},
+    };
   }
   async git(url: string) {
     const { config } = await this.snapshot();
     return {
       url: githubClone(url, config),
       env: processNetwork({}, config).env,
-      token: config.secrets.githubCloneToken,
+      token:
+        new URL(url).hostname === 'github.com' && config.githubClone
+          ? config.secrets.githubCloneToken
+          : undefined,
     };
   }
   async close() {
     await this.current?.client.close();
-    await Promise.all(this.closing);
+    await Promise.all([...this.retired].map((client) => client.close()));
   }
 }

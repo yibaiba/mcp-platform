@@ -106,3 +106,37 @@ func TestProxyFailureDoesNotConnectDirectly(t *testing.T) {
 		t.Fatal(hits)
 	}
 }
+
+func TestNPMConfigScopedSourceAndCredentialIsolation(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if err := os.WriteFile(filepath.Join(home, ".npmrc"), []byte("@team:registry=https://private.test/npm/\n//private.test/npm/:_authToken=private-fixture-token\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	input, auth, err := Declaration(Command{Command: "npx", Args: []string{"@team/pkg@1.0.0"}, Cwd: home})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := Resolve(input, Config{Settings: Settings{NPMRegistry: "https://mirror.test", ReplacePublicSources: true}})
+	if err != nil || p.Source != "https://private.test/npm/" {
+		t.Fatal(p, err)
+	}
+	if NPMAuthorization(p.Source, auth) != "Bearer private-fixture-token" {
+		t.Fatal("missing private credential")
+	}
+	if NPMAuthorization("https://mirror.test/", auth) != "" {
+		t.Fatal("private credential forwarded")
+	}
+}
+
+func TestNPMCredentialsMatchHostAndPathBoundaries(t *testing.T) {
+	values := map[string]string{"//private.test/npm:_authToken": "fixture-token"}
+	for _, source := range []string{"https://private.test.evil/npm/", "https://private.test/npm-evil/"} {
+		if NPMAuthorization(source, values) != "" {
+			t.Fatal("credential scope escaped")
+		}
+	}
+	if NPMAuthorization("https://private.test/npm/", values) != "Bearer fixture-token" {
+		t.Fatal("credential missing")
+	}
+}
