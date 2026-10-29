@@ -14,7 +14,7 @@ pnpm test
 pnpm test:pi
 ```
 
-`pnpm test` 分十七组顺序执行，覆盖连接、身份、工作空间、授权、交接、OAuth、Pi、协议目录、OpenAPI、交互与 Apps。每个后端测试进程由脚本强制限制为 60 秒，无自动重试。产物结果专项包含新旧 SDK 客户端、产生者授权、到期与保存期间配置失效的检查。可使用同一入口运行专项：
+`pnpm test` 分十九组顺序执行，覆盖连接、身份、工作空间、授权、交接、OAuth、Pi、协议目录、OpenAPI、交互与 Apps。每个后端测试进程由脚本强制限制为 60 秒，无自动重试。产物结果专项包含新旧 SDK 客户端、产生者授权、到期与保存期间配置失效的检查。可使用同一入口运行专项：
 
 ```sh
 pnpm test tests/upstreamOAuth.test.ts tests/openapiOAuth.test.ts
@@ -108,3 +108,17 @@ BROWSER_BASE_URL=http://localhost:4301 node scripts/check.mjs 180 node scripts/v
 脚本默认访问生产入口 `http://localhost:4300`，`BROWSER_BASE_URL` 可切换开发或容器验收地址；`BROWSER_FIXTURE_URL` 指定后端可访问的夹具 MCP 地址。默认导入 `playwright`，也可通过 `PLAYWRIGHT_MODULE` 指向现有模块。Playwright 不是项目依赖，需由浏览器检查环境提供。脚本检查两层 iframe 的不透明源及 DOM/Cookie/存储隔离、初始化、结果传递、app-only 调用、全屏尺寸、iframe 连续性及关闭行为，输出写入 `.data/browser-acceptance/`。
 
 浏览器夹具使用官方 App SDK 构建，不是官方发布示例。验证官方示例、实际外部客户端、公网 Sandbox 或真实模型任务时，需分别记录实际环境和结果。OAuth 本地协议测试也不能代替供应商账号的登录、刷新、撤销及回调配置验证。
+
+## 搜索、累计指标、管理 CLI 与结果节选
+
+2026-10-29 最终本地后端回归为 19 组、276 项通过；类型检查、Lint、构建、Go test/vet、六架构交叉构建及真实无模型 Pi 通过。精确检索 P95 1423.7 ms 未达到 1000 ms 门槛，镜像构建受 Docker Hub TLS 超时阻塞，不能据此视为整体交付验收通过。
+
+专项可运行 `pnpm test tests/discovery.test.ts tests/vectorSearch.test.ts`、`pnpm test tests/runtimeMetrics.test.ts tests/cliAuth.test.ts` 和 `pnpm test tests/resultPresentation.test.ts tests/apps.test.ts`。所有后端进程保留 60 秒硬超时。
+
+搜索性能使用独立命令：
+
+```sh
+node scripts/check.mjs 600 pnpm exec tsx scripts/benchmark-discovery.mts
+```
+
+必须传入已迁移的隔离 PostgreSQL 数据库 `DATABASE_URL`。脚本创建并清理专用账号、10000 个工具、1536 维合成向量；记录各阶段 30 次热查询、P95 和 Recall@10。未满足 1000/300 ms 检索门槛、95% 召回或出现业务派发均返回非零。真实 HTTP Embedding 协议夹具不代表实际供应商推理质量。当前实现、实测数据、失败尝试与发布前未完成项见[本轮交付记录](search-cli-results-progress.md)。

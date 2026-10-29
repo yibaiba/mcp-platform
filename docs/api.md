@@ -167,3 +167,9 @@ Profile 新增 `revision`、`requestable:{toolIds,contentIds,artifactIds}` 与 `
 3. 成功返回 `{type:"auth.success",v:1}`，注册通道，连接器发送原有 hello。失败统一返回 `{type:"auth.failure",v:1,error:"Device authentication failed"}` 后以 1008 关闭，客户端必须重新连接。超过 4 KiB 的认证帧在 JSON 解析前拒绝。挑战绑定连接，一次应答即消费；认证前不派发业务。
 
 服务端以独立的 DEVICE_AUTH_ENCRYPTION_KEY 使用 AES-GCM 加密长期密钥，AAD 绑定所有者、设备 ID 和版本。单实例内认证完成/注册、重配及撤销按设备串行处理；凭证变更使用事务。机制遵循 [HMAC](https://www.rfc-editor.org/rfc/rfc2104.txt)；共享密钥要求服务端与本机都保护好密钥。该升级不改变 MCP 权限、固定凭证引用或一次性文件传输令牌。
+
+## CLI 管理授权与索引管理
+
+浏览器授权入口 `GET /api/v1/cli/authorize`、令牌兑换/轮换 `POST /api/v1/cli/token`。浏览器会话通过 `POST /api/v1/cli/consent` 确认；`GET /api/v1/cli/grants`、`DELETE /api/v1/cli/grants/:id` 管理当前账号授权；`POST /api/v1/cli/logout` 使用 CLI Bearer 撤销自身授权。管理范围分为 `management:read` 和 `management:write`，网页 Cookie 写请求继续校验 Origin。Agent key 不能管理平台，CLI 管理令牌不能直接执行业务工具。见[远程 CLI](remote-cli.md)。
+
+`GET /api/v1/connections/:id` 和 `GET /api/v1/profiles/:id` 提供详情。搜索索引状态、显式重建及测试查询见[搜索说明](market-discovery-rest.md)。业务凭据可使用 `GET /mcp/:profileId/rest/tools` 和 `GET /mcp/:profileId/rest/tools/:toolId` 获取授权目录及定义。

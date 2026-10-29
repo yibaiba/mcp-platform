@@ -73,3 +73,9 @@ CLI 仅修改指定账号角色，不输出密码、会话或凭证。可用 `me
 会话按接收者、共享授权及接入身份隔离；修改授权版本使旧目录快照失效，撤销立即取消该授权的调用、订阅和 Apps，不关闭所有者或其他接收者的会话。共享 Go 设备服务沿用来源设备已有 HMAC 通道，不复制设备秘密，也不附带文件同步和 Skill 安装权限。独立 OAuth 存储属于接收者；代理 OAuth 的刷新与所有者操作共用串行队列，Pi worker 使用明确的凭证目录与独立会话。
 
 管理接口：`GET/PUT /api/v1/connections/:id/shares`，`DELETE .../shares/:shareId`，`GET /api/v1/shares`，`PUT /api/v1/shares/:id/configuration`。授权更新必须携带当前 `version`，冲突返回 409。来源连接的管理仍使用严格所有权校验，未获共享访问保持原有 404 行为。迁移 `0007` 新增共享授权及调用身份列，不重建现有对象或凭证。
+
+### 进程累计指标
+
+`/metrics` 继续使用独立监控凭据。新增 `platform_calls_total`、`platform_active_calls`、`platform_call_total_duration_seconds`、`platform_call_execution_duration_seconds`、`platform_searches_total`、`platform_search_duration_seconds`。duration 指标为固定桶 histogram；标签仅为有限枚举的入口、适配器、终态和检索策略。
+
+交互续答属于原逻辑调用，终态只累计一次，等待状态不算完成；工具 isError、异常、取消和结果未知分别标识。总耗时包含用户等待，执行耗时累计上游执行轮次。搜索元工具独立计数。清理调用历史不重置累计值，重启进程会重置。历史 gauge 保留；桶、PromQL 的调用速率/错误率/P95/P99 示例和实测结论见[本轮指标记录](search-cli-results-progress.md#累计指标)。

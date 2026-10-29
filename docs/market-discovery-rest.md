@@ -16,13 +16,25 @@
 
 Embedding 单独设置 OpenAI 兼容 `baseUrl`、`model`、可选 `dimensions`、`timeoutMs` 和 `batchSize`；`apiKeyRef` 只读取当前账号保存的秘密。配置与 Pi 推理模型无关。服务收到已授权工具的生效定义和查询文本；选择远程服务时这些内容会发送到该地址。
 
-向量使用 PostgreSQL `double precision[]`。先取得当前权限与共享授权的交集以及当前身份的实际目录，再建立向量；作用域包括账号、Profile、身份、绑定版本、共享版本、客户端能力及模型配置。目录、模型或身份变更后，下次查询按新作用域或定义摘要更新；不复用其他身份的目录。索引并发构建返回 `SEARCH_INDEX_PENDING`；服务失败、维度错误等明确报错，不改用关键词搜索。返回检索结果前再次检查目录及权限。
+`searchOptions` 配置 `strategy`（exact/hnsw）、`minScore`（[-1,1] 或 null）及 `hnsw` 参数。新建 Profile 默认 exact、最低分数 0.3；已有 Profile 及省略该字段的旧模板保持不过滤。先按阈值过滤再取前 N 项，无匹配返回空数组。
+
+精确模式保留 PostgreSQL `double precision[]`，数据库内完成计算、过滤、排序和 LIMIT，不限制模型维度。HNSW 使用独立作用域的 pgvector 物理索引，最多 2000 维，默认 m=16、efConstruction=64、efSearch=100；严格排序的迭代扫描仍属于近似检索，可能少于精确结果。未就绪时明确报错，必须显式重建，不自动切换策略。先取得当前权限与共享授权的交集以及当前身份的实际目录，再建立向量；作用域包括账号、Profile、身份、绑定版本、共享版本、客户端能力及模型配置。目录、模型或身份变更后，下次查询按新作用域或定义摘要更新；不复用其他身份的目录。索引并发构建返回 `SEARCH_INDEX_PENDING`；服务失败、维度错误等明确报错，不改用关键词搜索。返回检索结果前再次检查目录及权限。
 
 搜索读取缓存，不唤醒停止或休眠连接。当前身份没有缓存时，只有该接收账号的来源服务仍连接着，才允许为当前客户端初始化真实目录；否则返回 `SEARCH_CATALOG_PENDING`，需显式连接和授权。搜索模式的初始化说明使用 Profile 自己的说明，避免为聚合上游说明唤醒服务。实际工具调用沿用现有唤醒流程。
 
 `GET /api/v1/profiles/:id/context-footprint` 使用本地 `gpt-tokenizer` 的 `o200k_base` 编码估算最终定义，返回完整目录与当前暴露工具数、Token 数及 `estimated: true`。这不是模型账单，也不调用模型服务。
 
-模板包含 `discoveryMode`、`embedding` 和按连接逻辑名/原工具名引用的 `pinnedTools`；导出不包含 API 密钥。
+模板包含 `discoveryMode`、`searchOptions`、`resultPresentation`、`embedding` 和按连接逻辑名/原工具名引用的 `pinnedTools`；导出不包含 API 密钥。
+
+管理界面提供索引状态、显式重建和测试查询。管理 API 使用 `GET /api/v1/profiles/:id/search-index`、`POST .../search-index/rebuild`、`POST .../search-test`。测试查询输入 `{ "query": "...", "limit": 10 }`，返回命中分数、数量、耗时、分阶段计时和 approximate 标志。重建仅处理目录及 Embedding，不执行业务工具。不同 Agent 凭据/客户端能力有独立索引；重建可传 `{ "credentialId": "Agent 凭据 ID", "capabilities": {} }` 指定实际 MCP 身份，REST 亦提供 `/mcp/:profileId/rest/search-index` 及 `/rebuild`。
+
+## 长结果节选
+
+`resultPresentation` 默认关闭。开启后，成功结果普通 text 总计超过 thresholdBytes（默认 32768）时，按内容块长度比例保留头尾，总计 retainBytes（默认 8192）字节。省略标记额外显示；不修改 structuredContent、媒体、资源、错误、交互或 Apps 原始结果。
+
+平台先保存完整原始 JSON 产物并绑定当前调用身份，再返回节选。文本和 `_meta["platform/resultExcerpt"]` 包含原文产物 ID、大小、SHA-256、调用 ID、`platform_artifacts_read` 和认证下载路径。开启的 Profile 暴露原文读取工具；读取仍要求原调用身份及当前工具权限。原文文件占用磁盘，遵循已有产物授权有效期及清理规则。关闭仅影响新调用。
+
+原文保存失败返回 `RESULT_ORIGINAL_SAVE_FAILED` 和调用 ID，明确说明上游可能已完成，不重放业务。REST 幂等重取使用同一已保存展示结果及原文，不重复创建产物。
 
 ## MCP → OpenAPI 与 REST
 
@@ -59,4 +71,4 @@ OpenAPI 3.1 的路径使用稳定内部工具 ID，`operationId` 使用生效展
 
 完成结果以 AES-256-GCM 加密文件保存于数据目录 `rest-results/`，使用现有 `ENCRYPTION_KEY`，认证附加数据绑定调用身份；文件写入和目录重命名完成同步后才登记数据库摘要。数据库仅存索引和状态。备份必须同时包括数据库、数据卷与加密主密钥；回退恢复匹配版本备份。执行中或等待回答的调用在重启后标记结果未知，绝不恢复执行。
 
-本仓库的实际验证结果单独记录于[八项能力迁移记录](eight-capabilities-progress.md)；其他仓库的历史验收不代表本版本通过。
+本仓库的实际验证结果记录于[八项能力迁移记录](eight-capabilities-progress.md)及[搜索/CLI/节选交付记录](search-cli-results-progress.md)；其他仓库的历史验收不代表本版本通过。

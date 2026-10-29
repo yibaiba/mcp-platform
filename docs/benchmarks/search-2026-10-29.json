@@ -1,0 +1,518 @@
+{
+  "kind": "discoveryBenchmark",
+  "tools": 10000,
+  "dimensions": 1536,
+  "hotQueries": 30,
+  "embedding": "Real HTTP deterministic protocol fixture; not supplier/model validation",
+  "environment": {
+    "version": "PostgreSQL 17.11 (Debian 17.11-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+    "shared_buffers": "2GB",
+    "maintenance_work_mem": "512MB"
+  },
+  "exact": {
+    "totalP95Ms": 2446.8045619999757,
+    "phasesP95Ms": {
+      "authorization": 980.547332999995,
+      "index": 57.19909500000358,
+      "embedding": 5.199290999997174,
+      "retrieval": 1423.6967140000052,
+      "serialization": 0.03447800000139978
+    },
+    "samples": [
+      {
+        "durationMs": 2306.405537999992,
+        "authorization": 889.9995189999754,
+        "index": 42.055976000003284,
+        "embedding": 5.199290999997174,
+        "retrieval": 1209.6832100000029,
+        "serialization": 0.022723000001860783
+      },
+      {
+        "durationMs": 2365.4206209999975,
+        "authorization": 876.0511310000002,
+        "index": 37.31800000001385,
+        "embedding": 3.0319129999988945,
+        "retrieval": 1204.365221,
+        "serialization": 0.03447800000139978
+      },
+      {
+        "durationMs": 2310.893683000002,
+        "authorization": 833.9533670000092,
+        "index": 46.164478000006056,
+        "embedding": 2.937137000000803,
+        "retrieval": 1265.5274389999977,
+        "serialization": 0.02228099999774713
+      },
+      {
+        "durationMs": 2258.4036459999916,
+        "authorization": 817.8209729999944,
+        "index": 42.206801999986055,
+        "embedding": 2.6380539999954635,
+        "retrieval": 1246.13010699999,
+        "serialization": 0.022255000003497116
+      },
+      {
+        "durationMs": 2239.5771160000004,
+        "authorization": 770.1971789999952,
+        "index": 42.832005000003846,
+        "embedding": 3.268251000001328,
+        "retrieval": 1278.4245690000098,
+        "serialization": 0.02159899999969639
+      },
+      {
+        "durationMs": 2157.4694820000004,
+        "authorization": 777.4893729999749,
+        "index": 45.44884600001387,
+        "embedding": 3.369861999992281,
+        "retrieval": 1196.7617610000016,
+        "serialization": 0.025139999997918494
+      },
+      {
+        "durationMs": 2365.7112580000103,
+        "authorization": 849.2577360000141,
+        "index": 57.19909500000358,
+        "embedding": 3.1244040000019595,
+        "retrieval": 1307.3393960000103,
+        "serialization": 0.026211000003968365
+      },
+      {
+        "durationMs": 2393.379939999999,
+        "authorization": 820.0924590000068,
+        "index": 56.43008699998609,
+        "embedding": 5.309976999997161,
+        "retrieval": 1337.3444050000107,
+        "serialization": 0.02223799999046605
+      },
+      {
+        "durationMs": 2237.509580999991,
+        "authorization": 807.0567609999853,
+        "index": 41.89103600001545,
+        "embedding": 3.3820299999933923,
+        "retrieval": 1248.5684929999989,
+        "serialization": 0.02905500000633765
+      },
+      {
+        "durationMs": 2156.3536630000017,
+        "authorization": 767.1011200000066,
+        "index": 43.66222499999276,
+        "embedding": 3.0782279999984894,
+        "retrieval": 1219.6232940000045,
+        "serialization": 0.027045000009820797
+      },
+      {
+        "durationMs": 2362.601127999995,
+        "authorization": 804.7170559999795,
+        "index": 49.65510200000426,
+        "embedding": 2.792184999998426,
+        "retrieval": 1358.3351459999976,
+        "serialization": 0.02804600000672508
+      },
+      {
+        "durationMs": 2398.355033,
+        "authorization": 799.3197970000037,
+        "index": 44.77096799999708,
+        "embedding": 3.202092999999877,
+        "retrieval": 1423.6967140000052,
+        "serialization": 0.02681700000539422
+      },
+      {
+        "durationMs": 2226.3598070000007,
+        "authorization": 829.1959470000002,
+        "index": 44.62315600000147,
+        "embedding": 2.7435419999965234,
+        "retrieval": 1202.1332249999978,
+        "serialization": 0.022493999989819713
+      },
+      {
+        "durationMs": 2298.1235520000046,
+        "authorization": 821.3520649999846,
+        "index": 44.66635800000222,
+        "embedding": 2.9359970000077737,
+        "retrieval": 1268.6898630000069,
+        "serialization": 0.021053000004030764
+      },
+      {
+        "durationMs": 2387.284606000001,
+        "authorization": 980.547332999995,
+        "index": 46.354808000003686,
+        "embedding": 3.3769650000031106,
+        "retrieval": 1205.6365490000026,
+        "serialization": 0.02231000000028871
+      },
+      {
+        "durationMs": 2242.2261330000038,
+        "authorization": 803.5433489999996,
+        "index": 54.73877499999071,
+        "embedding": 3.1471309999906225,
+        "retrieval": 1233.7234639999951,
+        "serialization": 0.022228999994695187
+      },
+      {
+        "durationMs": 2307.706607,
+        "authorization": 825.4419739999867,
+        "index": 42.01682400000573,
+        "embedding": 3.0095370000053663,
+        "retrieval": 1298.8353189999907,
+        "serialization": 0.02081499999621883
+      },
+      {
+        "durationMs": 2620.6365229999938,
+        "authorization": 795.9628900000098,
+        "index": 47.530159999994794,
+        "embedding": 3.98883799999021,
+        "retrieval": 1636.7721470000106,
+        "serialization": 0.03499600000213832
+      },
+      {
+        "durationMs": 2361.706619000004,
+        "authorization": 787.7590779999882,
+        "index": 46.53433199999563,
+        "embedding": 2.985201000003144,
+        "retrieval": 1395.14190100001,
+        "serialization": 0.021099999998114072
+      },
+      {
+        "durationMs": 2318.4509749999997,
+        "authorization": 878.4601249999978,
+        "index": 76.23303200000373,
+        "embedding": 4.255234999989625,
+        "retrieval": 1201.2096670000028,
+        "serialization": 0.020554000002448447
+      },
+      {
+        "durationMs": 2312.9976749999914,
+        "authorization": 844.0069059999951,
+        "index": 48.5102509999997,
+        "embedding": 3.230788000000757,
+        "retrieval": 1264.2658050000027,
+        "serialization": 0.02128699999593664
+      },
+      {
+        "durationMs": 2238.752085999993,
+        "authorization": 767.6191579999868,
+        "index": 51.203928000002634,
+        "embedding": 3.7949480000097537,
+        "retrieval": 1260.0358220000053,
+        "serialization": 0.027220000003580935
+      },
+      {
+        "durationMs": 2130.933407000004,
+        "authorization": 760.6975660000026,
+        "index": 44.30328299998655,
+        "embedding": 3.5530930000095395,
+        "retrieval": 1193.331262000007,
+        "serialization": 0.022187000009580515
+      },
+      {
+        "durationMs": 2374.8518779999868,
+        "authorization": 775.6676949999819,
+        "index": 41.09183599999233,
+        "embedding": 3.8154320000030566,
+        "retrieval": 1397.1336949999968,
+        "serialization": 0.02599900000495836
+      },
+      {
+        "durationMs": 2283.7678270000033,
+        "authorization": 800.8861609999876,
+        "index": 42.00800900001195,
+        "embedding": 2.836773999995785,
+        "retrieval": 1273.6287429999938,
+        "serialization": 0.025997999997343868
+      },
+      {
+        "durationMs": 2192.6804859999975,
+        "authorization": 800.4973629999731,
+        "index": 43.30700900001102,
+        "embedding": 2.796463999984553,
+        "retrieval": 1200.8965639999951,
+        "serialization": 0.021957999997539446
+      },
+      {
+        "durationMs": 2231.3550200000172,
+        "authorization": 839.113246999972,
+        "index": 43.967324000026565,
+        "embedding": 4.6158659999782685,
+        "retrieval": 1205.779275000008,
+        "serialization": 0.02681700000539422
+      },
+      {
+        "durationMs": 2446.8045619999757,
+        "authorization": 986.2841469999985,
+        "index": 41.467536999989534,
+        "embedding": 3.3617040000099223,
+        "retrieval": 1259.0883069999982,
+        "serialization": 0.024542999977711588
+      },
+      {
+        "durationMs": 2313.2697409999964,
+        "authorization": 843.117367000028,
+        "index": 47.57744399999501,
+        "embedding": 4.688181000004988,
+        "retrieval": 1259.1314199999906,
+        "serialization": 0.022545000014360994
+      },
+      {
+        "durationMs": 2216.2931609999796,
+        "authorization": 802.5309039999847,
+        "index": 44.39839499996742,
+        "embedding": 2.919015000021318,
+        "retrieval": 1210.7355049999896,
+        "serialization": 0.02626899999449961
+      }
+    ]
+  },
+  "hnsw": {
+    "totalP95Ms": 1242.4736609999964,
+    "phasesP95Ms": {
+      "authorization": 968.3492569999944,
+      "index": 81.5594680000213,
+      "embedding": 5.832341000001179,
+      "retrieval": 36.675144000008004,
+      "serialization": 0.02772099999128841
+    },
+    "samples": [
+      {
+        "durationMs": 1011.2330409999995,
+        "authorization": 790.2538059999933,
+        "index": 48.65181200002553,
+        "embedding": 2.903383999975631,
+        "retrieval": 25.982786999986274,
+        "serialization": 0.017905999993672594
+      },
+      {
+        "durationMs": 1026.2540049999952,
+        "authorization": 790.1285729999654,
+        "index": 47.665881999972044,
+        "embedding": 2.9703319999971427,
+        "retrieval": 27.49547399999574,
+        "serialization": 0.02772099999128841
+      },
+      {
+        "durationMs": 994.7894110000052,
+        "authorization": 775.594911000022,
+        "index": 47.69087900000159,
+        "embedding": 3.2018309999839403,
+        "retrieval": 24.721040000003995,
+        "serialization": 0.018206999986432493
+      },
+      {
+        "durationMs": 1065.1405000000086,
+        "authorization": 812.2052479999838,
+        "index": 54.0273140000063,
+        "embedding": 3.063970999995945,
+        "retrieval": 29.496428999991622,
+        "serialization": 0.020714999991469085
+      },
+      {
+        "durationMs": 1013.4576320000051,
+        "authorization": 739.271849999961,
+        "index": 40.366924000001745,
+        "embedding": 2.540291999990586,
+        "retrieval": 22.09442500001751,
+        "serialization": 0.01994399999966845
+      },
+      {
+        "durationMs": 995.5797930000117,
+        "authorization": 781.9693340000231,
+        "index": 39.95751200002269,
+        "embedding": 4.240676999994321,
+        "retrieval": 23.324534999992466,
+        "serialization": 0.020297000010032207
+      },
+      {
+        "durationMs": 1076.708328000008,
+        "authorization": 755.0375690000365,
+        "index": 44.602160000038566,
+        "embedding": 4.684475999994902,
+        "retrieval": 22.238641000003554,
+        "serialization": 0.019761999981710687
+      },
+      {
+        "durationMs": 1205.7966560000204,
+        "authorization": 943.0181870000088,
+        "index": 52.20047999997041,
+        "embedding": 2.559054000012111,
+        "retrieval": 26.260902000009082,
+        "serialization": 0.02605400001630187
+      },
+      {
+        "durationMs": 1040.1995339999849,
+        "authorization": 812.483619000006,
+        "index": 41.29928199999267,
+        "embedding": 2.925128000002587,
+        "retrieval": 27.646509999991395,
+        "serialization": 0.019666000007418916
+      },
+      {
+        "durationMs": 1078.576877000014,
+        "authorization": 805.4226519999793,
+        "index": 47.04283999998006,
+        "embedding": 2.6429099999950267,
+        "retrieval": 30.474228000006406,
+        "serialization": 0.017783999996026978
+      },
+      {
+        "durationMs": 1117.4514710000076,
+        "authorization": 880.8527199999953,
+        "index": 50.35699800000293,
+        "embedding": 4.810554000025149,
+        "retrieval": 27.824152999994112,
+        "serialization": 0.022494000004371628
+      },
+      {
+        "durationMs": 1158.3046639999957,
+        "authorization": 923.2601059999433,
+        "index": 54.57726799999364,
+        "embedding": 2.62483199997223,
+        "retrieval": 26.962461999995867,
+        "serialization": 0.019361000013304874
+      },
+      {
+        "durationMs": 1134.7293240000145,
+        "authorization": 878.9034369999717,
+        "index": 50.00909900001716,
+        "embedding": 2.9057019999891054,
+        "retrieval": 31.280721000017365,
+        "serialization": 0.02092599999741651
+      },
+      {
+        "durationMs": 1082.4786920000042,
+        "authorization": 849.7990640000207,
+        "index": 54.31912000000011,
+        "embedding": 5.383380000013858,
+        "retrieval": 25.437971000006655,
+        "serialization": 0.018582999997306615
+      },
+      {
+        "durationMs": 1026.376300999982,
+        "authorization": 773.2614759999851,
+        "index": 58.49547200000961,
+        "embedding": 4.335598999983631,
+        "retrieval": 33.58290199999465,
+        "serialization": 0.02013499999884516
+      },
+      {
+        "durationMs": 1169.993764999992,
+        "authorization": 911.8786489999911,
+        "index": 41.81924399998388,
+        "embedding": 2.947039999999106,
+        "retrieval": 31.910002999997232,
+        "serialization": 0.020734000019729137
+      },
+      {
+        "durationMs": 1208.7689119999995,
+        "authorization": 954.2869819999905,
+        "index": 52.02181700002984,
+        "embedding": 2.707246000005398,
+        "retrieval": 23.33890900001279,
+        "serialization": 0.04444099997635931
+      },
+      {
+        "durationMs": 1111.9301440000127,
+        "authorization": 876.8142080000252,
+        "index": 50.03766699999687,
+        "embedding": 3.191120999981649,
+        "retrieval": 25.736092999984976,
+        "serialization": 0.01837500001420267
+      },
+      {
+        "durationMs": 1100.1438330000092,
+        "authorization": 841.6065159999707,
+        "index": 46.57001699999091,
+        "embedding": 2.9916190000076313,
+        "retrieval": 36.3650230000203,
+        "serialization": 0.022040999989258125
+      },
+      {
+        "durationMs": 1064.5984979999776,
+        "authorization": 824.5357379999768,
+        "index": 53.58059100000537,
+        "embedding": 3.9549500000139233,
+        "retrieval": 24.787169999995967,
+        "serialization": 0.021154999994905666
+      },
+      {
+        "durationMs": 1039.1883959999832,
+        "authorization": 835.7691089999862,
+        "index": 43.717404000024544,
+        "embedding": 3.2398579999862704,
+        "retrieval": 25.33427500000107,
+        "serialization": 0.023132999980589375
+      },
+      {
+        "durationMs": 1242.4736609999964,
+        "authorization": 968.3492569999944,
+        "index": 48.83399699997972,
+        "embedding": 3.1602070000080857,
+        "retrieval": 36.675144000008004,
+        "serialization": 0.021711999987019226
+      },
+      {
+        "durationMs": 1121.7613269999856,
+        "authorization": 851.2021789999562,
+        "index": 51.433854000031715,
+        "embedding": 3.050946000003023,
+        "retrieval": 42.690520000003744,
+        "serialization": 0.023763999983202666
+      },
+      {
+        "durationMs": 1083.1913269999786,
+        "authorization": 831.547859000013,
+        "index": 66.95317799999611,
+        "embedding": 4.417914999998175,
+        "retrieval": 31.54430200002389,
+        "serialization": 0.019465999997919425
+      },
+      {
+        "durationMs": 1066.0239770000044,
+        "authorization": 842.2041400000162,
+        "index": 46.54762700002175,
+        "embedding": 2.766044999996666,
+        "retrieval": 29.62030899999081,
+        "serialization": 0.01773599997977726
+      },
+      {
+        "durationMs": 1401.987415999989,
+        "authorization": 1052.8981649999914,
+        "index": 107.62838999999803,
+        "embedding": 5.832341000001179,
+        "retrieval": 25.106197999994038,
+        "serialization": 0.019539000000804663
+      },
+      {
+        "durationMs": 1132.9760309999983,
+        "authorization": 902.5193989999825,
+        "index": 44.81125600001542,
+        "embedding": 4.3036469999933615,
+        "retrieval": 21.858397000003606,
+        "serialization": 0.02073800002108328
+      },
+      {
+        "durationMs": 1141.738547999994,
+        "authorization": 867.0360280000023,
+        "index": 81.5594680000213,
+        "embedding": 2.802977999992436,
+        "retrieval": 27.483147000020836,
+        "serialization": 0.019182000018190593
+      },
+      {
+        "durationMs": 1086.1031119999825,
+        "authorization": 846.072909999988,
+        "index": 49.5277960000094,
+        "embedding": 6.312296999996761,
+        "retrieval": 32.12050000001909,
+        "serialization": 0.01929200001177378
+      },
+      {
+        "durationMs": 1129.0192410000018,
+        "authorization": 886.0032240000437,
+        "index": 50.334376999991946,
+        "embedding": 2.8085310000169557,
+        "retrieval": 26.087318999983836,
+        "serialization": 0.020709000003989786
+      }
+    ]
+  },
+  "recallAt10": 1,
+  "businessCalls": 0
+}
