@@ -101,6 +101,7 @@ export class CliAuthService {
           eq(cliGrants.accessHash, digest(token)),
           eq(cliGrants.revoked, false),
           gt(cliGrants.expiresAt, new Date()),
+          gt(cliGrants.refreshExpiresAt, new Date()),
         ),
       );
     if (!grant) throw denied();

@@ -104,6 +104,17 @@ test('HTTP PKCE code is single use, refresh rotates, revocation and account disa
   const [stored] = await h.db.select().from(cliGrants).where(eq(cliGrants.id, token.grant_id));
   expect(JSON.stringify(stored)).not.toContain(next.access_token);
   expect(JSON.stringify(stored)).not.toContain(next.refresh_token);
+  await h.db
+    .update(cliGrants)
+    .set({ refreshExpiresAt: new Date(0) })
+    .where(eq(cliGrants.id, token.grant_id));
+  expect(
+    (await fetch(`${h.baseURL}/api/v1/me`, { headers: bearer(next.access_token) })).status,
+  ).toBe(401);
+  await h.db
+    .update(cliGrants)
+    .set({ refreshExpiresAt: stored!.refreshExpiresAt })
+    .where(eq(cliGrants.id, token.grant_id));
   await h.db.update(user).set({ enabled: false }).where(eq(user.id, account.ownerId));
   expect(
     (await fetch(`${h.baseURL}/api/v1/me`, { headers: bearer(next.access_token) })).status,
