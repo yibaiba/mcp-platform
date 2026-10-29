@@ -9,6 +9,9 @@ import {
 } from '../packages/contracts/src/index.js';
 import { harness } from './harness.js';
 import { fixtureMcp } from './fixtureMcp.js';
+import { PresentationService } from '../apps/server/src/modules/result-presentation/presentationService.js';
+import { createServices } from '../apps/server/src/services.js';
+import { withExecution } from '../apps/server/src/modules/mcp/executionContext.js';
 let h: Awaited<ReturnType<typeof harness>>, upstream: Awaited<ReturnType<typeof fixtureMcp>>;
 beforeAll(async () => {
   h = await harness();
@@ -101,6 +104,24 @@ test('real REST stores one complete original, reuses the persisted display, reje
   const original = await full.json();
   expect(original.content[0].text).toBe('开头😀'.repeat(80) + '完整结尾');
   expect(original).not.toHaveProperty('_meta.platform/resultExcerpt');
+  const restarted = createServices(h.db, h.config);
+  const principal = await restarted.profiles.authenticate(s.profile.id, s.key.token);
+  try {
+    const persisted = await restarted.rest.context(principal, async () => {
+      const response = await restarted.artifacts.download(s.ownerId, metadata.artifactId);
+      return response.json();
+    });
+    expect(persisted).toEqual(original);
+  } finally {
+    await restarted.rest.close();
+    await restarted.discovery.close();
+    await restarted.manifests.close();
+    restarted.broker.close();
+    await restarted.gateway.close();
+    await restarted.connections.shutdown();
+    await restarted.pi.close();
+    await restarted.logger.drain();
+  }
   const other = await h.services.profiles.issue(s.ownerId, s.profile.id);
   expect((await download(other.token)).status).toBe(403);
   await h.services.profiles.save(s.ownerId, { name: s.profile.name, toolIds: [] }, s.profile.id);
@@ -123,5 +144,40 @@ test('persistence failure exposes upstream completion uncertainty and a stable c
   expect(retry.status).toBe(500);
   expect((await retry.json()).status).toBe('result_error');
   expect(upstream.count()).toBe(before + 1);
+  expect(await h.db.select().from(artifacts).where(eq(artifacts.ownerId, s.ownerId))).toEqual([]);
+});
+
+test('error results and Apps contexts keep the complete result without creating originals', async () => {
+  const s = await setup();
+  const context = {
+    identity: s.key.id,
+    credentialId: s.key.id,
+    ownerId: s.ownerId,
+    profileId: s.profile.id,
+    entry: 'rest' as const,
+    sessionId: 'presentation-test',
+    capabilities: {},
+  };
+  const input = {
+    ownerId: s.ownerId,
+    profileId: s.profile.id,
+    connectionId: s.connection.id,
+    toolId: s.tool.id,
+    callId: crypto.randomUUID(),
+    definition: {},
+  };
+  const failed = {
+    content: [{ type: 'text' as const, text: 'upstream-error'.repeat(100) }],
+    isError: true,
+  };
+  await withExecution(context, async () => {
+    const present = await new PresentationService(h.services).prepare(input);
+    expect(await present(failed)).toBe(failed);
+  });
+  const original = { content: [{ type: 'text' as const, text: 'full-app-result'.repeat(100) }] };
+  await withExecution({ ...context, appId: 'existing-app' }, async () => {
+    const present = await new PresentationService(h.services).prepare(input);
+    expect(await present(original)).toBe(original);
+  });
   expect(await h.db.select().from(artifacts).where(eq(artifacts.ownerId, s.ownerId))).toEqual([]);
 });

@@ -35,6 +35,7 @@ async function setup() {
     name: 'Apps',
     toolIds: tools.map((t) => t.id),
     contentIds: entries.map((e) => e.id),
+    resultPresentation: { enabled: true, thresholdBytes: 1, retainBytes: 1 },
   }))!;
   return { account, connection, tools, profile };
 }
