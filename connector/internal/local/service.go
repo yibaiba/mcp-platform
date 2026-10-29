@@ -9,6 +9,8 @@ import (
 	"mcplatform/connector/internal/local/model"
 	"mcplatform/connector/internal/local/sources"
 	"mcplatform/connector/internal/local/storage"
+	"mcplatform/connector/internal/network"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -21,12 +23,14 @@ type Runtime interface {
 	Status() []map[string]string
 }
 type Options struct {
-	SyncTarget string
-	Store      storage.Store
-	Locations  sources.Locations
-	Runtime    Runtime
-	Error      func(error)
-	Changed    func(string) error
+	Network       *network.Store
+	NetworkClient *http.Client
+	SyncTarget    string
+	Store         storage.Store
+	Locations     sources.Locations
+	Runtime       Runtime
+	Error         func(error)
+	Changed       func(string) error
 }
 type Service struct {
 	mu             sync.Mutex
@@ -135,6 +139,9 @@ func (s *Service) mergeScan(resources map[string]model.Resource, issues []string
 	s.state.Issues = issues
 }
 func (s *Service) Execute(ctx context.Context, request model.Request, remote bool) (any, error) {
+	if strings.HasPrefix(request.Action, "network.") {
+		return s.networkRequest(ctx, request, remote)
+	}
 	s.mu.Lock()
 	defer func() {
 		notify := s.notifierLocked()

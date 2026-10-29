@@ -25,14 +25,15 @@ type Config struct {
 	Lifecycle            struct {
 		ShutdownGraceMS *int `json:"shutdownGraceMs"`
 	} `json:"lifecycle"`
-	Transport string            `json:"transport"`
-	Mode      string            `json:"mode"`
-	URL       string            `json:"url"`
-	Command   string            `json:"command"`
-	Args      []string          `json:"args"`
-	Env       map[string]string `json:"env"`
-	Headers   map[string]string `json:"headers"`
-	Cwd       string            `json:"cwd"`
+	Transport     string            `json:"transport"`
+	Mode          string            `json:"mode"`
+	URL           string            `json:"url"`
+	Command       string            `json:"command"`
+	Args          []string          `json:"args"`
+	Env           map[string]string `json:"env"`
+	Headers       map[string]string `json:"headers"`
+	PackageSource string            `json:"packageSource"`
+	Cwd           string            `json:"cwd"`
 }
 type Params struct {
 	SessionID      string                       `json:"sessionId"`
@@ -71,6 +72,7 @@ type Entry struct {
 	LastError     string
 }
 type Manager struct {
+	Prepare       func(Config) (Config, error)
 	interactiveMu sync.Mutex
 	interactive   map[string]*legacyCall
 	callSlots     map[string]chan struct{}
@@ -224,6 +226,14 @@ func (m *Manager) command(c Config) *exec.Cmd {
 	return cmd
 }
 func (m *Manager) makeTransport(c Config, e *Entry) (mcp.Transport, error) {
+	if m.Prepare != nil {
+		var err error
+		c, err = m.Prepare(c)
+		if err != nil {
+			return nil, err
+		}
+		e.Secrets = append(e.Secrets, credentialStrings(c)...)
+	}
 	if c.Transport == "stdio" {
 		if c.Mode != "managed" || c.Command == "" {
 			return nil, fmt.Errorf("stdio requires managed command")

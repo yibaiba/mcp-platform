@@ -125,9 +125,15 @@ importers:
       '@platform/mcp':
         specifier: workspace:*
         version: link:../../packages/mcp
+      '@platform/network':
+        specifier: workspace:*
+        version: link:../../packages/network
       '@platform/pi-runtime':
         specifier: workspace:*
         version: link:../../integrations/pi
+      '@renovatebot/pep440':
+        specifier: ^6.0.0
+        version: 6.0.0
       better-auth:
         specifier: 'catalog:'
         version: 1.6.19(drizzle-kit@0.31.8)(drizzle-orm@0.45.2(@types/pg@8.15.6)(kysely@0.29.7)(pg@8.16.3))(pg@8.16.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(solid-js@1.9.17)(vitest@3.2.4(@types/node@22.13.11)(jiti@2.7.0)(lightningcss@1.29.2)(tsx@4.19.2)(yaml@2.8.1))
@@ -146,6 +152,9 @@ importers:
       hono:
         specifier: 4.13.11
         version: 4.13.11
+      semver:
+        specifier: ^7.8.5
+        version: 7.8.5
       ws:
         specifier: 8.18.3
         version: 8.18.3
@@ -162,6 +171,9 @@ importers:
       '@types/node':
         specifier: 22.13.11
         version: 22.13.11
+      '@types/semver':
+        specifier: ^7.8.0
+        version: 7.8.0
       tsdown:
         specifier: 0.16.5
         version: 0.16.5(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(synckit@0.11.11)(typescript@5.9.3)
@@ -271,6 +283,9 @@ importers:
       '@platform/mcp':
         specifier: workspace:*
         version: link:../../packages/mcp
+      '@platform/network':
+        specifier: workspace:*
+        version: link:../../packages/network
       pi-mcp-adapter:
         specifier: 7.0.0
         version: 7.0.0(patch_hash=e9df39df6e1989a2919e063f5bbaf1ea66592613e63e1e74a086d506a4a06aa4)(@earendil-works/pi-ai@1.4.0(@aws-sdk/credential-provider-node@3.972.88)(@modelcontextprotocol/sdk@1.32.2(zod@4.6.7))(@smithy/signature-v4@5.7.4)(undici@8.10.2)(zod@4.6.7))(@earendil-works/pi-tui@1.4.0)(typebox@1.0.55)(zod@4.6.7)
@@ -370,6 +385,15 @@ importers:
       '@modelcontextprotocol/client':
         specifier: 2.3.1
         version: 2.3.1(patch_hash=afd406e18d2868e61eba7e0cd5e2503c17c6cee58f259d55af83d0a8d8e459d8)
+
+  packages/network:
+    dependencies:
+      '@platform/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      undici:
+        specifier: 6.29.1
+        version: 6.29.1
 
 packages:
 
@@ -1655,6 +1679,10 @@ packages:
   '@quansync/fs@1.1.0':
     resolution: {integrity: sha512-qAPG/t3HqML1TlN7sY/pTbEjzFVAKsMjNNMGheyDosro+kT4iw2KCUoHcVdmliwWjorm4elZbgNQyU2eD97eDg==}
 
+  '@renovatebot/pep440@6.0.0':
+    resolution: {integrity: sha512-L/HtOYInkZGLJCe9h/gpsm2Gig0JWzyvWajrEVK+pP6BGfRl1eFzg7jyVcis7tmht7hvpau/+pMzF60geiLq6w==}
+    engines: {node: '>=24.10.0', pnpm: '>=10.0.0'}
+
   '@rolldown/binding-android-arm64@1.0.0-beta.50':
     resolution: {integrity: sha512-XlEkrOIHLyGT3avOgzfTFSjG+f+dZMw+/qd+Y3HLN86wlndrB/gSimrJCk4gOhr1XtRtEKfszpadI3Md4Z4/Ag==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -2218,6 +2246,9 @@ packages:
 
   '@types/retry@0.12.0':
     resolution: {integrity: sha512-wWKOClTTiizcZhXnPY4wikVAwmdYHp8q6DmC+EJUzAMsycb7HB32Kh9RN4+0gExjmPmZSAQjgURXIGATPegAvA==}
+
+  '@types/semver@7.8.0':
+    resolution: {integrity: sha512-1mAINjtQCXXeLkJ9ehXkwOcBpqtLxiVtKhpUf83DdRNdQKV0iXZpaHYqRr7nj+wvxuJzoAmAwXI+sCNMv1CzLQ==}
 
   '@types/ws@8.18.1':
     resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
@@ -5377,6 +5408,8 @@ snapshots:
     dependencies:
       quansync: 1.0.0
 
+  '@renovatebot/pep440@6.0.0': {}
+
   '@rolldown/binding-android-arm64@1.0.0-beta.50':
     optional: true
 
@@ -5837,6 +5870,8 @@ snapshots:
       csstype: 3.2.3
 
   '@types/retry@0.12.0': {}
+
+  '@types/semver@7.8.0': {}
 
   '@types/ws@8.18.1':
     dependencies:

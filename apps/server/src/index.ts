@@ -107,6 +107,7 @@ async function shutdown() {
   await services.connections.shutdown();
   await services.rest.close();
   await services.pi.close();
+  await services.network.close();
   await services.logger.write({ level: 'info', event: 'server_stopped' });
   await services.discovery.close();
   await services.logger.drain();

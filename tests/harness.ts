@@ -116,6 +116,7 @@ export async function harness(
         throw error;
       }
       await services.pi.close();
+      await services.network.close();
       await new Promise<void>((resolve) => server.close(() => resolve()));
       for (const id of owners) await db.delete(user).where(eq(user.id, id));
       await services.logger.drain();

@@ -36,6 +36,7 @@ const navigation = [
   ['/tasks', '内置 Agent', Bot],
   ['/account', '个人账号', KeyRound],
   ['/users', '用户管理', ShieldCheck],
+  ['/network', '网络与安装源', Network],
   ['/system-logs', '系统日志', History],
 ] as const;
 export function Shell() {
@@ -74,7 +75,8 @@ export function Shell() {
         <nav aria-label="主导航">
           {navigation
             .filter(
-              ([to]) => !['/users', '/system-logs'].includes(to) || info.data?.role === 'admin',
+              ([to]) =>
+                !['/users', '/system-logs', '/network'].includes(to) || info.data?.role === 'admin',
             )
             .map(([to, label, Icon]) => (
               <Link

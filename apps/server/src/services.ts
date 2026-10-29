@@ -1,3 +1,4 @@
+import { NetworkService } from './modules/network/service.js';
 import { LocalService } from './modules/local/localService.js';
 import { PresentationService } from './modules/result-presentation/presentationService.js';
 import { CliAuthService } from './modules/management-auth/cliAuthService.js';
@@ -58,6 +59,13 @@ export function createServices(db: Database, config: Config) {
   const metrics = new RuntimeMetrics();
   const vault = new Vault(config.ENCRYPTION_KEY);
   const logger = databaseLogger(db);
+  const network = new NetworkService({
+    db,
+    vault,
+    fetch: globalThis.fetch,
+    failed: () => logger.report('NETWORK_POOL_CLOSE_FAILED'),
+  });
+  const fetch = network.fetch;
   const shares: ShareService = new ShareService({
     db,
     vault,
@@ -139,8 +147,10 @@ export function createServices(db: Database, config: Config) {
         return createDeviceAdapter(context, broker, async (): Promise<Record<string, string>> => {
           return upstreamOAuth.headers(context);
         });
-      if (context.config.adapter === 'pi') return pi.bridge(context);
-      return createDirectAdapter(context, upstreamOAuth.provider(context), {
+      const runtimeConfig = await network.process(context.config);
+      const runtimeContext = { ...context, config: runtimeConfig };
+      if (context.config.adapter === 'pi') return pi.bridge(runtimeContext);
+      return createDirectAdapter(runtimeContext, upstreamOAuth.provider(context), {
         fetch: upstreamOAuth.fetchFor(context),
         beforeCall: () => upstreamOAuth.headers(context),
         logStderr: () => logger.report('MCP_STDERR', context.ownerId),
@@ -232,6 +242,7 @@ export function createServices(db: Database, config: Config) {
     content,
     artifacts,
     events,
+    network,
   });
   pi.requests = requests;
   const handoffs = new HandoffService({
@@ -287,6 +298,7 @@ export function createServices(db: Database, config: Config) {
     results: new EncryptedResultStore(resolve(config.DATA_DIR, 'rest-results'), vault),
   });
   return {
+    network,
     local,
     cliAuth: new CliAuthService(db),
     metrics,
@@ -298,6 +310,11 @@ export function createServices(db: Database, config: Config) {
     market: new MarketService({
       registry: new RegistryClient({ fetch, baseUrl: OFFICIAL_REGISTRY }),
       connections,
+      prepare: async (config) => {
+        if (config.adapter === 'device') return config;
+        const prepared = await network.process(config);
+        return { ...config, args: prepared.args };
+      },
     }),
     shares,
     activity: new ActivityService({ db, vault }),

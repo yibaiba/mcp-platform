@@ -141,6 +141,13 @@
       "when": 1793239990777,
       "tag": "0019_mute_karen_page",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793246806903,
+      "tag": "0020_dark_chameleon",
+      "breakpoints": true
     }
   ]
 }

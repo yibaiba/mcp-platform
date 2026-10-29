@@ -14,6 +14,7 @@ import (
 	"mcplatform/connector/internal/local/sources"
 	"mcplatform/connector/internal/local/storage"
 	"mcplatform/connector/internal/mcpclient"
+	"mcplatform/connector/internal/network"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -32,17 +33,19 @@ type Options struct {
 }
 
 type Runtime struct {
-	Local         *local.Service
-	options       Options
-	ctx           context.Context
-	cancel        context.CancelFunc
-	lease         *os.File
-	remote, local *mcpclient.Manager
-	operations    sync.Mutex
-	stop          context.CancelFunc
-	done          chan struct{}
-	watchers      sync.WaitGroup
-	closed        bool
+	Local            *local.Service
+	Network          *network.Store
+	networkTransport *network.Transport
+	options          Options
+	ctx              context.Context
+	cancel           context.CancelFunc
+	lease            *os.File
+	remote, local    *mcpclient.Manager
+	operations       sync.Mutex
+	stop             context.CancelFunc
+	done             chan struct{}
+	watchers         sync.WaitGroup
+	closed           bool
 }
 
 func DataDir(home, override string, cfg config.Config) (string, error) {
@@ -71,15 +74,29 @@ func Open(parent context.Context, options Options) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
+	settings, err := network.Open(options.DataDir)
+	if err != nil {
+		return nil, errors.Join(err, lease.Close())
+	}
+	transport := &network.Transport{Store: settings, Base: options.MCPTransport}
+	client := *options.Client
+	if client.Transport == nil {
+		client.Transport = http.DefaultTransport
+	} // net/http Client nil Transport uses DefaultTransport.
+	client.Transport = &network.Transport{Store: settings, Base: client.Transport}
+	options.Client = &client
+	options.MCPTransport = transport
 	ctx, cancel := context.WithCancel(parent)
-	r := &Runtime{options: options, ctx: ctx, cancel: cancel, lease: lease}
+	r := &Runtime{options: options, ctx: ctx, cancel: cancel, lease: lease, Network: settings, networkTransport: transport}
 	r.remote = mcpclient.New(ctx, options.Diagnostics, options.MCPTransport)
 	r.local = mcpclient.New(ctx, options.Diagnostics, options.MCPTransport)
+	r.remote.Prepare = r.prepareNetwork
+	r.local.Prepare = r.prepareNetwork
 	target := ""
 	if options.Config.DeviceID != "" {
 		target = sources.ID(options.Config.Server, options.Config.DeviceID)
 	}
-	r.Local, err = local.New(ctx, local.Options{Store: store, SyncTarget: target,
+	r.Local, err = local.New(ctx, local.Options{Network: settings, NetworkClient: &client, Store: store, SyncTarget: target,
 		Locations: options.Locations, Runtime: r.local, Changed: r.remote.InvalidateResource, Error: options.Error})
 	if err != nil {
 		return nil, errors.Join(err, r.Close())
@@ -144,10 +161,21 @@ func (r *Runtime) Close() error {
 	}
 	r.closed = true
 	r.cancel()
+	if r.networkTransport != nil {
+		r.networkTransport.CloseIdleConnections()
+	}
 	err := r.disconnect()
 	r.watchers.Wait()
 	if r.Local != nil {
 		r.Local.Wait()
 	}
 	return errors.Join(err, r.local.CloseAll(), r.lease.Close())
+}
+
+func (r *Runtime) prepareNetwork(c mcpclient.Config) (mcpclient.Config, error) {
+	settings, _ := r.Network.Snapshot()
+	prepared, err := network.Prepare(network.Command{Command: c.Command, Args: c.Args, Env: c.Env, PackageSource: c.PackageSource}, settings)
+	c.Args = prepared.Args
+	c.Env = prepared.Env
+	return c, err
 }

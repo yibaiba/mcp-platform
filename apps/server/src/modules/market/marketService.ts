@@ -1,4 +1,4 @@
-import { marketSelection } from '@platform/contracts';
+import { marketSelection, type ConnectionInput } from '@platform/contracts';
 import type { ConnectionService } from '../mcp/connectionService.js';
 import type { RegistryClient } from './registryClient.js';
 import { compileRegistry, distributionFields, packageSupport } from './compiler.js';
@@ -6,7 +6,11 @@ import { fingerprint } from '../configuration/values.js';
 import { AppError } from '../../shared/errors.js';
 export class MarketService {
   constructor(
-    private readonly deps: { registry: RegistryClient; connections: ConnectionService },
+    private readonly deps: {
+      registry: RegistryClient;
+      connections: ConnectionService;
+      prepare?: (config: ConnectionInput) => Promise<ConnectionInput>;
+    },
   ) {}
   search(input: { search?: string; cursor?: string }) {
     return this.deps.registry.search(input);
@@ -41,7 +45,8 @@ export class MarketService {
   private async resolve(input: unknown) {
     const selected = marketSelection.parse(input);
     const record = await this.deps.registry.detail(selected.serverName, selected.version);
-    const config = compileRegistry(record.server, selected);
+    const original = compileRegistry(record.server, selected);
+    const config = this.deps.prepare ? await this.deps.prepare(original) : original;
     return { config, selected, hash: fingerprint({ server: record.server, config }) };
   }
   async preview(ownerId: string, input: unknown) {

@@ -1,3 +1,4 @@
+export * from './network.js';
 export * from './localManagement.js';
 import { resultPresentation } from './resultPresentation.js';
 import { embeddingConfig, searchOptions, newSearchOptions } from './discovery.js';
@@ -32,6 +33,7 @@ export const httpUrl = z
   );
 export const connectionInput = z
   .object({
+    packageSource: httpUrl.optional(),
     registry: z
       .object({
         provider: z.literal('official-registry'),

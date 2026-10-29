@@ -13,3 +13,5 @@ export * from './management.js';
 export * from './resultOriginals.js';
 
 export * from './sshAccess.js';
+
+export * from './updates.js';

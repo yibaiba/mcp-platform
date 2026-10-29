@@ -1,3 +1,4 @@
+import type { NetworkConfig } from '@platform/network';
 import { fork } from 'node:child_process';
 import { authorizationCoordinator } from './authorizationCoordinator.js';
 import { randomUUID } from 'node:crypto';
@@ -18,6 +19,7 @@ import { isInputRequiredResult } from '@platform/mcp';
 type Tool = { name: string; description?: string; inputSchema: Record<string, unknown> };
 type Result = { content: { type: string; [key: string]: unknown }[]; [key: string]: unknown };
 export type Context = {
+  network?: NetworkConfig;
   oauthRedirectUri?: string;
   id: string;
   ownerId: string;

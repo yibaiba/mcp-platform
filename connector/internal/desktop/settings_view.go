@@ -34,6 +34,7 @@ func (a *App) settingsView(c *ui.Context) {
 					}
 				})
 			})
+			a.networkView(c)
 			ui.Text(c, "移动应用后请重新设置登录启动。macOS 请从 .app 启动。").FontSize(12).TextColor(colors(c).Muted)
 		})
 	})

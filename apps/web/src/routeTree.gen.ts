@@ -15,6 +15,7 @@ import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as SystemLogsRouteImport } from './routes/system-logs'
 import { Route as SkillsRouteImport } from './routes/skills'
 import { Route as ProfilesRouteImport } from './routes/profiles'
+import { Route as NetworkRouteImport } from './routes/network'
 import { Route as MarketRouteImport } from './routes/market'
 import { Route as DevicesRouteImport } from './routes/devices'
 import { Route as ConnectionsRouteImport } from './routes/connections'
@@ -55,6 +56,11 @@ const SkillsRoute = SkillsRouteImport.update({
 const ProfilesRoute = ProfilesRouteImport.update({
   id: '/profiles',
   path: '/profiles',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NetworkRoute = NetworkRouteImport.update({
+  id: '/network',
+  path: '/network',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MarketRoute = MarketRouteImport.update({
@@ -125,6 +131,7 @@ export interface FileRoutesByFullPath {
   '/connections': typeof ConnectionsRoute
   '/devices': typeof DevicesRoute
   '/market': typeof MarketRoute
+  '/network': typeof NetworkRoute
   '/profiles': typeof ProfilesRoute
   '/skills': typeof SkillsRoute
   '/system-logs': typeof SystemLogsRoute
@@ -144,6 +151,7 @@ export interface FileRoutesByTo {
   '/connections': typeof ConnectionsRoute
   '/devices': typeof DevicesRoute
   '/market': typeof MarketRoute
+  '/network': typeof NetworkRoute
   '/profiles': typeof ProfilesRoute
   '/skills': typeof SkillsRoute
   '/system-logs': typeof SystemLogsRoute
@@ -164,6 +172,7 @@ export interface FileRoutesById {
   '/connections': typeof ConnectionsRoute
   '/devices': typeof DevicesRoute
   '/market': typeof MarketRoute
+  '/network': typeof NetworkRoute
   '/profiles': typeof ProfilesRoute
   '/skills': typeof SkillsRoute
   '/system-logs': typeof SystemLogsRoute
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
     | '/connections'
     | '/devices'
     | '/market'
+    | '/network'
     | '/profiles'
     | '/skills'
     | '/system-logs'
@@ -204,6 +214,7 @@ export interface FileRouteTypes {
     | '/connections'
     | '/devices'
     | '/market'
+    | '/network'
     | '/profiles'
     | '/skills'
     | '/system-logs'
@@ -223,6 +234,7 @@ export interface FileRouteTypes {
     | '/connections'
     | '/devices'
     | '/market'
+    | '/network'
     | '/profiles'
     | '/skills'
     | '/system-logs'
@@ -243,6 +255,7 @@ export interface RootRouteChildren {
   ConnectionsRoute: typeof ConnectionsRoute
   DevicesRoute: typeof DevicesRoute
   MarketRoute: typeof MarketRoute
+  NetworkRoute: typeof NetworkRoute
   ProfilesRoute: typeof ProfilesRoute
   SkillsRoute: typeof SkillsRoute
   SystemLogsRoute: typeof SystemLogsRoute
@@ -293,6 +306,13 @@ declare module '@tanstack/react-router' {
       path: '/profiles'
       fullPath: '/profiles'
       preLoaderRoute: typeof ProfilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/network': {
+      id: '/network'
+      path: '/network'
+      fullPath: '/network'
+      preLoaderRoute: typeof NetworkRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/market': {
@@ -387,6 +407,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConnectionsRoute: ConnectionsRoute,
   DevicesRoute: DevicesRoute,
   MarketRoute: MarketRoute,
+  NetworkRoute: NetworkRoute,
   ProfilesRoute: ProfilesRoute,
   SkillsRoute: SkillsRoute,
   SystemLogsRoute: SystemLogsRoute,

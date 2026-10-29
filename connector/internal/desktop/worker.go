@@ -85,7 +85,11 @@ func (w *worker) open(preferences Preferences) error {
 	w.session, w.preferences = session, preferences
 	w.unsubscribe = session.Runtime.Local.Subscribe(a.requestRefresh)
 	cfg := session.Config
-	a.win.Update(func() { a.server, a.deviceID = cfg.Server, cfg.DeviceID; a.code, a.repairID = "", "" })
+	a.win.Update(func() {
+		a.server, a.deviceID = cfg.Server, cfg.DeviceID
+		a.code, a.repairID = "", ""
+		a.network = networkDraft{}
+	})
 	if cfg.DeviceID != "" {
 		return session.Runtime.Connect(cfg)
 	}

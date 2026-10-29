@@ -70,6 +70,9 @@ export const localState = z
 export const localRequest = z
   .object({
     action: z.enum([
+      'network.get',
+      'network.save',
+      'network.check',
       'state',
       'resource',
       'operation',

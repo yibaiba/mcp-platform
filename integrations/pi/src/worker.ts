@@ -1,3 +1,4 @@
+import { NetworkClient } from '@platform/network';
 import {
   discoverCatalog,
   executeOperation,
@@ -137,16 +138,17 @@ async function dispatch(
     const context = params as Context;
     requestTimeoutMs = context.config.requestOptions?.timeoutMs;
     healthTimeoutMs = context.config.health?.timeoutMs;
+    const networkFetch = context.network ? new NetworkClient(context.network).fetch : fetch;
     configurePlatformEmbedding({
       oauthRedirectUri: context.oauthRedirectUri,
       authorize,
-      wrapFetch: (delegate, authorization) =>
-        toolDispatchFetch(delegate, async (): Promise<Record<string, string>> => {
+      wrapFetch: (_delegate, authorization) =>
+        toolDispatchFetch(networkFetch, async (): Promise<Record<string, string>> => {
           if (!authorization) return {};
           const { provider, serverUrl } = authorization;
           let tokens = await provider.tokens();
           if (tokens?.expires_in !== undefined && tokens.expires_in <= 0) {
-            if ((await auth(provider, { serverUrl, fetchFn: delegate })) !== 'AUTHORIZED')
+            if ((await auth(provider, { serverUrl, fetchFn: networkFetch })) !== 'AUTHORIZED')
               throw new Error('Pi 上游授权已过期，请重新授权');
             tokens = await provider.tokens();
           }

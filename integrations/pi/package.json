@@ -6,6 +6,7 @@
     "@earendil-works/pi-ai": "1.4.0",
     "@earendil-works/pi-coding-agent": "1.4.0",
     "@platform/mcp": "workspace:*",
+    "@platform/network": "workspace:*",
     "pi-mcp-adapter": "7.0.0",
     "tsx": "4.21.0",
     "typebox": "1.0.55"

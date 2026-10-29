@@ -1,3 +1,4 @@
+import type { NetworkService } from '../network/service.js';
 import { resolve } from 'node:path';
 import {
   isInputRequiredResult,
@@ -18,6 +19,7 @@ export class PiBridges {
   private readonly entries = new Map<string, Promise<PiBridge>>();
   constructor(
     private readonly deps: {
+      network: NetworkService;
       config: Config;
       load: () => Promise<PiRuntime>;
       logger: DiagnosticLogger;
@@ -30,6 +32,7 @@ export class PiBridges {
         const adapter = await runtime.bridge({
           context: {
             ...context,
+            network: (await this.deps.network.snapshot()).config,
             oauthRedirectUri: oauthCallbackUrl(context, this.deps.config.PUBLIC_URL),
           },
           diagnostic: (code) => this.deps.logger.report(code, context.ownerId),
