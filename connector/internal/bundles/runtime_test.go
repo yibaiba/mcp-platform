@@ -3,6 +3,7 @@ package bundles
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -73,5 +74,33 @@ func TestDescriptorPinsEncryptedConfigurationAndDoesNotExposeSecrets(t *testing.
 	}
 	if _, err := os.Stat(filepath.Join(store.Dir, "packages", input.SHA256, "server.js")); err != nil {
 		t.Fatal("shared package file removed", err)
+	}
+}
+
+func TestRemovalValidatesBeforeCleanupAndRetainsConfigurationOnCleanupFailure(t *testing.T) {
+	store := &Store{Dir: t.TempDir()}
+	input := fixture(t, "server.js", 0600)
+	input.Config = raw(t, map[string]any{"command": "node", "cwd": filepath.Join(store.Dir, "packages", input.SHA256)})
+	if _, err := store.Install(raw(t, input)); err != nil {
+		t.Fatal(err)
+	}
+	revision, err := store.configurationRevision(input.SHA256)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cleanupError := errors.New("runtime cleanup failed")
+	calls := 0
+	cleanup := func() error { calls++; return cleanupError }
+	if err = store.RemoveConfigurationAfterValidation(input.SHA256, "stale", cleanup); err == nil || calls != 0 {
+		t.Fatal("stale revision ran cleanup:", err, calls)
+	}
+	if err = store.RemoveConfigurationAfterValidation(input.SHA256, revision, cleanup); !errors.Is(err, cleanupError) || calls != 1 {
+		t.Fatal("cleanup failure lost:", err, calls)
+	}
+	if _, err = store.ConfigurationAt(input.SHA256, revision); err != nil {
+		t.Fatal("failed cleanup removed configuration:", err)
+	}
+	if err = store.RemoveConfiguration(input.SHA256, revision); err != nil {
+		t.Fatal(err)
 	}
 }
