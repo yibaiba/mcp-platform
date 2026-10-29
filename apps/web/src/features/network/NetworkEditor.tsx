@@ -1,11 +1,6 @@
 import './network.css';
 import { useState } from 'react';
-import {
-  networkSave,
-  networkSecretNames,
-  type NetworkView,
-  type NetworkSettings,
-} from '@platform/contracts';
+import { networkSave, type NetworkView, type NetworkSettings } from '@platform/contracts';
 import { Field, Feedback } from '../../components/shared/Controls.js';
 import { Input } from '../../components/ui/input.js';
 import { Button } from '../../components/ui/button.js';
@@ -19,12 +14,30 @@ const fields: [keyof Omit<NetworkSettings, 'replacePublicSources'>, string, stri
   ['githubDownload', 'GitHub 下载模板', 'https://加速域名/{url} 或 {encodedUrl}'],
   ['githubClone', 'GitHub Git 克隆模板', 'https://加速域名/{owner}/{repo}.git'],
 ];
-const secretLabels = [
-  'HTTP 代理账号:密码',
-  'HTTPS 代理账号:密码',
-  'GitHub API 独立令牌',
-  'GitHub 下载独立令牌',
-  'GitHub Git 独立令牌',
+type SecretName = keyof NetworkView['secrets'];
+const secretFields: Partial<Record<keyof NetworkSettings, { name: SecretName; label: string }>> = {
+  httpProxy: { name: 'httpProxyAuth', label: 'HTTP 代理账号:密码' },
+  httpsProxy: { name: 'httpsProxyAuth', label: 'HTTPS 代理账号:密码' },
+  githubApi: { name: 'githubApiToken', label: 'GitHub API 独立令牌' },
+  githubDownload: { name: 'githubDownloadToken', label: 'GitHub 下载独立令牌' },
+  githubClone: { name: 'githubCloneToken', label: 'GitHub Git 独立令牌' },
+};
+const sections = [
+  {
+    title: '通用代理',
+    description: '平台请求及新建子进程使用以下代理。NO_PROXY 中的地址直接连接。',
+    keys: ['httpProxy', 'httpsProxy', 'noProxy'],
+  },
+  {
+    title: 'npm / Python 安装源',
+    description: '更新查询和安装使用同一来源，私有包源及其凭证始终保留。',
+    keys: ['npmRegistry', 'pythonIndex'],
+  },
+  {
+    title: 'GitHub 加速',
+    description: 'API、文件下载和 Git 克隆独立配置；第三方端点不会自动收到原 GitHub 认证信息。',
+    keys: ['githubApi', 'githubDownload', 'githubClone'],
+  },
 ];
 type Check = { kind: string; url: string; ok: boolean; detail: string };
 export function NetworkEditor({
@@ -41,7 +54,7 @@ export function NetworkEditor({
   const [current, setCurrent] = useState(initial);
   const [settings, setSettings] = useState(initial.settings);
   const [edits, setEdits] = useState<
-    Record<string, { action: 'keep' | 'replace' | 'clear'; value?: string }>
+    Partial<Record<SecretName, { action: 'keep' | 'replace' | 'clear'; value?: string }>>
   >({});
   const [error, setError] = useState<Error | null>(null);
   const [busy, setBusy] = useState(false);
@@ -59,6 +72,9 @@ export function NetworkEditor({
       setBusy(false);
     }
   };
+  const dirty =
+    JSON.stringify(settings) !== JSON.stringify(current.settings) ||
+    Object.values(edits).some((edit) => edit.action !== 'keep');
   const preview = (template: string) =>
     template
       .replaceAll(
@@ -76,6 +92,10 @@ export function NetworkEditor({
   return (
     <form
       className="form network-editor"
+      onChange={() => {
+        setNotice('');
+        setError(null);
+      }}
       onSubmit={(event) => {
         event.preventDefault();
         void act(async () => {
@@ -98,98 +118,89 @@ export function NetworkEditor({
         {local ? '仅作用于这台设备，凭证不会上传到平台。' : '仅作用于平台，不下发到设备。'}
         代理失败会明确报错；包源失败不会自动切换官方源。
       </p>
-      <div className="form-grid">
-        {fields.map(([key, label, hint]) => (
-          <Field key={key} label={label} hint={hint}>
-            <Input
-              disabled={busy}
-              value={settings[key]}
-              onChange={(event) => setSettings({ ...settings, [key]: event.target.value })}
-              autoComplete="off"
-            />
-          </Field>
-        ))}
-      </div>
-      <label className="network-source-toggle">
-        <input
-          type="checkbox"
-          disabled={busy}
-          checked={settings.replacePublicSources}
-          onChange={(event) =>
-            setSettings({ ...settings, replacePublicSources: event.target.checked })
-          }
-        />{' '}
-        将明确声明的官方公共源替换为镜像（私有源保留）
-      </label>
-      <div className="form-grid">
-        {networkSecretNames.map((name, index) => (
-          <Field
-            key={name}
-            label={secretLabels[index]!}
-            hint={current.secrets[name] ? '已保存，无法回读；可保留、更换或清除。' : '尚未设置'}
-          >
-            <div>
-              <select
+      {sections.map((section) => (
+        <section className="network-section" key={section.title}>
+          <h3>{section.title}</h3>
+          <p className="text-muted-foreground">{section.description}</p>
+          <div className="form-grid">
+            {fields
+              .filter(([key]) => section.keys.includes(key))
+              .map(([key, label, hint]) => {
+                const secret = secretFields[key];
+                return (
+                  <div className="network-setting" key={key}>
+                    <Field label={label} hint={hint}>
+                      <Input
+                        disabled={busy}
+                        value={settings[key]}
+                        autoComplete="off"
+                        onChange={(event) =>
+                          setSettings({ ...settings, [key]: event.target.value })
+                        }
+                      />
+                    </Field>
+                    {secret ? (
+                      <NetworkSecret
+                        name={secret.name}
+                        label={secret.label}
+                        busy={busy}
+                        saved={current.secrets[secret.name]}
+                        edit={edits[secret.name]}
+                        onChange={(edit) => setEdits({ ...edits, [secret.name]: edit })}
+                      />
+                    ) : null}
+                    {['githubDownload', 'githubClone'].includes(key) && settings[key] ? (
+                      <p className="url-preview">
+                        {key === 'githubDownload' ? '下载预览' : 'Git 预览'}：
+                        {preview(settings[key])}
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })}
+          </div>
+          {section.keys.includes('npmRegistry') ? (
+            <label className="network-source-toggle">
+              <input
+                type="checkbox"
                 disabled={busy}
-                aria-label={`${secretLabels[index]}操作`}
-                value={edits[name]?.action ?? 'keep'}
+                checked={settings.replacePublicSources}
                 onChange={(event) =>
-                  setEdits({
-                    ...edits,
-                    [name]: { action: event.target.value as 'keep' | 'replace' | 'clear' },
-                  })
+                  setSettings({ ...settings, replacePublicSources: event.target.checked })
                 }
-              >
-                <option value="keep">保留</option>
-                <option value="replace">更换</option>
-                <option value="clear">清除</option>
-              </select>
-              {edits[name]?.action === 'replace' ? (
-                <Input
-                  aria-label={secretLabels[index]}
-                  type="password"
-                  disabled={busy}
-                  autoComplete="new-password"
-                  value={edits[name]?.value ?? ''}
-                  onChange={(event) =>
-                    setEdits({ ...edits, [name]: { action: 'replace', value: event.target.value } })
-                  }
-                  required
-                />
-              ) : null}
-            </div>
-          </Field>
-        ))}
-      </div>
-      <p>GitHub 第三方端点不会自动收到原 GitHub 认证信息。需要认证时，请填写对应的独立令牌。</p>
-      {settings.githubDownload || settings.githubClone ? (
-        <div aria-label="地址预览">
-          {settings.githubDownload ? <p>下载预览：{preview(settings.githubDownload)}</p> : null}
-          {settings.githubClone ? <p>Git 预览：{preview(settings.githubClone)}</p> : null}
-        </div>
-      ) : null}
+              />
+              将明确声明的官方公共源替换为镜像（私有源保留）
+            </label>
+          ) : null}
+        </section>
+      ))}
       <Feedback error={error} />
-      <p role="status">{notice}</p>
-      <div className="actions">
-        <Button type="submit" disabled={busy}>
-          {busy ? '处理中…' : '保存网络设置'}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={busy}
-          onClick={() =>
-            void act(async () => {
-              setResults(await check());
-            })
-          }
-        >
-          检查已保存设置的连通性
-        </Button>
+      {notice ? <p role="status">{notice}</p> : null}
+      <div className="network-save-bar">
+        <p role="status" className="draft-state">
+          {dirty ? '有未保存的网络设置' : '网络设置与已保存版本一致'}
+        </p>
+        <div className="actions">
+          <Button type="submit" disabled={busy}>
+            {busy ? '处理中…' : '保存网络设置'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy}
+            onClick={() =>
+              void act(async () => {
+                setResults(await check());
+              })
+            }
+          >
+            检查已保存设置的连通性
+          </Button>
+        </div>
       </div>
-      <div aria-live="polite">
+      <div aria-live="polite" className="network-check-results">
         {results.map((result) => (
-          <p key={result.kind}>
+          <p className="rounded border p-3" key={result.kind}>
             {result.kind}：{result.ok ? '成功' : '失败'} · {result.detail}
             <br />
             {result.url}
@@ -197,5 +208,54 @@ export function NetworkEditor({
         ))}
       </div>
     </form>
+  );
+}
+
+type SecretEdit = { action: 'keep' | 'replace' | 'clear'; value?: string };
+function NetworkSecret({
+  name,
+  label,
+  saved,
+  busy,
+  edit,
+  onChange,
+}: {
+  name: SecretName;
+  label: string;
+  saved: boolean;
+  busy: boolean;
+  edit?: SecretEdit;
+  onChange: (edit: SecretEdit) => void;
+}) {
+  return (
+    <div className="network-secret">
+      <Field
+        label={`${label}操作`}
+        hint={saved ? '已保存，无法回读；可保留、更换或清除。' : '尚未设置'}
+      >
+        <select
+          disabled={busy}
+          value={edit?.action ?? 'keep'}
+          onChange={(event) => onChange({ action: event.target.value as SecretEdit['action'] })}
+        >
+          <option value="keep">保留</option>
+          <option value="replace">更换</option>
+          <option value="clear">清除</option>
+        </select>
+      </Field>
+      {edit?.action === 'replace' ? (
+        <Field label={label}>
+          <Input
+            name={name}
+            type="password"
+            disabled={busy}
+            autoComplete="new-password"
+            value={edit.value ?? ''}
+            required
+            onChange={(event) => onChange({ action: 'replace', value: event.target.value })}
+          />
+        </Field>
+      ) : null}
+    </div>
   );
 }

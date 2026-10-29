@@ -61,7 +61,15 @@ try {
   ctx.setDefaultTimeout(8000);
   const page = await ctx.newPage();
   await page.goto(h.baseURL + '/network');
+  await page.getByLabel('HTTP 代理', { exact: true }).waitFor();
+  assert.ok(
+    await page.locator('.network-save-bar').evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.top >= 0 && rect.bottom <= innerHeight;
+    }),
+  );
   await page.getByLabel('GitHub API 基地址', { exact: true }).fill(source);
+  await page.getByText('有未保存的网络设置', { exact: true }).waitFor();
   await page.getByLabel('npm 公共镜像', { exact: true }).fill(source);
   await page.getByLabel('GitHub 下载模板', { exact: true }).fill(source + '/download/{encodedUrl}');
   await page
@@ -70,8 +78,20 @@ try {
   await page.getByLabel('GitHub API 独立令牌操作', { exact: true }).selectOption('replace');
   await page.getByLabel('GitHub API 独立令牌', { exact: true }).fill('browser-fixture-secret');
   await page.getByRole('button', { name: '保存网络设置', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: '已保存' }).waitFor();
+  await page
+    .getByRole('status')
+    .filter({ hasText: /^已保存。/ })
+    .waitFor();
+  await page.getByLabel('npm 公共镜像', { exact: true }).fill(source + '/changed');
+  assert.equal(
+    await page
+      .getByRole('status')
+      .filter({ hasText: /^已保存。/ })
+      .count(),
+    0,
+  );
   await page.reload();
+  assert.equal(await page.getByLabel('npm 公共镜像', { exact: true }).inputValue(), source);
   await page.getByText('已保存，无法回读；可保留、更换或清除。').waitFor();
   assert.equal(await page.locator('input[type=password]').count(), 0);
   assert.ok(!(await page.content()).includes('browser-fixture-secret'));
@@ -88,6 +108,16 @@ try {
   assert.equal(await page.locator('article img').count(), 0);
   await page.screenshot({ path: join(screenshots, 'about-mobile.png'), fullPage: true });
   await page.goto(h.baseURL + '/connections');
+  await page.getByLabel('搜索连接', { exact: true }).fill('no match');
+  await page.getByText('没有符合筛选条件的连接。', { exact: false }).waitFor();
+  await page.getByRole('button', { name: '清除筛选', exact: true }).click();
+  await page.getByLabel('执行位置', { exact: true }).selectOption('device');
+  await page.getByText('显示 0 / 1 个连接', { exact: true }).waitFor();
+  await page.getByLabel('执行位置', { exact: true }).selectOption('direct');
+  await page.getByLabel('连接状态', { exact: true }).selectOption('connected');
+  await page.getByText('显示 0 / 1 个连接', { exact: true }).waitFor();
+  await page.getByLabel('连接状态', { exact: true }).selectOption('');
+  await page.getByText('显示 1 / 1 个连接', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Browser package fixture 更多操作' }).click();
   await page.getByRole('menuitem', { name: '编辑连接', exact: true }).click();
   await page.getByRole('button', { name: '手动检查更新', exact: true }).click();
@@ -123,7 +153,10 @@ try {
   await local.getByRole('tab', { name: '网络与安装源' }).click();
   await local.getByLabel('npm 公共镜像', { exact: true }).fill(source);
   await local.getByRole('button', { name: '保存网络设置', exact: true }).click();
-  await local.getByRole('status').filter({ hasText: '已保存' }).waitFor();
+  await local
+    .getByRole('status')
+    .filter({ hasText: /^已保存。/ })
+    .waitFor();
   assert.ok(await local.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await local.screenshot({ path: join(screenshots, 'local-network-mobile.png'), fullPage: true });
   console.log(

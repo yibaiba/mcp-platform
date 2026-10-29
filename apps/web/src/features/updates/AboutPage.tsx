@@ -46,20 +46,33 @@ export default function AboutPage() {
           <h2>
             {info.build.release ? info.build.version : `dev · ${info.build.commit.slice(0, 8)}`}
           </h2>
-          <p style={{ overflowWrap: 'anywhere' }}>
-            提交：{info.build.commit}
-            <br />
-            构建时间：
-            {info.build.builtAt ? new Date(info.build.builtAt).toLocaleString() : '尚未构建'}
-          </p>
-          <p role="status">
-            {info.stale ? '网络配置已变化，已有结果已过期。' : ''}
-            {info.result ? (states[info.result.state] ?? info.result.state) : '尚未检查更新'}
-          </p>
+          <div className="update-summary" role="status">
+            <strong>
+              {info.stale
+                ? '历史检查已过期'
+                : info.result
+                  ? (states[info.result.state] ?? info.result.state)
+                  : '尚未检查更新'}
+            </strong>
+            {info.stale ? <p>网络配置已变化，请重新检查更新。</p> : null}
+            <span>
+              上次检查：
+              {info.result?.checkedAt
+                ? new Date(info.result.checkedAt).toLocaleString()
+                : '尚无记录'}
+            </span>
+            <span>检查来源：GitHub Releases · yibaiba/mcp-platform</span>
+          </div>
+          <details className="technical-details">
+            <summary>构建信息</summary>
+            <p>
+              提交：{info.build.commit}
+              <br />
+              构建时间：
+              {info.build.builtAt ? new Date(info.build.builtAt).toLocaleString() : '尚未构建'}
+            </p>
+          </details>
           {info.result?.error ? <p role="alert">{info.result.error}</p> : null}
-          {info.result?.checkedAt ? (
-            <p>上次检查：{new Date(info.result.checkedAt).toLocaleString()}</p>
-          ) : null}
           {me.data?.role === 'admin' ? (
             <div className="flex flex-wrap gap-2">
               <Action action={() => api('/admin/platform-update', { method: 'POST' })}>
@@ -109,9 +122,11 @@ export default function AboutPage() {
               {device.name} · {device.version ?? '尚未上报版本'}
             </p>
           ))
-        ) : (
+        ) : devices.isPending ? (
+          <p role="status">正在读取设备版本…</p>
+        ) : devices.isSuccess ? (
           <p>尚无设备版本记录。</p>
-        )}
+        ) : null}
       </section>
     </>
   );

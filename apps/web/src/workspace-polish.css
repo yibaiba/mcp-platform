@@ -1,0 +1,225 @@
+/* Native controls share the same surface, sizing and focus treatment as the UI kit. */
+select,
+textarea:not([data-slot]) {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid var(--input);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 13px;
+}
+textarea:not([data-slot]) {
+  resize: vertical;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+}
+select:disabled,
+textarea:disabled {
+  opacity: 0.55;
+}
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.draft-state {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.draft-preview {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.argument-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.check-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 40px;
+  white-space: nowrap;
+}
+.check-row input {
+  accent-color: var(--primary);
+  width: 16px;
+  height: 16px;
+}
+.connection-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.connection-filters > p {
+  grid-column: 1 / -1;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.technical-details {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+.technical-details summary {
+  cursor: pointer;
+  min-height: 36px;
+  padding: 8px 0;
+}
+.technical-details[open] summary {
+  color: var(--foreground);
+}
+.update-summary {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.update-summary > strong {
+  font-size: 16px;
+}
+.sidebar-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sidebar .workspace {
+  margin: 22px 0 12px;
+}
+.workspace-navigation {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding-bottom: 16px;
+}
+.workspace-navigation section + section {
+  margin-top: 18px;
+}
+.workspace-navigation .nav-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  margin: 8px 0;
+}
+.sidebar-bottom {
+  flex-shrink: 0;
+  padding-top: 12px;
+}
+.mobile-menu-button {
+  display: none;
+}
+.mobile-navigation-drawer[data-slot='dialog-content'] {
+  top: 0;
+  left: 0;
+  width: min(340px, calc(100% - 32px));
+  height: 100dvh;
+  max-width: none;
+  transform: none;
+  translate: none;
+  border-radius: 0 12px 12px 0;
+  padding: 20px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.mobile-navigation-drawer .account {
+  margin: 0;
+}
+@media (max-width: 1100px) {
+  .argument-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+@media (max-width: 760px) {
+  .sidebar > .workspace-navigation {
+    display: none;
+  }
+  .mobile-menu-button {
+    display: inline-flex;
+  }
+  .mobile-navigation-drawer .workspace-navigation {
+    display: block;
+    margin: 0;
+    padding: 0 0 12px;
+  }
+  .mobile-navigation-drawer nav a {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .mobile-navigation-drawer .nav-label {
+    display: block;
+  }
+  .mobile-navigation-drawer nav small {
+    display: inline;
+  }
+  .connection-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 18px;
+  }
+  .connection-filters > :first-child {
+    grid-column: 1 / -1;
+  }
+  select,
+  textarea:not([data-slot]) {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .argument-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .argument-row > .field {
+    grid-column: 1 / -1;
+  }
+}
+
+.form-fields {
+  display: contents;
+}
+.library-template[data-slot='textarea'] {
+  min-height: 180px;
+}
+.library-kind {
+  max-width: 420px;
+  margin-bottom: 20px;
+}
+.version {
+  white-space: nowrap;
+}
+@media (max-width: 760px) {
+  .topbar-meta {
+    gap: 10px;
+  }
+  .topbar .divider {
+    margin: 0 6px;
+  }
+}
+@media (max-width: 480px) {
+  .desktop-breadcrumb {
+    display: none;
+  }
+}
+.account > div {
+  min-width: 0;
+}
+.account small,
+.account strong {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mobile-navigation-drawer .account small {
+  max-width: 230px;
+}
