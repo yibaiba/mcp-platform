@@ -30,13 +30,53 @@ try {
   await page.goto(h.baseURL + '/library');
   await page.getByLabel('名称', { exact: true }).fill('Browser prompt');
   await page.getByLabel('提示词模板', { exact: true }).fill('Hello {{topic}}');
-  await page.getByLabel('参数声明（JSON）').fill('[{"name":"topic","required":true}]');
+  await page.getByRole('button', { name: '添加参数', exact: true }).click();
+  await page.getByLabel('参数 1 名称', { exact: true }).fill('topic');
+  await page.getByRole('checkbox', { name: '必填', exact: true }).check();
   await page.getByRole('button', { name: '保存', exact: true }).click();
   await page.getByText('Browser prompt', { exact: true }).waitFor();
   await page.getByRole('button', { name: '编辑', exact: true }).click();
   await page.getByLabel('参数值（JSON）').fill('{"topic":"browser"}');
-  await page.getByRole('button', { name: '预览已保存的模板' }).click();
-  await page.getByText('Hello browser', { exact: false }).waitFor();
+  await page.getByLabel('提示词模板', { exact: true }).fill('Draft hello {{topic}}');
+  await page.getByRole('button', { name: '预览当前草稿', exact: true }).click();
+  await page.getByText('Draft hello browser', { exact: false }).waitFor();
+  await page.getByText('操作已完成', { exact: true }).waitFor();
+  await page.getByLabel('参数值（JSON）').fill('{"topic":"changed"}');
+  assert.equal(await page.getByText('操作已完成', { exact: true }).count(), 0);
+  await page.getByLabel('内容类型').selectOption('resource');
+  await page.getByRole('dialog', { name: '放弃未保存的修改？' }).waitFor();
+  await page.getByRole('button', { name: '取消', exact: true }).click();
+  assert.equal(
+    await page.getByLabel('提示词模板', { exact: true }).inputValue(),
+    'Draft hello {{topic}}',
+  );
+  await page
+    .getByRole('navigation', { name: '主导航' })
+    .getByRole('link', { name: '概览', exact: true })
+    .click();
+  await page.getByRole('button', { name: '取消', exact: true }).click();
+  assert.ok(page.url().endsWith('/library'));
+  await page.getByRole('button', { name: '编辑 JSON', exact: true }).click();
+  await page.getByLabel('参数声明（JSON）').fill('{');
+  await page.getByRole('button', { name: '使用参数表单', exact: true }).click();
+  await page.getByRole('alert').waitFor();
+  await page.getByLabel('参数声明（JSON）').fill('[{"name":"topic","required":true}]');
+  await page.getByRole('button', { name: '使用参数表单', exact: true }).click();
+  let releasePreview: () => void = () => {};
+  const pendingPreview = new Promise<void>((done) => {
+    releasePreview = done;
+  });
+  await page.route('**/api/v1/library/prompts/preview', async (route) => {
+    await pendingPreview;
+    await route.continue();
+  });
+  await page.getByRole('button', { name: '预览当前草稿', exact: true }).click();
+  await page.getByLabel('提示词模板', { exact: true }).fill('Newer draft {{topic}}');
+  releasePreview();
+  await page.getByText('草稿已修改，请重新预览。', { exact: true }).waitFor();
+  await page.unroute('**/api/v1/library/prompts/preview');
+  await page.getByRole('button', { name: '预览当前草稿', exact: true }).click();
+  await page.getByText('Newer draft changed', { exact: false }).waitFor();
   await page.screenshot({ path: join(screenshots, 'library-desktop.png'), fullPage: true });
   await page.getByLabel('状态', { exact: true }).selectOption('false');
   await page.getByRole('button', { name: '保存', exact: true }).click();
@@ -44,7 +84,12 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await page.screenshot({ path: join(screenshots, 'library-mobile.png'), fullPage: true });
+  await page.getByRole('button', { name: '打开导航菜单', exact: true }).click();
+  await page.getByRole('button', { name: '退出登录', exact: true }).waitFor();
+  await page.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).click();
+  await page.getByLabel('名称', { exact: true }).fill('unsaved');
   await page.getByLabel('内容类型').selectOption('resource');
+  await page.getByRole('button', { name: '放弃修改并继续', exact: true }).click();
   await page.getByLabel('名称', { exact: true }).fill('Browser resource');
   await page.getByLabel('资源 URI').fill('resource://browser');
   await page.getByLabel('静态文本').fill('<script>window.untrusted = true</script>');
@@ -52,6 +97,11 @@ try {
   await page.getByText('Browser resource', { exact: true }).waitFor();
   assert.equal(await page.evaluate(() => (window as any).untrusted), undefined);
   await page.getByRole('button', { name: '删除', exact: true }).click();
+  await page.getByRole('dialog', { name: '删除“Browser resource”？' }).waitFor();
+  await page.getByRole('button', { name: '取消', exact: true }).click();
+  await page.getByText('Browser resource', { exact: true }).waitFor();
+  await page.getByRole('button', { name: '删除', exact: true }).click();
+  await page.getByRole('button', { name: '确认删除', exact: true }).click();
   await page.getByText('还没有内容。').waitFor();
   await page.goto(h.baseURL + '/profiles');
   await page.getByRole('button', { name: '智能发现', exact: true }).click();
@@ -68,7 +118,7 @@ try {
     'json',
   );
   await page.goto(h.baseURL + '/connections');
-  await page.getByText('导入 MCPB 扩展包', { exact: true }).click();
+  await page.getByRole('button', { name: '导入连接', exact: true }).click();
   await page.getByLabel('MCPB 文件', { exact: true }).setInputFiles(file);
   await page.getByRole('button', { name: '上传并解析' }).click();
   await page.getByLabel('key', { exact: true }).fill('browser-bundle-secret');
@@ -87,12 +137,14 @@ try {
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await page.screenshot({ path: join(screenshots, 'bundle-mobile.png'), fullPage: true });
   await page.reload();
-  await page.getByText('导入 MCPB 扩展包', { exact: true }).click();
+  await page.getByRole('button', { name: '导入连接', exact: true }).click();
   const history = page.getByRole('region', { name: 'MCPB 安装历史' });
   await history.getByText('成功', { exact: true }).waitFor();
   await history.getByRole('button', { name: '卸载此连接及授权' }).click();
+  await page.getByRole('button', { name: '确认卸载', exact: true }).click();
   await history.getByText('已卸载', { exact: false }).first().waitFor();
   await history.getByRole('button', { name: '清理未使用包文件' }).click();
+  await page.getByRole('button', { name: '确认清理', exact: true }).click();
   await history.getByText('平台包文件已清理', { exact: true }).waitFor();
   assert.equal(
     (await h.services.connections.list(account.ownerId)).filter((c) => c.name === 'bundle-fixture')
@@ -141,7 +193,7 @@ try {
   await local.getByRole('button', { name: '连接验证', exact: true }).waitFor({ state: 'detached' });
   assert.ok(await local.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   console.log(
-    'PASS: library CRUD/preview/disable, HTML literal content, compression persistence, MCPB preview/install/discovery, history reload/uninstall/cleanup, local encrypted setup/start/stop/client config/removal, narrow layouts',
+    'PASS: library draft preview/race/discard/arguments/confirmation/loading state, CRUD/disable, HTML literal content, compression persistence, MCPB preview/install/discovery, history reload/uninstall/cleanup, local encrypted setup/start/stop/client config/removal, narrow layouts',
   );
 } catch (error) {
   console.error(error);

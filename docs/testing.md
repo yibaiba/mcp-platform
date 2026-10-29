@@ -180,3 +180,7 @@ node scripts/check.mjs 60 pnpm exec tsx scripts/verify-management-browser.mts
 PR #9 最终提交 `cac29c6469162c86d24ff77bbd68f16ede1225d3` 的 [平台 CI](https://github.com/yibaiba/mcp-platform/actions/runs/40848729597) 和 [桌面 CI](https://github.com/yibaiba/mcp-platform/actions/runs/40848729589) 已通过：Node.js 22/24 各 27 组 365 项、Go test/vet、Pi、六架构 CLI、双架构镜像与 Compose，以及六架构桌面和七个安装包。
 
 2026-10-29 本地 27 组覆盖 365 项通过；基础组排除参数修正后补跑 45 项，其余组通过。新增 `tests/bundleLifecycle.test.ts` 与 `tests/bundleLocal.test.ts` 覆盖包历史、卸载清理、同摘要重新上传、解释器约束和真实本机 HMAC/Profile/独立客户端使用链路；内容库增加删除引用与并发授权回归。Go test/vet、类型检查、Lint、生产构建、重复迁移及无模型 Pi 通过。浏览器增加历史刷新、卸载、清理、本机客户端配置及移除检查。过程和实机边界见[修复记录](mcphub-management-progress.md#缺口修复2026-10-29)。
+
+## 工作空间界面验收
+
+分组导航、草稿保护、当前内容预览、删除确认、连接筛选与更新状态展示见[界面优化记录](ui-polish.md)。除管理和网络浏览器脚本外，执行 `node scripts/check.mjs 60 pnpm exec tsx scripts/verify-ui-state-browser.mts` 验证加载、空记录、失败、重试、站内离开保护和手机抽屉。所有脚本仅用于隔离验收数据库。

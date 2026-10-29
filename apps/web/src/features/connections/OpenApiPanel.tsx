@@ -19,11 +19,11 @@ type Preview = {
     servers: { url: string }[];
   }[];
 };
-export function OpenApiPanel() {
+export function OpenApiPanel({ defaultOpen = false }: { defaultOpen?: boolean }) {
   const [preview, setPreview] = useState<Preview>();
   const [revision, setRevision] = useState(0);
   return (
-    <Disclosure title="从 OpenAPI 文档添加连接" className="panel padded">
+    <Disclosure defaultOpen={defaultOpen} title="从 OpenAPI 文档添加连接" className="panel padded">
       <p>导入 OpenAPI 3.0/3.1 JSON 或 YAML，预览后选择发布操作。API 请求在平台执行。</p>
       <Form
         label="读取并预览"

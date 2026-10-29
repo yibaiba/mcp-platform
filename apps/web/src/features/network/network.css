@@ -59,3 +59,70 @@
   line-height: 1.5;
   opacity: 0.8;
 }
+.network-section {
+  border-top: 1px solid var(--border);
+  padding-top: 24px;
+}
+.network-section h3 {
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+.network-setting {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.network-secret {
+  padding: 12px;
+  background: var(--muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+}
+.network-save-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 16px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  border-radius: 10px;
+  box-shadow: 0 -8px 24px #0002;
+}
+.network-save-bar .draft-state {
+  margin-bottom: 10px;
+}
+.url-preview {
+  font-size: 12px;
+  padding: 12px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+}
+.network-check-results {
+  display: grid;
+  gap: 10px;
+}
+@media (max-width: 640px) {
+  .network-save-bar {
+    padding: 12px;
+  }
+  .network-save-bar .actions button {
+    width: 100%;
+    white-space: normal;
+    height: auto;
+  }
+}
+.local-manager .network-editor {
+  --background: var(--local-bg);
+  --muted: var(--local-panel);
+  --border: var(--local-border);
+  --muted-foreground: var(--local-muted);
+}
+.network-editor .draft-state {
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.network-panel {
+  overflow: visible;
+}

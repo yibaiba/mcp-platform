@@ -56,11 +56,23 @@ export function BundleHistory() {
           <strong>
             {pkg.name} · {pkg.version}
           </strong>
-          <p className="text-xs text-muted-foreground">SHA-256：{pkg.sha256}</p>
+          <details className="technical-details">
+            <summary>包校验信息</summary>
+            <p>SHA-256：{pkg.sha256}</p>
+          </details>
           {pkg.removedAt ? (
             <p>平台包文件已清理</p>
           ) : (
-            <Action danger action={() => api(`/bundles/mcpb/${pkg.id}`, { method: 'DELETE' })}>
+            <Action
+              danger
+              confirmation={{
+                title: `清理“${pkg.name}”包文件？`,
+                confirmLabel: '确认清理',
+                description:
+                  '仅删除未被连接使用的平台包文件；设备上的文件会保留。清理后若需再次安装，必须重新上传。',
+              }}
+              action={() => api(`/bundles/mcpb/${pkg.id}`, { method: 'DELETE' })}
+            >
               清理未使用包文件
             </Action>
           )}
@@ -72,13 +84,22 @@ export function BundleHistory() {
                   <Status value={op.state} /> · {phases[op.phase] ?? op.phase} ·{' '}
                   {op.createdAt ? new Date(op.createdAt).toLocaleString() : '旧记录未保存安装时间'}
                 </p>
-                <p className="text-xs">
-                  操作 {op.id} · {op.destination ?? '旧记录未保存执行位置'}
-                </p>
+                <details className="technical-details">
+                  <summary>安装技术详情</summary>
+                  <p>
+                    操作 {op.id} · {op.destination ?? '旧记录未保存执行位置'}
+                  </p>
+                </details>
                 {op.error ? <p role="alert">{op.error}</p> : null}
                 {op.connectionId && op.state !== 'running' ? (
                   <Action
                     danger
+                    confirmation={{
+                      title: `卸载“${pkg.name}”连接？`,
+                      confirmLabel: '确认卸载',
+                      description:
+                        '将关闭此连接，移除其 Agent 配置授权及依赖此连接的 Skill 授权。包文件会保留，可单独清理。此操作无法撤销。',
+                    }}
                     action={() =>
                       api(`/bundles/mcpb/operations/${op.id}/uninstall`, { method: 'POST' })
                     }

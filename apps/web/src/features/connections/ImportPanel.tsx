@@ -7,11 +7,17 @@ import { Textarea } from '../../components/ui/textarea.js';
 import { Action, Code, Field, Form, value } from '../../components/shared/Controls.js';
 import { api, json, type Device } from '../../lib/api.js';
 
-export function ImportPanel({ devices }: { devices: Device[] }) {
+export function ImportPanel({
+  devices,
+  defaultOpen = false,
+}: {
+  devices: Device[];
+  defaultOpen?: boolean;
+}) {
   const [review, setReview] = useState<{ input: unknown; preview: ImportPreview[] }>();
   const [result, setResult] = useState<unknown>();
   return (
-    <Disclosure title="导入 MCP 配置" className="panel padded">
+    <Disclosure defaultOpen={defaultOpen} title="导入 MCP 配置" className="panel padded">
       <Form
         label="验证并预览"
         submit={async (data) => {

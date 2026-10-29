@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { api, json } from '../../lib/api.js';
-import { Action, Feedback } from '../../components/shared/Controls.js';
+import { Action, Feedback, date } from '../../components/shared/Controls.js';
 type Result = {
   state: string;
   error?: string;
@@ -28,9 +28,17 @@ export function PackageUpdate({ id }: { id: string }) {
     <section className="space-y-3" aria-label="MCP 包更新">
       <h3>包版本与更新</h3>
       <Feedback error={query.error} />
-      <p className="text-xs text-muted-foreground">
-        已验证运行版本：{query.data?.runtimeVersion ?? '未知'}。{query.data?.runtimeVersionReason}
-      </p>
+      <div className="update-summary" role="status">
+        <strong>{updateSummary(query)}</strong>
+        <span>上次检查：{date(result?.checkedAt ?? null)}</span>
+        <span>已验证运行版本：{query.data?.runtimeVersion ?? '未知'}</span>
+      </div>
+      {query.data?.runtimeVersionReason ? (
+        <details className="technical-details">
+          <summary>运行版本如何确认</summary>
+          <p>{query.data.runtimeVersionReason}</p>
+        </details>
+      ) : null}
       {query.data?.stale ? <p>连接或网络配置已变化，历史检查结果已过期。</p> : null}
       {result?.state === 'failed' ? (
         <p role="alert">检查失败：{result.error}。历史成功结果仅供参考，已过期。</p>
@@ -66,9 +74,9 @@ export function PackageUpdate({ id }: { id: string }) {
             <dd>{success.checkedAt ? new Date(success.checkedAt).toLocaleString() : '尚未检查'}</dd>
           </div>
         </dl>
-      ) : (
+      ) : query.isSuccess ? (
         <p>尚无成功检查结果。检查不会安装包、启动 MCP 或调用模型。</p>
-      )}
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <Action action={() => api(path, { method: 'POST' })}>手动检查更新</Action>
         {query.data ? (
@@ -84,4 +92,17 @@ export function PackageUpdate({ id }: { id: string }) {
       <p className="text-xs text-muted-foreground">仅提示稳定版本，不自动升级或修改固定版本。</p>
     </section>
   );
+}
+
+function updateSummary(query: { isPending: boolean; isError: boolean; data?: Status }) {
+  if (query.isPending) return '正在读取包版本…';
+  if (query.isError) return '包版本信息读取失败';
+  const result = query.data?.result;
+  if (result?.state === 'failed') return '本次检查失败';
+  if (query.data?.stale) return '历史检查已过期';
+  const success = result?.state === 'checked' ? result : result?.lastSuccess;
+  if (!success) return '尚未检查更新';
+  if (success.updateAvailable) return '有稳定更新可用';
+  if (success.updateAvailable === false) return '当前配置未发现稳定更新';
+  return '已读取来源版本，无法比较';
 }

@@ -10,15 +10,17 @@ type Package = { id: string; sha256: string; manifest: McpbManifest };
 export function BundlePanel({
   devices,
   connections,
+  defaultOpen = false,
 }: {
   devices: Device[];
   connections: Connection[];
+  defaultOpen?: boolean;
 }) {
   const [pkg, setPackage] = useState<Package>();
   const [review, setReview] = useState<{ input: object; preview: unknown }>();
   const [result, setResult] = useState<unknown>();
   return (
-    <Disclosure title="导入 MCPB 扩展包">
+    <Disclosure defaultOpen={defaultOpen} title="导入 MCPB 扩展包">
       <p>
         上传和预览不执行代码。安装会在所选位置启动 MCP
         并验证连接；依赖必须已随包提供或在目标环境可用。

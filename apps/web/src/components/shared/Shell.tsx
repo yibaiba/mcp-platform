@@ -2,47 +2,17 @@ import type { VersionStatus } from '../../features/updates/AboutPage.js';
 import { Button } from '../ui/button.js';
 import { Link, Outlet } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Network,
-  LayoutDashboard,
-  Plug,
-  Monitor,
-  Wrench,
-  KeyRound,
-  BookOpen,
-  Bot,
-  History,
-  FolderOpen,
-  ShieldCheck,
-  LogOut,
-  ArrowUpRight,
-} from 'lucide-react';
+import { Network, ShieldCheck, LogOut, ArrowUpRight, Menu } from 'lucide-react';
+import { useState } from 'react';
+import { WorkspaceNavigation } from './WorkspaceNavigation.js';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog.js';
 import { authClient } from '../../lib/auth-client.js';
 import { api } from '../../lib/api.js';
 import { AuthScreen } from './AuthScreen.js';
 import { Feedback } from './Controls.js';
 import { GettingStarted } from '../../features/onboarding/GettingStarted.js';
-const navigation = [
-  ['/', '概览', LayoutDashboard],
-  ['/connections', 'MCP 连接', Plug],
-  ['/market', '服务市场', BookOpen],
-  ['/devices', '设备', Monitor],
-  ['/tools', '工具目录', Wrench],
-  ['/profiles', 'Agent 配置', KeyRound],
-  ['/configuration', '配置模板', BookOpen],
-  ['/authorizations', '授权连接', ShieldCheck],
-  ['/library', '内容库', BookOpen],
-  ['/skills', 'Skills', BookOpen],
-  ['/artifacts', '产物', FolderOpen],
-  ['/activity', '运行记录', History],
-  ['/tasks', '内置 Agent', Bot],
-  ['/account', '个人账号', KeyRound],
-  ['/users', '用户管理', ShieldCheck],
-  ['/about', '关于与更新', BookOpen],
-  ['/network', '网络与安装源', Network],
-  ['/system-logs', '系统日志', History],
-] as const;
 export function Shell() {
+  const [menuOpen, setMenuOpen] = useState(false);
   const { data: session, isPending, error } = authClient.useSession();
   const info = useQuery({
     queryKey: ['me'],
@@ -65,12 +35,48 @@ export function Shell() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <Link to="/" className="brand">
-          <Network size={27} />
-          <span>
-            MCP <b>Platform</b>
-          </span>
-        </Link>
+        <div className="sidebar-brand-row">
+          <Link to="/" className="brand">
+            <Network size={27} />
+            <span>
+              MCP <b>Platform</b>
+            </span>
+          </Link>
+          <Button
+            variant="outline"
+            className="mobile-menu-button"
+            aria-label="打开导航菜单"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen(true)}
+          >
+            <Menu size={20} />
+          </Button>
+        </div>
+        <Dialog open={menuOpen} onOpenChange={setMenuOpen}>
+          <DialogContent className="mobile-navigation-drawer">
+            <DialogHeader>
+              <DialogTitle>工作空间导航</DialogTitle>
+            </DialogHeader>
+            <WorkspaceNavigation
+              admin={info.data?.role === 'admin'}
+              piEnabled={Boolean(info.data?.piEnabled)}
+              onNavigate={() => setMenuOpen(false)}
+            />
+            <div className="account">
+              <div>
+                <strong>{session.user.name}</strong>
+                <small>{session.user.email}</small>
+              </div>
+              <Button
+                variant="outline"
+                aria-label="退出登录"
+                onClick={() => void authClient.signOut().then(() => window.location.reload())}
+              >
+                <LogOut size={17} />
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         <div className="workspace">
           <span className="workspace-avatar">P</span>
           <div>
@@ -79,26 +85,10 @@ export function Shell() {
           </div>
           <ShieldCheck size={16} />
         </div>
-        <span className="nav-label">工作空间</span>
-        <nav aria-label="主导航">
-          {navigation
-            .filter(
-              ([to]) =>
-                !['/users', '/system-logs', '/network'].includes(to) || info.data?.role === 'admin',
-            )
-            .map(([to, label, Icon]) => (
-              <Link
-                key={to}
-                to={to}
-                activeOptions={{ exact: to === '/' }}
-                activeProps={{ className: 'active' }}
-              >
-                <Icon size={18} />
-                <span>{label}</span>
-                {to === '/tasks' && !info.data?.piEnabled ? <small>可选</small> : null}
-              </Link>
-            ))}
-        </nav>
+        <WorkspaceNavigation
+          admin={info.data?.role === 'admin'}
+          piEnabled={Boolean(info.data?.piEnabled)}
+        />
         <div className="sidebar-bottom">
           <div className="core-note">
             <i />
@@ -123,7 +113,10 @@ export function Shell() {
       <div className="workspace-main">
         <header className="topbar">
           <span>
-            工作空间 <span className="divider">/</span> 管理控制台
+            工作空间{' '}
+            <span className="desktop-breadcrumb">
+              <span className="divider">/</span> 管理控制台
+            </span>
           </span>
           <span className="topbar-meta">
             <GettingStarted />

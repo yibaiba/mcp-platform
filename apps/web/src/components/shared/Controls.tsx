@@ -7,6 +7,7 @@ import {
   type FormEvent,
 } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { ConfirmDialog, type Confirmation } from './ConfirmDialog.js';
 import { Button } from '../ui/button.js';
 import { Badge } from '../ui/badge.js';
 import { Field as FieldContainer, FieldLabel, FieldDescription } from '../ui/field.js';
@@ -83,11 +84,14 @@ export function Action({
   children,
   action,
   danger = false,
+  confirmation,
 }: {
   children: ReactNode;
   action: () => Promise<unknown>;
   danger?: boolean;
+  confirmation?: Confirmation;
 }) {
+  const [confirming, setConfirming] = useState(false);
   const query = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -109,11 +113,24 @@ export function Action({
       <Button
         variant={danger ? 'destructive' : 'outline'}
         disabled={busy}
-        onClick={() => void run()}
+        type="button"
+        onClick={() => (confirmation ? setConfirming(true) : void run())}
       >
         {busy ? '处理中…' : children}
       </Button>
       <Feedback error={error} />
+      {confirmation ? (
+        <ConfirmDialog
+          {...confirmation}
+          open={confirming}
+          onOpenChange={setConfirming}
+          onConfirm={() => {
+            setConfirming(false);
+            void run();
+          }}
+          danger={danger}
+        />
+      ) : null}
     </span>
   );
 }
@@ -149,8 +166,18 @@ export function Form({
     }
   }
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="form" noValidate={noValidate}>
-      {children}
+    <form
+      onSubmit={(e) => void onSubmit(e)}
+      onChange={() => {
+        setDone(false);
+        setError(null);
+      }}
+      className="form"
+      noValidate={noValidate}
+    >
+      <fieldset disabled={busy} className="form-fields">
+        {children}
+      </fieldset>
       <Feedback error={error} />
       <div className="form-footer">
         <Button type="submit" disabled={busy}>
