@@ -2,7 +2,7 @@
 FROM ghcr.io/astral-sh/uv:0.9.5-python3.13-bookworm-slim@sha256:60d8ee2c1f7ffce050822adcb44907514e39f29d2d7b37732e8fca9f4f6113af AS python
 FROM node:24-bookworm-slim AS node-base
 
-FROM golang:1.25-bookworm AS connector-build
+FROM golang:1.27.3-bookworm AS connector-build
 COPY --from=node-base /usr/local/bin/node /usr/local/bin/node
 WORKDIR /app
 COPY connector/go.mod connector/go.sum ./connector/

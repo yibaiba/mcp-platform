@@ -1,3 +1,4 @@
+import { LocalService } from './modules/local/localService.js';
 import { PresentationService } from './modules/result-presentation/presentationService.js';
 import { CliAuthService } from './modules/management-auth/cliAuthService.js';
 import { RuntimeMetrics } from './modules/activity/runtimeMetrics.js';
@@ -210,6 +211,16 @@ export function createServices(db: Database, config: Config) {
     requests,
   });
   const skills = new SkillService({ db, broker, devices, profiles });
+  const local = new LocalService({
+    logger,
+    db,
+    broker,
+    devices,
+    connections,
+    skills,
+    changed: () => access.changed(),
+  });
+
   const agentOAuth = new AgentOAuth({ db, profiles, publicUrl: config.PUBLIC_URL });
   const pi: PiService = new PiService({
     logger,
@@ -276,6 +287,7 @@ export function createServices(db: Database, config: Config) {
     results: new EncryptedResultStore(resolve(config.DATA_DIR, 'rest-results'), vault),
   });
   return {
+    local,
     cliAuth: new CliAuthService(db),
     metrics,
     rest,

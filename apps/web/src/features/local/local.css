@@ -1,0 +1,272 @@
+.local-shell {
+  color-scheme: dark;
+  --local-bg: #101316;
+  --local-panel: #181c20;
+  --local-text: #eef1f4;
+  --local-muted: #a2adb8;
+  --local-border: #3e4852;
+  --local-accent: #b4f27b;
+  --local-error: #ffb2b2;
+  background: var(--local-bg);
+  color: var(--local-text);
+  min-height: 100vh;
+  padding: 40px max(20px, calc((100vw - 1400px) / 2));
+  font:
+    16px/1.6 -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    'PingFang SC',
+    sans-serif;
+}
+body:has(.local-shell) {
+  margin: 0;
+  background: #101316;
+}
+.local-shell *,
+.local-manager * {
+  box-sizing: border-box;
+}
+.local-eyebrow {
+  color: #b4f27b;
+  letter-spacing: 0.14em;
+  font-size: 12px;
+}
+.local-shell h1 {
+  font-size: clamp(24px, 4vw, 36px);
+  margin: 8px 0;
+}
+.local-manager {
+  --local-bg: #101316;
+  --local-panel: #181c20;
+  --local-text: #eef1f4;
+  --local-muted: #a2adb8;
+  --local-border: #3e4852;
+  --local-accent: #b4f27b;
+  --local-error: #ffb2b2;
+  color: var(--local-text);
+  font-size: 15px;
+  line-height: 1.6;
+  margin-top: 24px;
+}
+.local-manager button {
+  cursor: pointer;
+  color: var(--local-text);
+  background: var(--local-panel);
+  border: 1px solid var(--local-border);
+  border-radius: 8px;
+  min-height: 44px;
+  padding: 8px 14px;
+  font: inherit;
+}
+.local-manager button:hover {
+  border-color: var(--local-accent);
+}
+.local-manager button:active {
+  background: #2b3239;
+}
+.local-manager button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.local-manager :focus-visible {
+  outline: 2px solid var(--local-accent);
+  outline-offset: 3px;
+}
+.local-manager input:not([type='checkbox']),
+.local-manager select,
+.local-manager textarea {
+  width: 100%;
+  min-height: 44px;
+  background: var(--local-bg);
+  color: var(--local-text);
+  border: 1px solid var(--local-border);
+  border-radius: 6px;
+  padding: 10px;
+  font: inherit;
+}
+.local-manager textarea {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 13px;
+  resize: vertical;
+}
+.local-manager label {
+  display: grid;
+  gap: 6px;
+}
+.local-toolbar,
+.local-actions,
+.local-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.local-toolbar {
+  justify-content: space-between;
+  border-bottom: 1px solid var(--local-border);
+  padding-bottom: 16px;
+}
+.local-tabs button[aria-selected='true'] {
+  color: var(--local-accent);
+  border-color: var(--local-accent);
+}
+.local-note,
+.local-manager small {
+  color: var(--local-muted);
+}
+.local-error {
+  color: var(--local-error);
+  overflow-wrap: anywhere;
+}
+.local-search {
+  max-width: 580px;
+  margin: 20px 0;
+}
+.local-columns {
+  display: grid;
+  grid-template-columns: minmax(260px, 2fr) minmax(0, 3fr);
+  gap: 24px;
+  align-items: start;
+}
+.local-resource,
+.local-editor,
+.local-sources,
+.local-history article {
+  padding: 20px;
+  border: 1px solid var(--local-border);
+  border-radius: 12px;
+  background: var(--local-panel);
+  margin-bottom: 12px;
+  min-width: 0;
+}
+.local-resource.active {
+  border-color: var(--local-accent);
+}
+.local-manager .local-resource-title {
+  display: block;
+  padding: 0;
+  text-align: left;
+  border: 0;
+  width: 100%;
+  background: transparent;
+}
+.local-resource-title strong {
+  font-size: 17px;
+}
+.local-resource-title span,
+.local-manager small {
+  display: block;
+}
+.local-resource small,
+.local-path {
+  overflow-wrap: anywhere;
+}
+.local-statuses {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.local-statuses span {
+  font-size: 12px;
+  border: 1px solid var(--local-border);
+  border-radius: 5px;
+  padding: 2px 7px;
+}
+.local-manager .local-select {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+.local-manager .local-select input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--local-accent);
+}
+.local-editor h2 {
+  margin-top: 0;
+}
+.local-editor .local-actions {
+  margin-top: 16px;
+}
+.local-empty {
+  color: var(--local-muted);
+  padding: 36px 20px;
+  border: 1px dashed var(--local-border);
+  border-radius: 12px;
+}
+.local-sources summary,
+.local-conflict summary {
+  cursor: pointer;
+  min-height: 44px;
+}
+.local-sources form {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.local-sources label {
+  flex: 1;
+  min-width: 180px;
+}
+.local-sources ul {
+  padding: 0;
+  list-style: none;
+  max-height: 300px;
+  overflow: auto;
+}
+.local-sources li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--local-border);
+  overflow-wrap: anywhere;
+}
+.local-sources li span {
+  min-width: 0;
+}
+.local-conflict,
+.local-danger {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--local-border);
+}
+.local-diff {
+  display: grid;
+  gap: 12px;
+}
+.local-manager pre {
+  max-height: 260px;
+  overflow: auto;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--local-bg);
+  padding: 12px;
+  border-radius: 6px;
+}
+.local-danger button {
+  color: var(--local-error);
+  margin-right: 8px;
+}
+.local-skill {
+  display: grid;
+  gap: 16px;
+}
+@media (max-width: 800px) {
+  .local-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .local-shell {
+    padding: 24px 16px;
+  }
+  .local-sources li {
+    align-items: start;
+    flex-direction: column;
+  }
+}

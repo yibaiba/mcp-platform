@@ -1,0 +1,162 @@
+name: Desktop connector installers
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'connector/**'
+      - 'scripts/*connector*.mjs'
+      - 'scripts/connector-packaging/**'
+      - 'scripts/prepare-release.mjs'
+      - '.github/workflows/connector-installers.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: connector-installers-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    name: Resolve release version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Read release tag
+        id: release
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: node scripts/prepare-release.mjs
+
+  linux-build:
+    name: Compile all targets and package Linux / Windows
+    needs: prepare
+    env:
+      CONNECTOR_VERSION: ${{ needs.prepare.outputs.version }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: connector/go.mod
+          cache-dependency-path: connector/go.sum
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - uses: actions/cache@v5
+        id: tools
+        with:
+          path: connector/bin/tools
+          key: connector-tools-linux-amd64-${{ hashFiles('scripts/setup-connector-packaging.mjs') }}
+      - name: Install archive utility
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends p7zip-full
+      - name: Prepare packaging tools
+        if: steps.tools.outputs.cache-hit != 'true'
+        run: corepack pnpm@10.12.4 connector:installers:setup
+      - name: Test connector
+        run: |
+          CGO_ENABLED=0 node scripts/check.mjs 60 go -C connector test -count=1 -timeout 60s ./...
+          node scripts/check.mjs 60 go -C connector vet ./...
+      - name: Cross-compile six targets and create installers
+        run: corepack pnpm@10.12.4 connector:installers:build --targets=linux,windows
+      - name: Verify Windows installer archive
+        run: 7z t connector/bin/installers/*_windows-setup.exe
+      - name: Archive macOS application bundles with permissions
+        run: tar -czf connector/bin/macos-apps.tar.gz -C connector/bin/desktop darwin-amd64 darwin-arm64
+      - uses: actions/upload-artifact@v7
+        with:
+          name: connector-linux-windows
+          path: |
+            connector/bin/installers/*.deb
+            connector/bin/installers/*.rpm
+            connector/bin/installers/*.exe
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          name: connector-macos-apps
+          path: connector/bin/macos-apps.tar.gz
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
+
+  macos-package:
+    name: Package prebuilt macOS application
+    needs: [prepare, linux-build]
+    env:
+      CONNECTOR_VERSION: ${{ needs.prepare.outputs.version }}
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v7
+        with:
+          name: connector-macos-apps
+          path: connector/bin
+      - name: Restore precompiled bundles
+        run: |
+          mkdir -p connector/bin/desktop
+          tar -xzf connector/bin/macos-apps.tar.gz -C connector/bin/desktop
+      - name: Create universal DMG and PKG without recompiling
+        run: corepack pnpm@10.12.4 connector:installers:build --targets=macos --skip-build
+      - name: Verify DMG
+        run: hdiutil verify connector/bin/installers/*.dmg
+      - uses: actions/upload-artifact@v7
+        with:
+          name: connector-macos
+          path: |
+            connector/bin/installers/*.dmg
+            connector/bin/installers/*.pkg
+          compression-level: 0
+          retention-days: 1
+          if-no-files-found: error
+
+  collect:
+    name: Collect installers and attach to Release
+    permissions:
+      contents: write
+    needs: [linux-build, macos-package]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: connector-*
+          path: installers
+          merge-multiple: true
+      - name: Remove intermediate bundle and calculate checksums
+        run: |
+          rm installers/macos-apps.tar.gz
+          cd installers
+          sha256sum *.deb *.rpm *.exe *.dmg *.pkg > DESKTOP-SHA256SUMS
+          sha256sum -c DESKTOP-SHA256SUMS
+      - uses: actions/upload-artifact@v7
+        with:
+          name: connector-installers
+          path: installers/
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
+      - name: Attach installers to the published Release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" installers/* --repo "$GITHUB_REPOSITORY" --clobber

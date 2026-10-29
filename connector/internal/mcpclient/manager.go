@@ -19,7 +19,10 @@ import (
 )
 
 type Config struct {
-	Lifecycle struct {
+	DeviceSourceID       string `json:"deviceSourceId,omitempty"`
+	DeviceResourceID     string `json:"deviceResourceId,omitempty"`
+	DeviceResourceDigest string `json:"deviceResourceDigest,omitempty"`
+	Lifecycle            struct {
 		ShutdownGraceMS *int `json:"shutdownGraceMs"`
 	} `json:"lifecycle"`
 	Transport string            `json:"transport"`
@@ -55,6 +58,10 @@ func (p Params) key() string {
 
 type Entry struct {
 	ConnectionID  string
+	Diagnostics   *diagnosticWriter
+	Secrets       []string
+	SourceID      string
+	ResourceID    string
 	Tree          *processtree.Tree
 	Grace         time.Duration
 	Session       *mcp.ClientSession
@@ -79,10 +86,13 @@ type Manager struct {
 func New(ctx context.Context, stderr io.Writer, transport http.RoundTripper) *Manager {
 	return &Manager{entries: make(map[string]*Entry), ctx: ctx, stderr: stderr, transport: transport}
 }
-func (m *Manager) Execute(ctx context.Context, method string, raw json.RawMessage) (any, error) {
+func (m *Manager) Execute(ctx context.Context, method string, raw json.RawMessage) (result any, executeErr error) {
 	var p Params
 	if err := json.Unmarshal(raw, &p); err != nil {
 		return nil, err
+	}
+	if p.Config.DeviceResourceID != "" {
+		defer func() { executeErr = diagnosticError(executeErr, p.Config) }()
 	}
 	if p.ConnectionID == "" {
 		return nil, fmt.Errorf("connectionId is required")
@@ -121,7 +131,7 @@ func (m *Manager) recordError(id string, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if e := m.entries[id]; e != nil {
-		e.LastError = err.Error()
+		e.LastError = sanitize(err.Error(), e.Secrets)
 	}
 }
 func (m *Manager) connect(ctx context.Context, p Params) (*mcp.ClientSession, error) {
@@ -140,7 +150,7 @@ func (m *Manager) connect(ctx context.Context, p Params) (*mcp.ClientSession, er
 		e = nil
 	}
 	if e == nil {
-		e = &Entry{ConnectionID: p.ConnectionID, Fingerprint: string(encoded)}
+		e = &Entry{ConnectionID: p.ConnectionID, Fingerprint: string(encoded), ResourceID: p.Config.DeviceResourceID, SourceID: p.Config.DeviceSourceID, Secrets: credentialStrings(p.Config)}
 		m.entries[p.key()] = e
 	}
 	if e.Session != nil {
@@ -148,12 +158,12 @@ func (m *Manager) connect(ctx context.Context, p Params) (*mcp.ClientSession, er
 	}
 	transport, err := m.makeTransport(p.Config, e)
 	if err != nil {
-		e.LastError = err.Error()
+		e.LastError = sanitize(err.Error(), e.Secrets)
 		return nil, err
 	}
 	e.Session, e.cancelSession, err = m.openSession(ctx, transport, p)
 	if err != nil {
-		e.LastError = err.Error()
+		e.LastError = sanitize(err.Error(), e.Secrets)
 		cleanup := closeEntry(e)
 		delete(m.entries, p.key())
 		return nil, errors.Join(err, cleanup)
@@ -219,6 +229,10 @@ func (m *Manager) makeTransport(c Config, e *Entry) (mcp.Transport, error) {
 			return nil, fmt.Errorf("stdio requires managed command")
 		}
 		command := m.command(c)
+		if c.DeviceResourceID != "" {
+			e.Diagnostics = &diagnosticWriter{output: m.stderr, secrets: credentialStrings(c)}
+			command.Stderr = e.Diagnostics
+		}
 		stdin, err := command.StdinPipe()
 		if err != nil {
 			return nil, err
@@ -306,8 +320,13 @@ func closeEntry(e *Entry) error {
 		e.Tree = nil
 	}
 
+	if e.Diagnostics != nil {
+		if err := e.Diagnostics.Close(); err != nil {
+			errors = append(errors, err.Error())
+		}
+	}
 	if len(errors) > 0 {
-		return fmt.Errorf("%s", strings.Join(errors, "; "))
+		return fmt.Errorf("%s", sanitize(strings.Join(errors, "; "), e.Secrets))
 	}
 	return nil
 }

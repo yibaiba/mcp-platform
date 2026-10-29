@@ -25,6 +25,23 @@ type Runner struct {
 	Handler Handler
 	Client  *http.Client
 	Logger  *log.Logger
+	Changed func(ConnectionState)
+}
+
+type ConnectionState struct {
+	Phase string
+	Error string
+}
+
+func (r *Runner) report(phase string, err error) {
+	if r.Changed == nil {
+		return
+	}
+	state := ConnectionState{Phase: phase}
+	if err != nil {
+		state.Error = err.Error()
+	}
+	r.Changed(state)
 }
 
 func (r *Runner) Run(ctx context.Context) error {
@@ -39,6 +56,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		if ctx.Err() != nil {
 			return nil
 		}
+		r.report("reconnecting", err)
 		r.Logger.Printf("device channel disconnected: %v; reconnecting in %s; requests are not replayed", err, ReconnectDelay)
 		select {
 		case <-ctx.Done():
@@ -48,6 +66,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 }
 func (r *Runner) session(parent context.Context) error {
+	r.report("connecting", nil)
 	u, err := config.ValidateServer(r.Config.Server)
 	if err != nil {
 		return err
@@ -76,8 +95,22 @@ func (r *Runner) session(parent context.Context) error {
 	if err != nil {
 		return err
 	}
-	if err = r.send(ctx, conn, map[string]any{"v": 1, "type": "hello", "os": runtime.GOOS, "version": Version, "hostname": hostname, "capabilities": []string{"sessions", "health", "oauth", "elicitation", "apps"}}); err != nil {
+	capabilities := []string{"sessions", "health", "oauth", "elicitation", "apps"}
+	if handler, ok := r.Handler.(interface{ Capabilities() []string }); ok {
+		capabilities = handler.Capabilities()
+	}
+	if err = r.send(ctx, conn, map[string]any{"v": 1, "type": "hello", "os": runtime.GOOS, "version": Version, "hostname": hostname, "capabilities": capabilities}); err != nil {
 		return err
+	}
+	r.report("connected", nil)
+	if handler, ok := r.Handler.(interface{ SetLocalNotifier(func()) }); ok {
+		handler.SetLocalNotifier(func() {
+			if err := r.send(ctx, conn, map[string]any{"v": 1, "type": "local.changed"}); err != nil {
+				r.Logger.Printf("Local change notification: %v", err)
+				conn.CloseNow()
+			}
+		})
+		defer handler.SetLocalNotifier(nil)
 	}
 	if handler, ok := r.Handler.(interface {
 		SetNotifier(func(mcpclient.Notification))

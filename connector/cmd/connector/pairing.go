@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mcplatform/connector/internal/agent"
 	"mcplatform/connector/internal/config"
+	"mcplatform/connector/internal/pairing"
 	"net/http"
 	"os"
 	"strings"
@@ -47,12 +47,11 @@ func prepareConnection(ctx context.Context, options pairingOptions, reuse bool) 
 	}
 	requestCtx, cancel := context.WithTimeout(ctx, pairingRequestTimeout)
 	defer cancel()
-	paired, err := agent.Pair(requestCtx, options.Client, options.Server, code)
+	_, err = pairing.Save(requestCtx, options.Client, pairing.Options{
+		Action: "pair", Path: options.Path, Server: options.Server, Code: code,
+	})
 	if err != nil {
 		return err
-	}
-	if err := config.Save(options.Path, paired); err != nil {
-		return fmt.Errorf("pairing completed but saving configuration failed (pairing code consumed): %w", err)
 	}
 	fmt.Fprintf(options.Output, "Device paired. Configuration saved to %s.\n", options.Path)
 	return nil

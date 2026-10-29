@@ -166,6 +166,12 @@ export class ConnectionService {
   }
   async validate(ownerId: string, input: unknown) {
     let config = connectionInput.parse(input);
+    if (config.deviceResourceId)
+      await this.deps.devices.assertLocalReference(ownerId, {
+        deviceId: config.deviceId!,
+        resourceId: config.deviceResourceId,
+      });
+
     if (config.source === 'openapi' && config.openapi) {
       if (config.health.enabled)
         throw new AppError('CHECK_UNSUPPORTED', 'OpenAPI 来源不提供 MCP 健康检查，请关闭该选项');

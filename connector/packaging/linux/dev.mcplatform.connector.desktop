@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=MCP Platform Connector
+Name[zh_CN]=MCP 连接器
+Comment=Manage local MCP servers and Skills
+Comment[zh_CN]=管理与同步本机 MCP 服务和 Skills
+Exec=mcplatform-connector
+Icon=mcplatform-connector
+Terminal=false
+Categories=Development;
+StartupWMClass=dev.mcplatform.connector

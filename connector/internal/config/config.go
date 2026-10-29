@@ -10,6 +10,7 @@ import (
 )
 
 type Config struct {
+	LocalDataDir      string            `json:"localDataDir,omitempty"`
 	Server            string            `json:"server"`
 	DeviceID          string            `json:"deviceId"`
 	DeviceSecret      string            `json:"deviceSecret"`

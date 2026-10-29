@@ -127,6 +127,13 @@
       "when": 1793233973156,
       "tag": "0017_red_sleeper",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793237431973,
+      "tag": "0018_blushing_punisher",
+      "breakpoints": true
     }
   ]
 }
