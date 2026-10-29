@@ -69,7 +69,7 @@ export function LocalBundles({ api }: { api: ManagementApi }) {
           </h3>
           {pkg.environment.configurationRevision ? (
             <p>
-              此包已有本机配置。保存将替换该修订，旧会话会关闭；同步后重新连接，并更新外部客户端配置。
+              此包已有本机配置。保存将替换该修订，连接器管理的旧会话会关闭；外部客户端需停止现有会话、更新配置并重连。
             </p>
           ) : null}
           <Form
@@ -172,7 +172,9 @@ export function LocalBundles({ api }: { api: ManagementApi }) {
           >
             移除本机配置
           </Action>
-          <p>移除会关闭连接并撤下同步资源。包文件保留，避免影响平台在此设备上的安装。</p>
+          <p>
+            移除会关闭连接器管理的连接并撤下同步资源；外部客户端需停止现有会话。包文件保留，避免影响平台在此设备上的安装。
+          </p>
         </div>
       ))}
       {result ? <Code value={result} /> : null}
