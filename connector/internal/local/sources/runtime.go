@@ -17,7 +17,7 @@ import (
 var variable = regexp.MustCompile(`\$\{([^}]+)\}`)
 
 func expand(text string, source model.Source) (string, error) {
-	if source.Client == "codex" {
+	if source.Client == "codex" || source.Client == "mcpb" {
 		return text, nil
 	}
 	var issue error

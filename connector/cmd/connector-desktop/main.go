@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mcplatform/connector/internal/bundles"
 	"mcplatform/connector/internal/desktop"
 	"os"
 	"path/filepath"
@@ -18,6 +19,9 @@ func main() {
 }
 
 func run() (err error) {
+	if len(os.Args) > 1 && os.Args[1] == "bundle-stdio" {
+		return bundles.Stdio(os.Args[2:])
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err

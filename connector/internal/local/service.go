@@ -65,6 +65,9 @@ func New(ctx context.Context, options Options) (*Service, error) {
 	}
 	state.Initialized = true
 	service := &Service{state: state, options: options, ctx: ctx, active: map[string]context.CancelFunc{}}
+	if err = service.refreshBundles(ctx); err != nil {
+		return nil, err
+	}
 	service.scan(ctx)
 	if err = options.Store.Save(service.state); err != nil {
 		return nil, err

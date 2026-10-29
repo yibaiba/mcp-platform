@@ -86,6 +86,19 @@ try {
   await page.getByText('"succeeded"', { exact: false }).waitFor();
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await page.screenshot({ path: join(screenshots, 'bundle-mobile.png'), fullPage: true });
+  await page.reload();
+  await page.getByText('导入 MCPB 扩展包', { exact: true }).click();
+  const history = page.getByRole('region', { name: 'MCPB 安装历史' });
+  await history.getByText('成功', { exact: true }).waitFor();
+  await history.getByRole('button', { name: '卸载此连接及授权' }).click();
+  await history.getByText('已卸载', { exact: false }).first().waitFor();
+  await history.getByRole('button', { name: '清理未使用包文件' }).click();
+  await history.getByText('平台包文件已清理', { exact: true }).waitFor();
+  assert.equal(
+    (await h.services.connections.list(account.ownerId)).filter((c) => c.name === 'bundle-fixture')
+      .length,
+    0,
+  );
   connector = spawn(
     resolve('connector/bin/connector'),
     ['manage', '--data-dir', join(h.directory, 'local-bundles')],
@@ -118,12 +131,22 @@ try {
   assert.ok(await local.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await local.screenshot({ path: join(screenshots, 'local-bundle-mobile.png'), fullPage: true });
   await local.getByRole('button', { name: '停止', exact: true }).click();
+  await local.getByText('"stopped": true', { exact: false }).waitFor();
+  await local.getByRole('button', { name: '查看客户端配置', exact: true }).click();
+  await local.getByText('bundle-stdio', { exact: false }).waitFor();
+  assert.ok(!(await local.locator('pre').allTextContents()).join('').includes('local-only-secret'));
+  await local.reload();
+  await local.getByRole('tab', { name: 'MCPB 扩展包' }).click();
+  await local.getByRole('button', { name: '移除本机配置', exact: true }).click();
+  await local.getByRole('button', { name: '连接验证', exact: true }).waitFor({ state: 'detached' });
+  assert.ok(await local.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   console.log(
-    'PASS: library CRUD/preview/disable, HTML literal content, compression persistence, MCPB preview/install/discovery, local encrypted setup/start/stop, narrow layouts',
+    'PASS: library CRUD/preview/disable, HTML literal content, compression persistence, MCPB preview/install/discovery, history reload/uninstall/cleanup, local encrypted setup/start/stop/client config/removal, narrow layouts',
   );
 } catch (error) {
   console.error(error);
-  await page.screenshot({ path: join(screenshots, 'failure.png'), fullPage: true });
+  for (const [index, opened] of context.pages().entries())
+    await opened.screenshot({ path: join(screenshots, `failure-${index}.png`), fullPage: true });
   throw error;
 } finally {
   if (connector && connector.exitCode === null) {

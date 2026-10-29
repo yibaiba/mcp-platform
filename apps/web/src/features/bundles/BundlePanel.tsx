@@ -1,3 +1,4 @@
+import { BundleHistory } from './BundleHistory.js';
 import { useState } from 'react';
 import type { McpbManifest } from '@platform/contracts';
 import { api, json, type Device, type Connection } from '../../lib/api.js';
@@ -128,6 +129,7 @@ export function BundlePanel({
         </>
       ) : null}
       {result ? <Code value={result} /> : null}
+      <BundleHistory />
     </Disclosure>
   );
 }

@@ -174,3 +174,7 @@ node scripts/check.mjs 60 pnpm exec tsx scripts/verify-management-browser.mts
 ```
 
 先完成本机页面构建，再运行 Go test/vet；不要在 Go 编译读取 embed 文件时并行重建该目录。
+
+### MCPB 与内容引用修复验收
+
+2026-10-29 本地 27 组覆盖 365 项通过；基础组排除参数修正后补跑 45 项，其余组通过。新增 `tests/bundleLifecycle.test.ts` 与 `tests/bundleLocal.test.ts` 覆盖包历史、卸载清理、同摘要重新上传、解释器约束和真实本机 HMAC/Profile/独立客户端使用链路；内容库增加删除引用与并发授权回归。Go test/vet、类型检查、Lint、生产构建、重复迁移及无模型 Pi 通过。浏览器增加历史刷新、卸载、清理、本机客户端配置及移除检查。过程和实机边界见[修复记录](mcphub-management-progress.md#缺口修复2026-10-29)。

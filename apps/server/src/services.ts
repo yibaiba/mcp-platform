@@ -334,6 +334,14 @@ export function createServices(db: Database, config: Config) {
   return {
     bundles: new BundleService({
       db,
+      vault,
+      changed: async (ids) => {
+        await access.changed();
+        for (const id of ids) {
+          await gateway.permissionsChanged(id);
+          await gateway.profileChanged(id);
+        }
+      },
       connections,
       devices,
       broker,
@@ -344,10 +352,11 @@ export function createServices(db: Database, config: Config) {
       db,
       vault,
       connections,
-      changed: async (ownerId, contentId) => {
+      changed: async (ownerId, contentId, affected = []) => {
         await access.changed();
         for (const profile of await profiles.list(ownerId)) {
           if (
+            affected.includes(profile.id) ||
             profile.contentIds.includes(contentId) ||
             profile.requestable.contentIds.includes(contentId)
           ) {

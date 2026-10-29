@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"mcplatform/connector/internal/local/documents"
 	"mcplatform/connector/internal/local/model"
 )
 
@@ -25,22 +24,61 @@ func (s *Service) bundleRequest(ctx context.Context, request model.Request, remo
 				return nil, fmt.Errorf("local bundle credentials must be configured on this device")
 			}
 		}
-		return s.options.Bundles.Install(request.Content)
+		if remote {
+			return s.options.Bundles.Install(request.Content)
+		}
+		return s.bundleMutation(ctx, func() (any, error) { return s.options.Bundles.Install(request.Content) })
 	case "mcpb.list":
 		return s.options.Bundles.List()
+	case "mcpb.remove":
+		if remote {
+			return nil, fmt.Errorf("remove local bundle configuration from this device")
+		}
+		var input struct {
+			Revision string `json:"revision"`
+		}
+		if err := json.Unmarshal(request.Content, &input); err != nil {
+			return nil, err
+		}
+		return s.bundleMutation(ctx, func() (any, error) {
+			resource, err := s.bundleResource(request.ID)
+			if err != nil {
+				return nil, err
+			}
+			if err = s.invalidate(resource.ID); err != nil {
+				return nil, err
+			}
+			if err = s.options.Bundles.RemoveConfiguration(request.ID, input.Revision); err != nil {
+				return nil, err
+			}
+			return map[string]bool{"removed": true, "packageFilesRetained": true}, nil
+		})
+	case "mcpb.client":
+		if remote {
+			return nil, fmt.Errorf("client configuration is available on this device")
+		}
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		resource, err := s.bundleResource(request.ID)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"mcpServers": map[string]any{resource.Name: resource.Content}}, nil
 	case "mcpb.start", "mcpb.stop":
 		if remote {
 			return nil, fmt.Errorf("start local bundle from this device")
 		}
-		id := "bundle-" + request.ID
-		if request.Action == "mcpb.stop" {
-			return map[string]bool{"stopped": true}, s.options.Runtime.Close(id)
-		}
-		config, err := s.options.Bundles.Configuration(request.ID)
+		s.mu.Lock()
+		resource, err := s.bundleResource(request.ID)
+		s.mu.Unlock()
 		if err != nil {
 			return nil, err
 		}
-		return s.options.Runtime.Execute(ctx, "catalog", documents.Encode(map[string]any{"connectionId": id, "config": json.RawMessage(config)}))
+		action := "start"
+		if request.Action == "mcpb.stop" {
+			action = "stop"
+		}
+		return s.run(ctx, model.Request{Action: action, ID: resource.ID})
 	default:
 		return nil, fmt.Errorf("unsupported MCPB operation")
 	}

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const localClient = z.enum(['cursor', 'claude', 'codex', 'pi']);
+export const localClient = z.enum(['cursor', 'claude', 'codex', 'pi', 'mcpb']);
 export const localSource = z
   .object({
     id: z.string(),
@@ -73,6 +73,8 @@ export const localRequest = z
       'mcpb.environment',
       'mcpb.install',
       'mcpb.list',
+      'mcpb.client',
+      'mcpb.remove',
       'mcpb.start',
       'mcpb.stop',
       'network.get',

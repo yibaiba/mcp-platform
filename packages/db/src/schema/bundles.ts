@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, jsonb, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, jsonb, uniqueIndex, timestamp, integer } from 'drizzle-orm/pg-core';
 import { user } from './auth.js';
 import { connections } from './platform.js';
 export const mcpbPackages = pgTable(
@@ -9,6 +9,7 @@ export const mcpbPackages = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     sha256: text('sha256').notNull(),
+    removedAt: timestamp('removed_at', { withTimezone: true }),
     manifest: jsonb('manifest').$type<Record<string, unknown>>().notNull(),
   },
   (t) => [uniqueIndex('mcpb_owner_digest').on(t.ownerId, t.sha256)],
@@ -25,4 +26,8 @@ export const mcpbInstalls = pgTable('mcpb_installs', {
   state: text('state').notNull(),
   connectionId: uuid('connection_id').references(() => connections.id, { onDelete: 'set null' }),
   error: text('error'),
+  phase: text('phase').notNull().default('verify'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  connectionRevision: integer('connection_revision'),
+  destination: text('destination'),
 });

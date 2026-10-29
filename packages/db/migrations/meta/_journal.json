@@ -162,6 +162,13 @@
       "when": 1793256613907,
       "tag": "0022_premium_squadron_supreme",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793262806549,
+      "tag": "0023_black_doctor_doom",
+      "breakpoints": true
     }
   ]
 }

@@ -3,6 +3,7 @@ module mcplatform/connector
 go 1.27.3
 
 require (
+	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/coder/websocket v1.8.15
 	github.com/egoist/mygo v0.7.1
 	github.com/kardianos/service v1.3.0

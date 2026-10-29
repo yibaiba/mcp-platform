@@ -81,7 +81,7 @@ func Validate(source model.Source) error {
 	if source.Kind != "mcp" && source.Kind != "skill" {
 		return fmt.Errorf("unsupported resource kind")
 	}
-	if source.Client != "cursor" && source.Client != "claude" && source.Client != "codex" && source.Client != "pi" {
+	if source.Client != "cursor" && source.Client != "claude" && source.Client != "codex" && source.Client != "pi" && source.Client != "mcpb" {
 		return fmt.Errorf("unsupported client")
 	}
 	if source.Format != "jsonc" && source.Format != "json" && source.Format != "toml" {
