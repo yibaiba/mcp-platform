@@ -285,6 +285,7 @@ export type DeviceRequest = {
     | 'mcp.request'
     | 'interaction.cancel'
     | 'check'
+    | 'package.check'
     | 'oauth.request'
     | 'call'
     | 'close'

@@ -31,6 +31,11 @@ func (d *Dispatch) Execute(ctx context.Context, method string, params json.RawMe
 			return nil, err
 		}
 		return d.Local.Execute(ctx, request, true)
+	case "package.check":
+		if d.Local == nil {
+			return nil, fmt.Errorf("package checks unavailable")
+		}
+		return d.Local.CheckPackage(ctx, params)
 	case "oauth.request":
 		return d.MCP.OAuthRequest(ctx, params)
 	case "discover", "catalog", "mcp.request", "call", "close", "check", "interaction.cancel":
@@ -64,7 +69,7 @@ func (d *Dispatch) SetLocalNotifier(notify func()) {
 func (d *Dispatch) Capabilities() []string {
 	values := []string{"sessions", "health", "oauth", "elicitation", "apps"}
 	if d.Local != nil {
-		values = append(values, "local-management", "local-sync")
+		values = append(values, "local-management", "local-sync", "package-updates")
 	}
 	return values
 }

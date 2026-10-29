@@ -1,3 +1,4 @@
+import { PackageUpdateService } from './modules/updates/packageService.js';
 import { NetworkService } from './modules/network/service.js';
 import { LocalService } from './modules/local/localService.js';
 import { PresentationService } from './modules/result-presentation/presentationService.js';
@@ -298,6 +299,14 @@ export function createServices(db: Database, config: Config) {
     results: new EncryptedResultStore(resolve(config.DATA_DIR, 'rest-results'), vault),
   });
   return {
+    packageUpdates: new PackageUpdateService({
+      db,
+      vault,
+      network,
+      devices,
+      broker,
+      now: () => new Date(),
+    }),
     network,
     local,
     cliAuth: new CliAuthService(db),

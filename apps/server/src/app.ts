@@ -1,3 +1,4 @@
+import { packageUpdateRoutes } from './modules/updates/routes.js';
 import { networkRoutes } from './modules/network/routes.js';
 import { readFile } from 'node:fs/promises';
 import { sshAccessRoutes } from './modules/ssh-access/routes.js';
@@ -280,6 +281,7 @@ export function createApp(deps: {
   app.route('/api/v1/market', marketRoutes(s.market));
   app.route('/api/v1/catalog', contentRoutes(s.content));
   app.route('/api/v1/profiles', profileRoutes({ ...s, publicUrl: config.PUBLIC_URL }));
+  app.route('/api/v1/connections', packageUpdateRoutes(s.packageUpdates));
   app.route('/api/v1/admin/network-settings', networkRoutes({ db, network: s.network }));
   app.route(
     '/api/v1/skills',

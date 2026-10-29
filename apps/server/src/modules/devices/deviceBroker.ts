@@ -24,6 +24,10 @@ type Pending = {
   onprogress?: (progress: Progress) => void;
 };
 export class DeviceBroker {
+  private readonly generations = new Map<string, string>();
+  generation(id: string) {
+    return this.generations.get(id) ?? 'offline';
+  }
   private readonly localListeners = new Set<(id: string) => void>();
   watchLocal(listener: (id: string) => void) {
     this.localListeners.add(listener);
@@ -53,6 +57,7 @@ export class DeviceBroker {
   attach(id: string, socket: WebSocket) {
     this.disconnect(id);
     this.sockets.set(id, socket);
+    this.generations.set(id, randomUUID());
     let alive = true;
     const heartbeat = setInterval(() => {
       if (!alive) return socket.terminate();
@@ -94,6 +99,7 @@ export class DeviceBroker {
   private async receive(id: string, socket: WebSocket, raw: string) {
     if (this.sockets.get(id) !== socket) return;
     const message = deviceResponse.parse(JSON.parse(raw));
+    if (message.type === 'local.changed') this.generations.set(id, randomUUID());
     if (message.type === 'hello') {
       this.capabilities.set(id, message.capabilities ?? []);
       if (this.hasCapability(id, 'local-sync'))
@@ -181,6 +187,7 @@ export class DeviceBroker {
   disconnect(id: string) {
     this.sockets.get(id)?.terminate();
     this.sockets.delete(id);
+    this.generations.delete(id);
     this.capabilities.delete(id);
   }
   watch(input: {

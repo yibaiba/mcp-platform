@@ -22,7 +22,16 @@ func (s *Service) networkRequest(ctx context.Context, r model.Request, remote bo
 		if err != nil {
 			return nil, err
 		}
-		return s.options.Network.Save(input)
+		view, err := s.options.Network.Save(input)
+		if err == nil {
+			s.mu.Lock()
+			notify := s.notifierLocked()
+			s.mu.Unlock()
+			if notify != nil {
+				notify()
+			}
+		}
+		return view, err
 	case "network.check":
 		return network.Check(ctx, s.options.Network, s.options.NetworkClient), nil
 	default:
