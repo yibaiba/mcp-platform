@@ -263,6 +263,60 @@ test('CLI real loopback callback rejects wrong state, stores private credentials
     { code: 3 },
   );
   await expect(command(['whoami', '--env', 'second'])).rejects.toMatchObject({ code: 3 });
+  await expect(
+    command(['whoami', '--env', 'second'], { MCP_PLATFORM_ACCESS_TOKEN: 'network-test' }),
+  ).rejects.toMatchObject({ code: 4 });
   await command(['logout']);
   expect((await store.read()).environments.test?.credentials).toBeUndefined();
+});
+test('CLI returns exit 5 with the original JSON for an upstream business error', async () => {
+  const failed = await fixtureMcp({ toolError: true });
+  try {
+    const { ownerId } = await h.signup();
+    const connection = await h.services.connections.create(ownerId, {
+      name: 'tool-error',
+      adapter: 'direct',
+      mode: 'existing',
+      transport: 'http',
+      url: failed.url,
+    });
+    const [tool] = await h.services.connections.discover(ownerId, connection.id);
+    const profile = (await h.services.profiles.save(ownerId, {
+      name: 'tool-error',
+      toolIds: [tool!.id],
+    }))!;
+    const key = await h.services.profiles.issue(ownerId, profile.id);
+    const run = promisify(execFile)(
+      process.execPath,
+      [
+        '--import',
+        'tsx',
+        'packages/cli/src/main.ts',
+        'tools',
+        'call',
+        tool!.id,
+        '--profile',
+        profile.id,
+        '--json',
+      ],
+      {
+        env: {
+          ...process.env,
+          MCP_PLATFORM_CONFIG_DIR: directory,
+          MCP_PLATFORM_AGENT_TOKEN: key.token,
+        },
+        timeout: 15000,
+      },
+    );
+    await expect(run).rejects.toMatchObject({
+      code: 5,
+      stdout: expect.stringContaining('"isError":true'),
+    });
+    expect(failed.count()).toBe(1);
+    expect(h.services.metrics.render().join('\n')).toContain(
+      'platform_calls_total{entry="rest",adapter="direct",status="tool_error"} 1',
+    );
+  } finally {
+    await failed.close();
+  }
 });

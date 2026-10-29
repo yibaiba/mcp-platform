@@ -7,6 +7,7 @@ export async function fixtureMcp(
   options: {
     beforeList?: () => Promise<void>;
     instructions?: string;
+    toolError?: boolean;
     onRequest?: (request: Request) => void;
   } = {},
 ) {
@@ -43,7 +44,7 @@ export async function fixtureMcp(
 
 export function createFixtureMcpServer(
   onCall: () => void,
-  options: { beforeList?: () => Promise<void>; instructions?: string } = {},
+  options: { beforeList?: () => Promise<void>; instructions?: string; toolError?: boolean } = {},
 ) {
   const server = new Server(
     { name: 'integration-fixture', version: '1' },
@@ -69,6 +70,7 @@ export function createFixtureMcpServer(
     const delay = Number(request.params.arguments?.delay ?? 0);
     if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
     return {
+      ...(options.toolError ? { isError: true } : {}),
       content: [{ type: 'text', text: String(request.params.arguments?.message ?? 'echo') }],
       structuredContent: { name: 'echo' },
     };

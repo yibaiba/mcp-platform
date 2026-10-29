@@ -40,6 +40,57 @@ const id = (value?: string) => {
   if (!value) throw new CliError('缺少资源 ID', 2);
   return encodeURIComponent(value);
 };
+type ManagementCommand = {
+  method?: string;
+  path: (target?: string) => string;
+  target?: 'required' | 'optional';
+  body?: boolean;
+};
+const managementCommands: Record<string, ManagementCommand> = {
+  whoami: { path: () => '/api/v1/me' },
+  'connections:list': { path: () => '/api/v1/connections' },
+  'connections:get': { target: 'required', path: (target) => `/api/v1/connections/${id(target)}` },
+  'connections:add': { method: 'POST', body: true, path: () => '/api/v1/connections' },
+  'connections:update': {
+    method: 'PATCH',
+    target: 'required',
+    body: true,
+    path: (target) => `/api/v1/connections/${id(target)}`,
+  },
+  'connections:connect': {
+    method: 'POST',
+    target: 'required',
+    path: (target) => `/api/v1/connections/${id(target)}/discover`,
+  },
+  'connections:stop': {
+    method: 'POST',
+    target: 'required',
+    path: (target) => `/api/v1/connections/${id(target)}/stop`,
+  },
+  'profiles:list': { path: () => '/api/v1/profiles' },
+  'profiles:get': { target: 'required', path: (target) => `/api/v1/profiles/${id(target)}` },
+  'keys:list': { path: () => '/api/v1/profiles/keys/all' },
+  'keys:create': {
+    method: 'POST',
+    target: 'required',
+    path: (target) => `/api/v1/profiles/${id(target)}/keys`,
+  },
+  'keys:revoke': {
+    method: 'DELETE',
+    target: 'required',
+    path: (target) => `/api/v1/profiles/keys/${id(target)}`,
+  },
+  'config:preview': { method: 'POST', body: true, path: () => '/api/v1/config/manifests/preview' },
+  'config:apply': { method: 'POST', body: true, path: () => '/api/v1/config/manifests/apply' },
+  'config:status': {
+    target: 'optional',
+    path: (target) => `/api/v1/config/manifests${target ? `/${id(target)}` : ''}`,
+  },
+  'config:export': {
+    target: 'optional',
+    path: (target) => `/api/v1/config/export?name=${encodeURIComponent(target ?? 'platform')}`,
+  },
+};
 export async function remoteCommand(input: {
   command: Command;
   client: HttpClient;
@@ -54,38 +105,22 @@ export async function remoteCommand(input: {
     body,
   } = input;
   if (extra.length) throw new CliError('位置参数过多', 2);
-  const request = (path: string, method = 'GET', data?: unknown) =>
-    client.request({ path, method, body: data });
-  if (group === 'whoami' && !action) return request('/api/v1/me');
-  if (group === 'connections') {
-    if (action === 'list') return request('/api/v1/connections');
-    if (action === 'get') return request(`/api/v1/connections/${id(target)}`);
-    if (action === 'add') return request('/api/v1/connections', 'POST', body);
-    if (action === 'update') return request(`/api/v1/connections/${id(target)}`, 'PATCH', body);
-    if (action === 'connect' || action === 'stop')
-      return request(
-        `/api/v1/connections/${id(target)}/${action === 'connect' ? 'discover' : 'stop'}`,
-        'POST',
-      );
-  }
-  if (group === 'profiles' && action === 'list') return request('/api/v1/profiles');
-  if (group === 'profiles' && action === 'get') return request(`/api/v1/profiles/${id(target)}`);
-  if (group === 'keys') {
-    if (action === 'list') return request('/api/v1/profiles/keys/all');
-    if (action === 'create') return request(`/api/v1/profiles/${id(target)}/keys`, 'POST');
-    if (action === 'revoke') return request(`/api/v1/profiles/keys/${id(target)}`, 'DELETE');
-  }
-  if (group === 'config') {
-    if (action === 'preview' || action === 'apply')
-      return request(`/api/v1/config/manifests/${action}`, 'POST', body);
-    if (action === 'status')
-      return request(`/api/v1/config/manifests${target ? `/${id(target)}` : ''}`);
-    if (action === 'export')
-      return request(`/api/v1/config/export?name=${encodeURIComponent(target ?? 'platform')}`);
-  }
   if (group === 'tools' || group === 'calls')
     return businessCommand({ group, action, target, values, client, body });
-  throw new CliError('未知命令；使用 --help 查看用法', 2);
+  const name = action ? `${group}:${action}` : group;
+  const route = name ? managementCommands[name] : undefined;
+  if (!route) throw new CliError('未知命令；使用 --help 查看用法', 2);
+  if (target && !route.target) throw new CliError('该命令不接受资源 ID', 2);
+  if (route.body && body === undefined)
+    throw new CliError('该命令需要 --file 或 --data JSON 请求体', 2);
+  const result = await client.request({
+    path: route.path(target),
+    method: route.method,
+    body: route.body ? body : undefined,
+  });
+  return name === 'keys:create'
+    ? { ...result, body: z.object({ id: z.string(), token: z.string() }).parse(result.body) }
+    : result;
 }
 async function businessCommand(input: {
   group: string;
