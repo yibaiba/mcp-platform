@@ -2,6 +2,16 @@
 
 这三项能力参考 MCPHub 的功能范围，使用 MCP Platform 的账号、Profile、连接修订和产物权限实现；没有复制旧项目的控制器或全局配置。旧仓库保持只读。
 
+## 与 MCPHub 的实现对照
+
+| MCPHub 参考入口                                              | 迁入能力                     | 在 MCP Platform 中的处理                               |
+| ------------------------------------------------------------ | ---------------------------- | ------------------------------------------------------ |
+| `builtinPromptController.ts`、`builtinResourceController.ts` | 自建提示词与静态资源         | 账号私有内容库，复用 Profile、内容权限和逻辑模板       |
+| `mcpbController.ts`、`McpbUploadForm.tsx`                    | MCPB 上传、解析、安装        | 分离预览与执行，增加执行位置、摘要目录、修订和操作回执 |
+| `toolResultCompressionService.ts`                            | JSON/日志/搜索/diff 分类压缩 | 按现有字节预算节选，保留原文产物与当前读取权限         |
+
+首版保留平台现有的鉴权、声明式配置、设备签名协议和结果产物契约，没有迁入 MCPHub 的管理员全局内容权限、按名称删除旧包目录或全局 Token 截断配置。
+
 ## 内容库
 
 登录后打开“内容库”，选择 Prompt 或 Resource。Prompt 使用 `{{parameter}}` 占位符，并显式声明参数；仅做字面替换，不执行表达式。静态 Resource 使用 URI、MIME 类型和文本内容，HTML 按文本处理。名称和同类资源 URI 在账号内唯一，编辑和删除需要当前修订号，冲突返回 409。
