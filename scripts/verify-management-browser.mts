@@ -43,6 +43,15 @@ try {
   await page.getByText('操作已完成', { exact: true }).waitFor();
   await page.getByLabel('参数值（JSON）').fill('{"topic":"changed"}');
   assert.equal(await page.getByText('操作已完成', { exact: true }).count(), 0);
+  assert.equal(await page.locator('pre').filter({ hasText: 'Draft hello browser' }).count(), 0);
+  await page.getByRole('button', { name: '预览当前草稿', exact: true }).click();
+  await page.locator('pre').filter({ hasText: 'Draft hello changed' }).waitFor();
+  await page.getByLabel('参数值（JSON）').fill('{');
+  assert.equal(await page.locator('pre').count(), 0);
+  await page.getByRole('button', { name: '预览当前草稿', exact: true }).click();
+  await page.getByRole('alert').waitFor();
+  await page.getByLabel('参数值（JSON）').fill('{"topic":"changed"}');
+  assert.equal(await page.getByRole('alert').count(), 0);
   await page.getByLabel('内容类型').selectOption('resource');
   await page.getByRole('dialog', { name: '放弃未保存的修改？' }).waitFor();
   await page.getByRole('button', { name: '取消', exact: true }).click();

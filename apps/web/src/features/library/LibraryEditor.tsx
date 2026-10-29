@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { libraryItem, type LibraryItem } from '@platform/contracts';
 import { api, json } from '../../lib/api.js';
-import { Field, Form, Code, value } from '../../components/shared/Controls.js';
+import { Field, Form, Code } from '../../components/shared/Controls.js';
 import { Input } from '../../components/ui/input.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import { PromptArguments } from './PromptArguments.js';
@@ -18,8 +18,9 @@ export function LibraryEditor({
   const [argumentsJson, setArgumentsJson] = useState(
     initial.kind === 'prompt' ? JSON.stringify(initial.arguments) : '[]',
   );
+  const [previewValues, setPreviewValues] = useState('{}');
   const [preview, setPreview] = useState<{ signature: string; value: unknown }>();
-  const signature = JSON.stringify([draft, argumentsJson]);
+  const signature = JSON.stringify([draft, argumentsJson, previewValues]);
   const dirty =
     JSON.stringify(draft) !== JSON.stringify(initial) ||
     (initial.kind === 'prompt' && argumentsJson !== JSON.stringify(initial.arguments));
@@ -111,20 +112,27 @@ export function LibraryEditor({
           <p className="text-muted-foreground">使用上方当前内容预览，无需先保存。</p>
           <Form
             label="预览当前草稿"
-            submit={async (data) => {
+            submit={async () => {
               setPreview(undefined);
               const result = await api<unknown>('/library/prompts/preview', {
                 method: 'POST',
                 body: json({
                   item: parsedDraft(),
-                  arguments: JSON.parse(value(data, 'values') || '{}'),
+                  arguments: JSON.parse(previewValues || '{}'),
                 }),
               });
               setPreview({ signature, value: result });
             }}
           >
             <Field label="参数值（JSON）">
-              <Textarea name="values" defaultValue="{}" />
+              <Textarea
+                name="values"
+                value={previewValues}
+                onChange={(event) => {
+                  setPreviewValues(event.target.value);
+                  setPreview(undefined);
+                }}
+              />
             </Field>
           </Form>
           {preview ? (
