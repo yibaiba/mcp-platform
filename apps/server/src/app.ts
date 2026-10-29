@@ -1,3 +1,4 @@
+import { cliPublicRoutes, cliManagementRoutes } from './modules/management-auth/routes.js';
 import { restRoutes } from './modules/rest/routes.js';
 import { marketRoutes } from './modules/market/routes.js';
 import { configurationRoutes } from './modules/configuration/routes.js';
@@ -131,6 +132,7 @@ export function createApp(deps: {
     c.header('Cache-Control', 'no-store');
     return c.json(await s.devices.pair(input.code, input.deviceId), 201);
   });
+  app.route('/api/v1/cli', cliPublicRoutes({ auth: s.cliAuth, webOrigin: config.WEB_ORIGIN }));
   registerAgentOAuth(app, deps);
   registerTransfers(app, deps);
   app.get('/mcp/:profileId/artifacts/:id', async (c) => {
@@ -170,6 +172,29 @@ export function createApp(deps: {
     }
   });
   app.use('/api/v1/*', async (c, next) => {
+    if (c.req.header('authorization')) {
+      if (
+        !['GET', 'HEAD', 'OPTIONS'].includes(c.req.method) &&
+        /^\/api\/v1\/(tools|tasks|apps|interactions|calls)(?:\/|$)/.test(c.req.path)
+      )
+        throw new AppError(
+          'AGENT_CREDENTIAL_REQUIRED',
+          '业务执行需要 Profile Agent 凭据和 REST 调用接口',
+          403,
+        );
+      const read =
+        ['GET', 'HEAD', 'OPTIONS'].includes(c.req.method) ||
+        ['/api/v1/config/manifests/preview', '/api/v1/cli/logout'].includes(c.req.path);
+      const principal = await s.cliAuth.authenticate(
+        bearer(c.req.raw.headers),
+        read ? 'management:read' : 'management:write',
+      );
+      c.set('ownerId', principal.user.id);
+      c.set('role', principal.user.role);
+      c.set('cliGrantId', principal.grantId);
+      await next();
+      return;
+    }
     const session = await auth.api.getSession({ headers: c.req.raw.headers });
     if (!session) throw new AppError('UNAUTHORIZED', '请先登录管理平台', 401);
     const user = await activeUser(db, session.user.id);
@@ -183,6 +208,7 @@ export function createApp(deps: {
     c.set('role', user.role);
     await next();
   });
+  app.route('/api/v1/cli', cliManagementRoutes(s.cliAuth));
   app.get('/api/v1/me', (c) =>
     c.json({
       userId: owner(c),

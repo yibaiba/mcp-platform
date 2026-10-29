@@ -1,3 +1,4 @@
+import { CliGrants } from './CliGrants.js';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api.js';
 import { authClient } from '../../lib/auth-client.js';
@@ -31,6 +32,7 @@ export default function AccountPage() {
         </div>
       </div>
       <Feedback error={sessions.error ?? options.error} />
+      <CliGrants />
       <Card className="panel padded">
         <h2>修改密码</h2>
         <Form

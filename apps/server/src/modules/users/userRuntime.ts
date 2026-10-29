@@ -8,6 +8,7 @@ export async function disableUserRuntime(input: {
   ownerId: string;
 }) {
   const { db, services: s, ownerId } = input;
+  await s.cliAuth.revokeOwner(ownerId);
   s.invocations.revoke({ ownerId });
   const [ownedConnections, ownedDevices] = await Promise.all([
     db.select({ id: connections.id }).from(connections).where(eq(connections.ownerId, ownerId)),

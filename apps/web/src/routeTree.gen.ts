@@ -19,6 +19,7 @@ import { Route as MarketRouteImport } from './routes/market'
 import { Route as DevicesRouteImport } from './routes/devices'
 import { Route as ConnectionsRouteImport } from './routes/connections'
 import { Route as ConfigurationRouteImport } from './routes/configuration'
+import { Route as CliAuthorizeRouteImport } from './routes/cli-authorize'
 import { Route as AuthorizeRouteImport } from './routes/authorize'
 import { Route as AuthorizationsRouteImport } from './routes/authorizations'
 import { Route as ArtifactsRouteImport } from './routes/artifacts'
@@ -76,6 +77,11 @@ const ConfigurationRoute = ConfigurationRouteImport.update({
   path: '/configuration',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CliAuthorizeRoute = CliAuthorizeRouteImport.update({
+  id: '/cli-authorize',
+  path: '/cli-authorize',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthorizeRoute = AuthorizeRouteImport.update({
   id: '/authorize',
   path: '/authorize',
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/artifacts': typeof ArtifactsRoute
   '/authorizations': typeof AuthorizationsRoute
   '/authorize': typeof AuthorizeRoute
+  '/cli-authorize': typeof CliAuthorizeRoute
   '/configuration': typeof ConfigurationRoute
   '/connections': typeof ConnectionsRoute
   '/devices': typeof DevicesRoute
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/artifacts': typeof ArtifactsRoute
   '/authorizations': typeof AuthorizationsRoute
   '/authorize': typeof AuthorizeRoute
+  '/cli-authorize': typeof CliAuthorizeRoute
   '/configuration': typeof ConfigurationRoute
   '/connections': typeof ConnectionsRoute
   '/devices': typeof DevicesRoute
@@ -151,6 +159,7 @@ export interface FileRoutesById {
   '/artifacts': typeof ArtifactsRoute
   '/authorizations': typeof AuthorizationsRoute
   '/authorize': typeof AuthorizeRoute
+  '/cli-authorize': typeof CliAuthorizeRoute
   '/configuration': typeof ConfigurationRoute
   '/connections': typeof ConnectionsRoute
   '/devices': typeof DevicesRoute
@@ -171,6 +180,7 @@ export interface FileRouteTypes {
     | '/artifacts'
     | '/authorizations'
     | '/authorize'
+    | '/cli-authorize'
     | '/configuration'
     | '/connections'
     | '/devices'
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | '/artifacts'
     | '/authorizations'
     | '/authorize'
+    | '/cli-authorize'
     | '/configuration'
     | '/connections'
     | '/devices'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '/artifacts'
     | '/authorizations'
     | '/authorize'
+    | '/cli-authorize'
     | '/configuration'
     | '/connections'
     | '/devices'
@@ -226,6 +238,7 @@ export interface RootRouteChildren {
   ArtifactsRoute: typeof ArtifactsRoute
   AuthorizationsRoute: typeof AuthorizationsRoute
   AuthorizeRoute: typeof AuthorizeRoute
+  CliAuthorizeRoute: typeof CliAuthorizeRoute
   ConfigurationRoute: typeof ConfigurationRoute
   ConnectionsRoute: typeof ConnectionsRoute
   DevicesRoute: typeof DevicesRoute
@@ -310,6 +323,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConfigurationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cli-authorize': {
+      id: '/cli-authorize'
+      path: '/cli-authorize'
+      fullPath: '/cli-authorize'
+      preLoaderRoute: typeof CliAuthorizeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/authorize': {
       id: '/authorize'
       path: '/authorize'
@@ -362,6 +382,7 @@ const rootRouteChildren: RootRouteChildren = {
   ArtifactsRoute: ArtifactsRoute,
   AuthorizationsRoute: AuthorizationsRoute,
   AuthorizeRoute: AuthorizeRoute,
+  CliAuthorizeRoute: CliAuthorizeRoute,
   ConfigurationRoute: ConfigurationRoute,
   ConnectionsRoute: ConnectionsRoute,
   DevicesRoute: DevicesRoute,

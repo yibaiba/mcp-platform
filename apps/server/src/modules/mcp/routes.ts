@@ -1,3 +1,4 @@
+import { requireValue } from '../../shared/errors.js';
 import { Hono } from 'hono';
 import { callInput } from '@platform/contracts';
 import { owner, paramId, type ApiEnv } from '../../shared/http.js';
@@ -7,6 +8,9 @@ import type { InvocationService } from './invocationService.js';
 export function connectionRoutes(service: ConnectionService, changed: () => Promise<void>) {
   const app = new Hono<ApiEnv>();
   app.get('/', async (c) => c.json(await service.list(owner(c))));
+  app.get('/:id', async (c) =>
+    c.json(requireValue((await service.list(owner(c))).find((row) => row.id === paramId(c)))),
+  );
   app.post('/', async (c) => c.json(await service.create(owner(c), await c.req.json()), 201));
   app.post('/:id/discover', async (c) =>
     c.json(await service.discover(owner(c), paramId(c), c.req.raw.signal)),

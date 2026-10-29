@@ -112,5 +112,6 @@ export function profileRoutes(deps: {
     await deps.gateway.revoke(paramId(c));
     return c.json({ revoked: true });
   });
+  app.get('/:id', async (c) => c.json(await deps.profiles.owned(owner(c), paramId(c))));
   return app;
 }

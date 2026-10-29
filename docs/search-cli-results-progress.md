@@ -44,3 +44,13 @@ histogram_quantile(0.95, sum by (le, strategy) (rate(platform_search_duration_se
 ```
 
 2026-10-29 同一隔离环境的 runtimeMetrics、interactions、legacyInteractions 12 项通过，包括真实 HTTP REST 幂等调用及历史清理。使用每进程 60 秒硬超时。第一轮数据库性能基准：精确 P95 3749 ms，未达标；HNSW P95 29.9 ms、Recall@10 100%。正在优化精确数组计算，未降低验收规模或放宽阈值。
+
+## 远程 CLI
+
+独立 CLI 管理授权使用浏览器确认、PKCE S256、随机 state 及本机随机回环端口。邮箱和已配置 SSO 复用网页登录；SSO 登录保留当前授权地址。access token 为 1 小时，刷新令牌轮换；授权在最初签发后 30 天到期，不通过刷新无限延长。服务端只存摘要，每次管理请求复查账号状态、授权和当前角色。账号停用撤销已有 CLI 授权及未兑换授权码；账号页可逐项撤销。Cookie 写请求继续检查 Origin。管理令牌不能使用业务执行、交互或调用取消接口。
+
+仓库运行 `pnpm cli --help`，构建 `pnpm --filter @platform/cli build` 后可直接运行 `node packages/cli/dist/main.js`（机器读取 stdout 时推荐直接运行构建入口）。支持 login/logout/whoami、env add/use/list、connections list/get/add/update/connect/stop、profiles list/get、keys list/create/revoke、tools list/describe/call、calls status/result/answer/cancel、config preview/apply/status/export。`--file` 或 `--data` 输入 JSON；所有命令接受 `--json`，诊断写 stderr。`--env` 临时选择环境；业务操作必须传 `--profile` 并注入 `MCP_PLATFORM_AGENT_TOKEN`，`MCP_PLATFORM_ACCESS_TOKEN` 可注入管理 access token。刷新在发送管理请求前完成，业务调用及变更不重试。密钥明文只在创建响应中输出。
+
+凭据在操作系统用户配置目录保存（macOS Application Support、Linux XDG_CONFIG_HOME、Windows APPDATA），POSIX 目录 0700 / 文件 0600；Windows 使用当前用户 ACL。`MCP_PLATFORM_CONFIG_DIR` 可为自动化指定独立目录。退出成功前服务端必须完成撤销；失败时保留本地信息并返回非零。退出码：0 成功，2 参数错误，3 认证/权限错误，4 网络/服务错误，5 业务工具失败。
+
+真实 HTTP 与本机回调协议测试覆盖一次性授权码、错误 PKCE、刷新轮换、撤销、停用账号、只读 scope、角色与 Origin、Agent/管理凭据隔离、随机回环回调错误 state、文件权限、多环境、JSON 输出、退出码、密钥签发和真实 MCP 夹具业务调用。浏览器与供应商 SSO 实机验收仍单独记录；此类协议测试不替代实机。

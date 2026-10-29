@@ -70,8 +70,14 @@ export function AuthScreen() {
             action={async () => {
               const result =
                 provider.kind === 'oauth2'
-                  ? await authClient.signIn.oauth2({ providerId: provider.id, callbackURL: '/' })
-                  : await authClient.signIn.social({ provider: provider.id, callbackURL: '/' });
+                  ? await authClient.signIn.oauth2({
+                      providerId: provider.id,
+                      callbackURL: window.location.href,
+                    })
+                  : await authClient.signIn.social({
+                      provider: provider.id,
+                      callbackURL: window.location.href,
+                    });
               if (result.error) throw new Error(result.error.message ?? '单点登录失败');
             }}
           >

@@ -307,6 +307,22 @@ importers:
         specifier: 'catalog:'
         version: 5.9.3
 
+  packages/cli:
+    dependencies:
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+    devDependencies:
+      '@types/node':
+        specifier: 24.10.0
+        version: 24.10.0
+      tsx:
+        specifier: 4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+
   packages/config: {}
 
   packages/contracts:
@@ -4618,7 +4634,7 @@ snapshots:
       jose: 6.2.13
       kysely: 0.29.7
       nanostores: 1.5.5
-      zod: 4.4.3
+      zod: 4.6.7
 
   '@better-auth/drizzle-adapter@1.6.19(@better-auth/core@1.6.19(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(better-call@1.3.6(zod@4.4.3))(jose@6.2.13)(kysely@0.29.7)(nanostores@1.5.5))(@better-auth/utils@0.4.2)(drizzle-orm@0.45.2(@types/pg@8.15.6)(kysely@0.29.7)(pg@8.16.3))':
     dependencies:

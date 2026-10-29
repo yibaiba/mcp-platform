@@ -30,13 +30,11 @@ export class VectorStore {
   async search(scope: VectorScope, input: VectorQuery) {
     if (!input.ids.length) return [];
     const result = await this.db.execute<{ toolId: string; score: number }>(sql`
-      select tool_id as "toolId", score from (
-        select tool_id, greatest(-1::float8, least(1::float8, (
-          select sum(v * q) from unnest(vector, ${sql.param(input.vector)}::float8[]) as a(v, q)
-        ))) as score
+      with scored as materialized (
+        select tool_id, platform_vector_dot(vector, ${sql.param(input.vector)}::float8[]) as score
         from tool_vectors where owner_id = ${scope.ownerId} and profile_id = ${scope.profileId}
           and scope = ${scope.scope} and tool_id = any(${sql.param(input.ids)}::text[])
-      ) scored where ${input.minScore}::float8 is null or score >= ${input.minScore}::float8
+      ) select tool_id as "toolId", score from scored where ${input.minScore}::float8 is null or score >= ${input.minScore}::float8
       order by score desc, tool_id collate "C" limit ${input.limit}`);
     return result.rows;
   }

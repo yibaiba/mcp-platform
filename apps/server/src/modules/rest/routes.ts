@@ -51,6 +51,29 @@ export function restRoutes(deps: { services: Services; publicUrl: string }) {
       c.json(await profiles.discovery.rebuild(principal.ownerId, principal.profileId)),
     );
   });
+  app.get('/:profileId/rest/tools', async (c) => {
+    const principal = await profiles.authenticate(
+      paramId(c, 'profileId'),
+      bearer(c.req.raw.headers),
+    );
+    return context(c, principal, async () =>
+      c.json(await profiles.searchCatalog(principal.ownerId, principal.profileId)),
+    );
+  });
+  app.get('/:profileId/rest/tools/:toolId', async (c) => {
+    const principal = await profiles.authenticate(
+      paramId(c, 'profileId'),
+      bearer(c.req.raw.headers),
+    );
+    return context(c, principal, async () => {
+      const row = await profiles.tool(principal.ownerId, {
+        profileId: principal.profileId,
+        toolId: c.req.param('toolId'),
+      });
+      if (!row) return c.json({ error: '工具不存在或未授权' }, 403);
+      return c.json(row);
+    });
+  });
   app.post('/:profileId/rest/tools/:toolId', async (c) => {
     const principal = await profiles.authenticate(
       paramId(c, 'profileId'),

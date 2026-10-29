@@ -1,0 +1,21 @@
+{
+  "name": "@platform/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "mcp-platform": "dist/main.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.0",
+    "typescript": "catalog:",
+    "tsx": "4.21.0"
+  }
+}

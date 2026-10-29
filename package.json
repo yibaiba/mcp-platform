@@ -11,7 +11,7 @@
     "dev": "pnpm --parallel --filter server --filter web dev",
     "dev:server": "pnpm --filter server dev",
     "dev:web": "pnpm --filter web dev",
-    "build": "pnpm --filter server build && pnpm --filter web build",
+    "build": "pnpm --filter server build && pnpm --filter web build && pnpm --filter @platform/cli build",
     "check-types": "tsc --noEmit && pnpm --filter @platform/pi-runtime check-types && pnpm --filter web check-types",
     "lint": "eslint apps packages integrations/pi/src tests --max-warnings 0",
     "format": "prettier --write apps packages tests integrations/pi/src scripts docs *.json *.yaml *.mjs",
@@ -23,7 +23,8 @@
     "test:pi": "node scripts/check.mjs 60 pnpm exec tsx tests/pi-smoke.mts",
     "backup": "node scripts/backup.mjs",
     "user:role": "tsx scripts/user-role.mts",
-    "config:manifest": "tsx scripts/config-manifest.mts"
+    "config:manifest": "tsx scripts/config-manifest.mts",
+    "cli": "pnpm --filter @platform/cli start"
   },
   "packageManager": "pnpm@10.12.4",
   "dependencies": {

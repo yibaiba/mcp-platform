@@ -1,3 +1,4 @@
+import { CliAuthService } from './modules/management-auth/cliAuthService.js';
 import { RuntimeMetrics } from './modules/activity/runtimeMetrics.js';
 import { HnswStore } from './modules/discovery/hnswStore.js';
 import { RestService } from './modules/rest/restService.js';
@@ -273,6 +274,7 @@ export function createServices(db: Database, config: Config) {
     results: new EncryptedResultStore(resolve(config.DATA_DIR, 'rest-results'), vault),
   });
   return {
+    cliAuth: new CliAuthService(db),
     metrics,
     rest,
     manifests,

@@ -1,7 +1,13 @@
 import type { Context } from 'hono';
 import { z } from 'zod';
 import { AppError } from './errors.js';
-export type ApiEnv = { Variables: { ownerId: string; role: 'admin' | 'member' } };
+export type ApiEnv = {
+  Variables: {
+    cliGrantId?: string;
+    ownerId: string;
+    role: 'admin' | 'member';
+  };
+};
 export const owner = (c: Context<ApiEnv>) => c.get('ownerId');
 export const paramId = (c: Context<ApiEnv>, key = 'id') => z.uuid().parse(c.req.param(key));
 export function bearer(headers: Headers) {
