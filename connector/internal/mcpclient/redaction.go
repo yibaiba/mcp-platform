@@ -19,6 +19,11 @@ type diagnosticWriter struct {
 	pending []byte
 }
 
+// NewDiagnostics applies the same credential redaction to locally decrypted launchers.
+func NewDiagnostics(output io.Writer, config Config) io.WriteCloser {
+	return &diagnosticWriter{output: output, secrets: credentialStrings(config)}
+}
+
 func credentialStrings(c Config) []string {
 	values := append([]string{c.URL}, c.Args...)
 	for _, fields := range []map[string]string{c.Env, c.Headers} {

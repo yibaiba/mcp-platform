@@ -119,6 +119,14 @@ func (s *Store) Configuration(hash string) (json.RawMessage, error) {
 	defer s.mu.Unlock()
 	return s.configuration(hash, "")
 }
+func (s *Store) ConfigurationAt(hash, revision string) (json.RawMessage, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if revision == "" {
+		return nil, fmt.Errorf("bundle configuration revision required")
+	}
+	return s.configuration(hash, revision)
+}
 func (s *Store) configuration(hash, revision string) (json.RawMessage, error) {
 	if !hashPattern.MatchString(hash) {
 		return nil, fmt.Errorf("invalid bundle digest")

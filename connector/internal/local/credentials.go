@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"mcplatform/connector/internal/local/documents"
 	"mcplatform/connector/internal/local/model"
-	"mcplatform/connector/internal/local/sources"
 	"mcplatform/connector/internal/mcpclient"
 	"strings"
 )
@@ -142,11 +141,7 @@ func (s *Service) Resolve(raw json.RawMessage) (json.RawMessage, error) {
 	if err != nil {
 		return nil, err
 	}
-	entry, err := documents.Object(r.Content)
-	if err != nil {
-		return nil, err
-	}
-	config, err := sources.Runtime(entry, source)
+	config, err := s.resourceRuntime(r, source)
 	if err != nil {
 		return nil, err
 	}

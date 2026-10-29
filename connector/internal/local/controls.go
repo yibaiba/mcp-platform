@@ -140,11 +140,7 @@ func (s *Service) run(ctx context.Context, request model.Request) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	entry, err := documents.Object(r.Content)
-	if err != nil {
-		return nil, err
-	}
-	config, err := sources.Runtime(entry, source)
+	config, err := s.resourceRuntime(r, source)
 	if err != nil {
 		return nil, err
 	}

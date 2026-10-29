@@ -27,7 +27,12 @@ func HostCommand(command *exec.Cmd, grace time.Duration) error {
 	if err != nil {
 		return err
 	}
-	command.Stdout, command.Stderr = os.Stdout, os.Stderr
+	if command.Stdout == nil {
+		command.Stdout = os.Stdout
+	}
+	if command.Stderr == nil {
+		command.Stderr = os.Stderr
+	}
 	tree, err := Start(command)
 	if err != nil {
 		return errors.Join(err, input.Close())

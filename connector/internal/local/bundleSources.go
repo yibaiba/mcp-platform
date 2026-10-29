@@ -2,13 +2,17 @@ package local
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"mcplatform/connector/internal/local/documents"
 	"mcplatform/connector/internal/local/model"
 	"mcplatform/connector/internal/local/sources"
 	"mcplatform/connector/internal/local/storage"
+	"mcplatform/connector/internal/mcpclient"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 )
 
 // Only the public wrapper is inventoried/synchronized; the launch config stays encrypted.
@@ -77,4 +81,39 @@ func (s *Service) bundleMutation(ctx context.Context, work func() (any, error)) 
 	}
 	notify = s.notifierLocked()
 	return result, nil
+}
+
+// Resolve into the existing local MCP manager only at dispatch time, so its diagnostic
+// redaction sees the real credentials without persisting or synchronizing plaintext.
+func (s *Service) resourceRuntime(resource model.Resource, source model.Source) (mcpclient.Config, error) {
+	entry, err := documents.Object(resource.Content)
+	if err != nil {
+		return mcpclient.Config{}, err
+	}
+	config, err := sources.Runtime(entry, source)
+	if err != nil || s.options.Bundles == nil || source.Client != "mcpb" {
+		return config, err
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		return config, err
+	}
+	hash := strings.TrimPrefix(resource.Name, "mcpb-")
+	if resource.Path != filepath.Join(s.options.Bundles.Dir, "clients.json") || len(config.Args) != 7 || config.Command != executable {
+		return config, fmt.Errorf("MCPB resource changed; restore it from the local MCPB panel")
+	}
+	revision := config.Args[6]
+	expected := []string{"bundle-stdio", "--data-dir", s.options.Bundles.Dir, "--sha256", hash, "--revision", revision}
+	if !slices.Equal(config.Args, expected) {
+		return config, fmt.Errorf("MCPB client entry changed; restore it from the local MCPB panel")
+	}
+	raw, err := s.options.Bundles.ConfigurationAt(hash, revision)
+	if err != nil {
+		return config, err
+	}
+	var launch mcpclient.Config
+	if err = json.Unmarshal(raw, &launch); err != nil {
+		return config, err
+	}
+	return launch, nil
 }

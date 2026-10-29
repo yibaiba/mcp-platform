@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, expect, test, vi } from 'vitest';
+import { unzipSync, zipSync, strToU8, strFromU8 } from 'fflate';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
@@ -95,7 +96,15 @@ test('local encrypted bundle joins inventory, syncs through HMAC, serves Profile
   await writeFile(path, JSON.stringify({ server: h.baseURL, ...device }), { mode: 0o600 });
   const request = await management(path, dir);
   await vi.waitFor(() => expect(h.services.broker.online(device.deviceId)).toBe(true));
-  const bytes = archive(),
+  const files = unzipSync(archive());
+  files['server.cjs'] = strToU8(
+    "console.error('credential=' + process.env.PRIVATE);\n" +
+      strFromU8(files['server.cjs']!).replace(
+        "case 'tools/call':result=",
+        "case 'tools/call':if(r.params.arguments.fail){process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:r.id,error:{code:-32603,message:'fixture error '+process.env.PRIVATE}})+'\\n');return;}result=",
+      ),
+  );
+  const bytes = zipSync(files),
     sha256 = createHash('sha256').update(bytes).digest('hex');
   const environment = await request<BundleEnvironment>({ action: 'mcpb.environment', id: sha256 });
   const launch = compileBundle({
@@ -151,6 +160,15 @@ test('local encrypted bundle joins inventory, syncs through HMAC, serves Profile
       arguments: {},
     }),
   ).toMatchObject({ content: [{ text: 'fixture' }] });
+  const failure = await h.services.invocations
+    .dispatch({ ownerId, profileId: profile.id, toolId: tools[0]!.id, arguments: { fail: true } })
+    .then(
+      () => null,
+      (error) => error as Error,
+    );
+  expect(failure).toBeInstanceOf(Error);
+  expect(failure!.message).not.toContain('only-encrypted-local-secret');
+  expect(failure!.message).toContain('[redacted]');
   const clientConfig = await request<{
     mcpServers: Record<string, { command: string; args: string[] }>;
   }>({ action: 'mcpb.client', id: sha256 });
@@ -164,7 +182,14 @@ test('local encrypted bundle joins inventory, syncs through HMAC, serves Profile
     { versionNegotiation: { mode: 'auto' } },
   );
   try {
-    await client.connect(new StdioClientTransport(descriptor));
+    const transport = new StdioClientTransport({ ...descriptor, stderr: 'pipe' });
+    let diagnostics = '';
+    transport.stderr?.on('data', (chunk) => {
+      diagnostics += chunk;
+    });
+    await client.connect(transport);
+    await vi.waitFor(() => expect(diagnostics).toContain('credential=[redacted]'));
+    expect(diagnostics).not.toContain('only-encrypted-local-secret');
     expect(await client.callTool({ name: 'echo', arguments: {} })).toMatchObject({
       content: [{ text: 'fixture' }],
     });

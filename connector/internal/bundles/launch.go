@@ -2,8 +2,10 @@ package bundles
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"mcplatform/connector/internal/mcpclient"
 	"mcplatform/connector/internal/network"
 	"mcplatform/connector/internal/processtree"
 	"os"
@@ -49,7 +51,9 @@ func Stdio(args []string) error {
 	for key, value := range prepared.Env {
 		command.Env = append(command.Env, key+"="+value)
 	}
-	return processtree.HostCommand(command, 5*time.Second)
+	diagnostics := mcpclient.NewDiagnostics(os.Stderr, mcpclient.Config{Args: prepared.Args, Env: prepared.Env})
+	command.Stderr = diagnostics
+	return errors.Join(processtree.HostCommand(command, 5*time.Second), diagnostics.Close())
 }
 func (s *Store) launch(hash, revision string) (network.Command, error) {
 	var command network.Command
