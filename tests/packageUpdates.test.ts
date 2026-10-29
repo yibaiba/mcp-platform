@@ -232,6 +232,9 @@ test('real HMAC device checks metadata locally, offline and revoked devices are 
       result: { state: 'checked', latest: '1.9.0' },
     });
     expect(h.services.broker.hasCapability(device.deviceId, 'package-updates')).toBe(false);
+    expect(() => h.services.broker.requireCapability(device.deviceId, 'health')).toThrow(
+      expect.objectContaining({ code: 'DEVICE_OFFLINE' }),
+    );
     expect(await h.services.packageUpdates.check(account.ownerId, row.id)).toMatchObject({
       result: { state: 'failed', error: '设备离线，未执行包检查' },
     });

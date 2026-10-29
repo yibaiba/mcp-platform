@@ -38,6 +38,7 @@ export class DeviceBroker {
     return this.capabilities.get(id)?.includes(capability) ?? false;
   }
   requireCapability(id: string, capability: string) {
+    if (!this.online(id)) throw new AppError('DEVICE_OFFLINE', '设备离线，无法执行', 503);
     if (!this.hasCapability(id, capability))
       throw new AppError('CONNECTOR_UPGRADE', `设备连接器需要升级以支持 ${capability}`, 409);
   }
