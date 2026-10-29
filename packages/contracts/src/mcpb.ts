@@ -6,7 +6,13 @@ const launch = z
     env: z.record(z.string(), z.string()).default({}),
   })
   .strict();
-const override = launch.partial();
+const override = z
+  .object({
+    command: z.string().min(1).optional(),
+    args: z.array(z.string()).optional(),
+    env: z.record(z.string(), z.string()).optional(),
+  })
+  .strict();
 const field = z
   .object({
     type: z.enum(['string', 'number', 'boolean', 'directory', 'file']),

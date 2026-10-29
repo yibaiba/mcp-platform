@@ -77,3 +77,54 @@ test('unsafe JSON numbers are never rounded into a misleading sample', () => {
   expect(selectText(text, 8, 'json')).toMatchObject({ text, skipped: expect.any(String) });
   expect(selectText(text, 8, 'auto')).toBeUndefined();
 });
+
+test.each(['0.123456789012345678901', '1e-400', '1e400', '-0', '9007199254740992.1'])(
+  'JSON sampling preserves the original when %s cannot roundtrip',
+  (number) => {
+    const text = `{"nested":[{"value":${number}}],"padding":"${'x'.repeat(100)}"}`;
+    expect(selectText(text, 50, 'json')).toMatchObject({ text, skipped: expect.any(String) });
+    expect(selectText(text, 50, 'auto')).toBeUndefined();
+  },
+);
+
+test.each(['0.1250', '1.25e-1', '123e+2', '-0.5', '5e-324', '0e9999'])(
+  'JSON sampling accepts equivalent decimal spellings of %s',
+  (number) => {
+    const text = `{"value":${number},"padding":"${'x'.repeat(100)}"}`;
+    const selected = selectText(text, 30, 'json')!;
+    expect(selected.skipped).toBeUndefined();
+    expect(JSON.parse(selected.text)).toEqual({ value: Number(number) });
+    expect(selected.omitted).toBe(1);
+  },
+);
+
+test.each(['\n', '\r\n'])(
+  'search and auto recognize a terminal %j without exceeding the retained budget',
+  (newline) => {
+    const text = ['a.ts:1:first', 'a.ts:2:second', 'b.ts:4:third'].join(newline) + newline;
+    const budget = 30;
+    for (const strategy of ['search', 'auto'] as const) {
+      const selected = selectText(text, budget, strategy)!;
+      expect(selected).toMatchObject({ strategy: 'search', omitted: 1 });
+      expect(selected.skipped).toBeUndefined();
+      expect(selected.text).toContain('a.ts:1:first');
+      expect(selected.text).toContain('a.ts:2:second');
+      expect(selected.text).not.toContain('b.ts');
+      const result = excerpt(
+        { content: [{ type: 'text', text }] },
+        {
+          strategy,
+          retainBytes: budget,
+          marker: 'original-id',
+        },
+      );
+      expect(result.retainedBytes).toBeLessThanOrEqual(budget);
+      expect(result.strategies).toEqual(['search']);
+    }
+  },
+);
+
+test('search still rejects interior blank lines and non-search text', () => {
+  for (const text of ['a.ts:1:first\n\nb.ts:2:second\n', 'a.ts:1:first\nfooter\n'])
+    expect(selectText(text, 10, 'search')).toMatchObject({ text, skipped: expect.any(String) });
+});

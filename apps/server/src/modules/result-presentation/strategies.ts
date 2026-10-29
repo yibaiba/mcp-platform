@@ -1,4 +1,5 @@
 import type { ResultPresentation } from '@platform/contracts';
+import { jsonNumberRoundtrips } from './jsonNumbers.js';
 type Strategy = NonNullable<ResultPresentation['strategy']>;
 export type Selection = {
   text: string;
@@ -11,11 +12,11 @@ const errorLine = /\b(ERROR|FAIL(?:ED)?|FATAL|CRITICAL|WARN(?:ING)?)\b|Traceback
 const searchLine = /^(.+?):\d+(?::\d+)?:/;
 function jsonValue(text: string): unknown {
   try {
-    return JSON.parse(text, (_key, value: unknown) => {
-      // Re-serializing unsafe integers would silently change source values.
+    return JSON.parse(text, (_key, value: unknown, context?: { source?: string }) => {
+      // The reviver's source retains decimals that JSON.parse has already rounded.
       if (
         typeof value === 'number' &&
-        (!Number.isFinite(value) || (Number.isInteger(value) && !Number.isSafeInteger(value)))
+        (!context?.source || !jsonNumberRoundtrips(value, context.source))
       )
         throw new Error('JSON number cannot be sampled without precision loss');
       return value;
@@ -24,11 +25,17 @@ function jsonValue(text: string): unknown {
     return undefined;
   }
 }
+function searchLines(text: string) {
+  const lines = text.split('\n');
+  // A terminal line ending does not introduce an additional search result.
+  if (text.endsWith('\n')) lines.pop();
+  return lines;
+}
 function detect(text: string): Exclude<Strategy, 'auto'> {
   const parsed = jsonValue(text);
   if (parsed !== null && typeof parsed === 'object') return 'json';
   if (/^diff --git /m.test(text)) return 'diff';
-  const lines = text.split('\n');
+  const lines = searchLines(text);
   if (lines.every((line) => searchLine.test(line))) return 'search';
   if (lines.some((line) => errorLine.test(line))) return 'log';
   return 'text';
@@ -101,7 +108,6 @@ function logSample(text: string, budget: number): Selection {
   };
 }
 function groupedSample(text: string, budget: number, strategy: 'search' | 'diff'): Selection {
-  const lines = text.split('\n');
   if (strategy === 'diff') {
     if (!/^diff --git /m.test(text)) return skipped(text, strategy);
     const groups = text
@@ -120,7 +126,7 @@ function groupedSample(text: string, budget: number, strategy: 'search' | 'diff'
     };
   }
   const groups = new Map<string, string[]>();
-  for (const line of lines) {
+  for (const line of searchLines(text)) {
     const match = searchLine.exec(line);
     if (!match) return skipped(text, strategy);
     const group = groups.get(match[1]!) ?? [];

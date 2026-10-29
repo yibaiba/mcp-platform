@@ -7,7 +7,8 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { compileBundle, mcpbManifest } from '../packages/contracts/src/mcpb.js';
 import { unpackBundle } from '../apps/server/src/modules/bundles/archive.js';
-import { mcpbInstalls } from '../packages/db/src/index.js';
+import { mcpbInstalls, mcpbPackages } from '../packages/db/src/index.js';
+import { eq } from 'drizzle-orm';
 import { harness } from './harness.js';
 let h: Awaited<ReturnType<typeof harness>>;
 beforeAll(async () => {
@@ -49,6 +50,44 @@ test('archive rejects traversal, missing entry and duplicate names without execu
     unpackBundle(zipSync({ 'manifest.json': strToU8(JSON.stringify(manifest())) })),
   ).toThrow('入口');
   expect(() => unpackBundle(new Uint8Array())).toThrow();
+});
+test('existing uploads preview and install archive arguments despite old parsed override defaults', async () => {
+  const { ownerId } = await h.signup();
+  const source = manifest();
+  const platform = process.platform as 'darwin' | 'linux' | 'win32';
+  const value = {
+    ...source,
+    server: {
+      ...source.server,
+      mcp_config: {
+        ...source.server.mcp_config,
+        platform_overrides: { [platform]: { command: process.execPath } },
+      },
+    },
+  };
+  const data = archive(value);
+  const uploaded = await upload(ownerId, data);
+  const legacy = structuredClone(uploaded.manifest);
+  Object.assign(legacy.server.mcp_config.platform_overrides![platform]!, {
+    args: [],
+    env: {},
+  });
+  await h.db.update(mcpbPackages).set({ manifest: legacy }).where(eq(mcpbPackages.id, uploaded.id));
+  const input = { adapter: 'direct', values: { key: 'test-value' } };
+  const preview = await h.services.bundles.preview(ownerId, uploaded.id, input);
+  expect(preview.config.args).toEqual([`${preview.config.cwd}/server.cjs`]);
+  const duplicate = await upload(ownerId, data);
+  expect(duplicate.id).toBe(uploaded.id);
+  expect(duplicate.manifest.server.mcp_config.platform_overrides![platform]).not.toHaveProperty(
+    'args',
+  );
+  const receipt = await h.services.bundles.install(ownerId, uploaded.id, {
+    ...input,
+    operationId: randomUUID(),
+    previewDigest: preview.previewDigest,
+  });
+  expect(receipt.state).toBe('succeeded');
+  expect((await h.services.profiles.catalog(ownerId))[0]!.name).toBe('echo');
 });
 test('platform preview does not start MCP; install discovers real tools and is idempotent', async () => {
   const { ownerId } = await h.signup();

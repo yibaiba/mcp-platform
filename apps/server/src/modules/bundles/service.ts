@@ -63,7 +63,7 @@ export class BundleService {
         .select()
         .from(mcpbPackages)
         .where(and(eq(mcpbPackages.ownerId, ownerId), eq(mcpbPackages.sha256, saved.sha256)));
-      return this.publicPackage(requireValue(existing));
+      return this.publicPackage({ ...requireValue(existing), manifest: pkg.manifest });
     } catch (error) {
       await this.deps.files.remove(id);
       throw error;
@@ -81,6 +81,12 @@ export class BundleService {
       .from(mcpbPackages)
       .where(and(eq(mcpbPackages.id, id), eq(mcpbPackages.ownerId, ownerId)));
     return requireValue(row);
+  }
+  private async archive(row: typeof mcpbPackages.$inferSelect) {
+    const bytes = new Uint8Array(await (await this.deps.files.blob(row.id)).arrayBuffer());
+    if (digest(Buffer.from(bytes)) !== row.sha256)
+      throw new AppError('MCPB_DIGEST', '扩展包文件校验失败，未执行安装', 409);
+    return { bytes, pkg: unpackBundle(bytes) };
   }
   private async environment(
     ownerId: string,
@@ -117,10 +123,13 @@ export class BundleService {
     const input = target.parse(raw),
       row = await this.owned(ownerId, id);
     const environment = await this.environment(ownerId, input, row.sha256);
-    const manifest = mcpbManifest.parse(row.manifest);
+    // Older metadata may contain defaults inserted into an otherwise partial override.
+    // Compile the same immutable manifest that installation will use.
+    const { pkg } = await this.archive(row);
+    const manifest = pkg.manifest;
     const config = compile({ manifest, environment, values: input.values, redact: true });
     return {
-      ...this.publicPackage(row),
+      ...this.publicPackage({ ...row, manifest }),
       adapter: input.adapter,
       config,
       previewDigest: digest(JSON.stringify([row.sha256, input, environment])),
@@ -195,10 +204,7 @@ export class BundleService {
     },
   ) {
     const { row, input, environment } = data;
-    const bytes = new Uint8Array(await (await this.deps.files.blob(row.id)).arrayBuffer());
-    if (digest(Buffer.from(bytes)) !== row.sha256)
-      throw new AppError('MCPB_DIGEST', '扩展包文件校验失败，未执行安装', 409);
-    const pkg = unpackBundle(bytes);
+    const { bytes, pkg } = await this.archive(row);
     const launch = compile({ manifest: pkg.manifest, environment, values: input.values });
     if (input.adapter === 'device') {
       await this.deps.broker.request(input.deviceId!, {
