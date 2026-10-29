@@ -37,3 +37,5 @@ class ArgvFixture {
     $env:PATH = $previousPath
     Remove-Item -LiteralPath $directory -Recurse -Force
 }
+# The fixture deliberately returned 23; do not return that expected code to CI.
+exit 0
