@@ -38,6 +38,7 @@ export class DeviceBroker {
     return this.capabilities.get(id)?.includes(capability) ?? false;
   }
   requireCapability(id: string, capability: string) {
+    if (!this.online(id)) throw new AppError('DEVICE_OFFLINE', '设备离线，无法执行', 503);
     if (!this.hasCapability(id, capability))
       throw new AppError('CONNECTOR_UPGRADE', `设备连接器需要升级以支持 ${capability}`, 409);
   }
@@ -82,7 +83,12 @@ export class DeviceBroker {
     socket.on('error', () => socket.terminate());
     socket.on('close', () => {
       clearInterval(heartbeat);
-      if (this.sockets.get(id) === socket) this.sockets.delete(id);
+      // An older socket may close after its replacement has already authenticated.
+      if (this.sockets.get(id) === socket) {
+        this.sockets.delete(id);
+        this.generations.delete(id);
+        this.capabilities.delete(id);
+      }
       for (const request of this.pending.values()) {
         if (request.socket === socket)
           request.finish(

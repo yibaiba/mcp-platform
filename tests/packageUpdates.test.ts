@@ -227,6 +227,14 @@ test('real HMAC device checks metadata locally, offline and revoked devices are 
     });
     await device.close();
     await expect.poll(() => h.services.broker.online(device.deviceId)).toBe(false);
+    expect(await h.services.packageUpdates.status(account.ownerId, row.id)).toMatchObject({
+      stale: true,
+      result: { state: 'checked', latest: '1.9.0' },
+    });
+    expect(h.services.broker.hasCapability(device.deviceId, 'package-updates')).toBe(false);
+    expect(() => h.services.broker.requireCapability(device.deviceId, 'health')).toThrow(
+      expect.objectContaining({ code: 'DEVICE_OFFLINE' }),
+    );
     expect(await h.services.packageUpdates.check(account.ownerId, row.id)).toMatchObject({
       result: { state: 'failed', error: '设备离线，未执行包检查' },
     });
@@ -291,5 +299,30 @@ test('platform and real HMAC device check the same authenticated Python source w
     ]);
   } finally {
     await device.close();
+  }
+});
+
+test('a replaced socket closing cannot invalidate the authenticated replacement', async () => {
+  const device = await h.services.devices.pair(
+    (await h.services.devices.createPairing(account.ownerId, 'replacement device')).code,
+  );
+  const first = await authPeer(h.baseURL);
+  const second = await authPeer(h.baseURL);
+  try {
+    first.send(authResponse(device, first.challenge, h.baseURL));
+    expect(await first.next()).toMatchObject({ type: 'auth.success' });
+    const original = h.services.broker.generation(device.deviceId);
+    second.send(authResponse(device, second.challenge, h.baseURL));
+    expect(await second.next()).toMatchObject({ type: 'auth.success' });
+    const replacement = h.services.broker.generation(device.deviceId);
+    expect(replacement).not.toBe(original);
+    expect(replacement).not.toBe('offline');
+    await first.closed;
+    expect(h.services.broker.online(device.deviceId)).toBe(true);
+    expect(h.services.broker.generation(device.deviceId)).toBe(replacement);
+  } finally {
+    first.ws.terminate();
+    second.ws.terminate();
+    await Promise.all([first.closed, second.closed]);
   }
 });
