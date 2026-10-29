@@ -14,7 +14,7 @@ pnpm test
 pnpm test:pi
 ```
 
-`pnpm test` 分十九组顺序执行，覆盖连接、身份、工作空间、授权、交接、OAuth、Pi、协议目录、OpenAPI、交互与 Apps。每个后端测试进程由脚本强制限制为 60 秒，无自动重试。产物结果专项包含新旧 SDK 客户端、产生者授权、到期与保存期间配置失效的检查。可使用同一入口运行专项：
+`pnpm test` 按当前 `scripts/test.mjs` 的功能分组顺序执行，覆盖连接、身份、工作空间、授权、交接、OAuth、Pi、协议目录、OpenAPI、交互与 Apps。每个后端测试进程由脚本强制限制为 60 秒，无自动重试。产物结果专项包含新旧 SDK 客户端、产生者授权、到期与保存期间配置失效的检查。可使用同一入口运行专项：
 
 ```sh
 pnpm test tests/upstreamOAuth.test.ts tests/openapiOAuth.test.ts
@@ -148,7 +148,7 @@ Windows CI 用 Windows PowerShell 5.1 执行 `scripts/verify-ssh-windows.ps1`，
 
 ## 网络与版本更新
 
-实现与来源规则见[网络、安装源与版本更新](network-updates.md)，环境、初次失败修复和真实环境限制见[本轮交付记录](network-updates-progress.md)。最终分组入口为 22 组，每个后端进程硬超时仍为 60 秒。
+实现与来源规则见[网络、安装源与版本更新](network-updates.md)，环境、初次失败修复和真实环境限制见[本轮交付记录](network-updates-progress.md)。测试组随功能增加，以 `scripts/test.mjs` 为准；每个后端进程硬超时仍为 60 秒。
 
 ```sh
 pnpm test tests/network.test.ts tests/networkGit.test.ts tests/packageUpdates.test.ts tests/platformUpdates.test.ts
@@ -164,7 +164,7 @@ node scripts/check.mjs 60 pnpm exec tsx scripts/verify-network-browser.mts
 
 ## 内容库、MCPB 与分类节选
 
-专项与当前限制见[迁入记录](mcphub-management-progress.md)和[使用说明](mcphub-management.md)。完整测试入口现在按功能划分为 26 组，每个后端进程仍保留 60 秒硬超时。浏览器使用隔离 PostgreSQL、Chrome 和环境提供的 Playwright：
+专项与当前限制见[迁入记录](mcphub-management-progress.md)和[使用说明](mcphub-management.md)。完整测试入口按功能分组，每个后端进程仍保留 60 秒硬超时。浏览器使用隔离 PostgreSQL、Chrome 和环境提供的 Playwright：
 
 ```sh
 node scripts/check.mjs 60 pnpm --filter web build
@@ -176,5 +176,7 @@ node scripts/check.mjs 60 pnpm exec tsx scripts/verify-management-browser.mts
 先完成本机页面构建，再运行 Go test/vet；不要在 Go 编译读取 embed 文件时并行重建该目录。
 
 ### MCPB 与内容引用修复验收
+
+PR #9 最终提交 `cac29c6469162c86d24ff77bbd68f16ede1225d3` 的 [平台 CI](https://github.com/yibaiba/mcp-platform/actions/runs/40848729597) 和 [桌面 CI](https://github.com/yibaiba/mcp-platform/actions/runs/40848729589) 已通过：Node.js 22/24 各 27 组 365 项、Go test/vet、Pi、六架构 CLI、双架构镜像与 Compose，以及六架构桌面和七个安装包。
 
 2026-10-29 本地 27 组覆盖 365 项通过；基础组排除参数修正后补跑 45 项，其余组通过。新增 `tests/bundleLifecycle.test.ts` 与 `tests/bundleLocal.test.ts` 覆盖包历史、卸载清理、同摘要重新上传、解释器约束和真实本机 HMAC/Profile/独立客户端使用链路；内容库增加删除引用与并发授权回归。Go test/vet、类型检查、Lint、生产构建、重复迁移及无模型 Pi 通过。浏览器增加历史刷新、卸载、清理、本机客户端配置及移除检查。过程和实机边界见[修复记录](mcphub-management-progress.md#缺口修复2026-10-29)。

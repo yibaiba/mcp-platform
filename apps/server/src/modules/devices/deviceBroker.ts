@@ -82,7 +82,12 @@ export class DeviceBroker {
     socket.on('error', () => socket.terminate());
     socket.on('close', () => {
       clearInterval(heartbeat);
-      if (this.sockets.get(id) === socket) this.sockets.delete(id);
+      // An older socket may close after its replacement has already authenticated.
+      if (this.sockets.get(id) === socket) {
+        this.sockets.delete(id);
+        this.generations.delete(id);
+        this.capabilities.delete(id);
+      }
       for (const request of this.pending.values()) {
         if (request.socket === socket)
           request.finish(
