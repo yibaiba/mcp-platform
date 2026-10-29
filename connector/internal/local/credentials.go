@@ -121,9 +121,8 @@ func (s *Service) Resolve(raw json.RawMessage) (json.RawMessage, error) {
 	defer s.mu.Unlock()
 	s.scan(s.ctx)
 	resourceID := input.Config.DeviceResourceID
-	base, exists := s.state.Resources[resourceID]
-	if !exists || !base.Selected || base.Deleted || base.Kind != "mcp" {
-		return nil, fmt.Errorf("selected device resource is unavailable")
+	if _, err := s.selectedResource(resourceID); err != nil {
+		return nil, err
 	}
 	if input.Config.LocalIdentity != "" && input.Config.LocalIdentity != "default" {
 		var ok bool
@@ -132,9 +131,9 @@ func (s *Service) Resolve(raw json.RawMessage) (json.RawMessage, error) {
 			return nil, fmt.Errorf("IDENTITY_CREDENTIAL_REQUIRED: configure a dedicated local binding; shared client credentials are not used")
 		}
 	}
-	r, ok := s.state.Resources[resourceID]
-	if !ok || !r.Selected || r.Deleted || r.Kind != "mcp" {
-		return nil, fmt.Errorf("selected device resource is unavailable")
+	r, err := s.selectedResource(resourceID)
+	if err != nil {
+		return nil, err
 	}
 	if input.Config.LocalIdentity == "default" && input.Config.DeviceResourceDigest != "" && input.Config.DeviceResourceDigest != r.Digest {
 		return nil, fmt.Errorf("LOCAL_RESOURCE_CHANGED: synchronize configuration before dispatch")
@@ -176,4 +175,15 @@ func (s *Service) Resolve(raw json.RawMessage) (json.RawMessage, error) {
 	config.DeviceResourceDigest = r.Digest
 	params["config"] = documents.Encode(config)
 	return json.Marshal(params)
+}
+
+func (s *Service) selectedResource(id string) (model.Resource, error) {
+	r, ok := s.state.Resources[id]
+	if !ok || !r.Selected || r.Deleted || r.Kind != "mcp" {
+		return model.Resource{}, fmt.Errorf("selected device resource is unavailable")
+	}
+	if len(r.Issues) > 0 {
+		return model.Resource{}, fmt.Errorf("LOCAL_RESOURCE_INVALID: fix the local source errors before dispatch")
+	}
+	return r, nil
 }

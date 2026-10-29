@@ -29,6 +29,7 @@ type Server struct {
 	mu                                     sync.Mutex
 	manager                                Manager
 	host, origin, openToken, session, csrf string
+	cookieName                             string
 	server                                 *http.Server
 	listener                               net.Listener
 }
@@ -47,6 +48,8 @@ func Start(manager Manager) (*Server, error) {
 	}
 	s := &Server{manager: manager, listener: listener, host: listener.Addr().String(), openToken: token(), session: token(), csrf: token()}
 	s.origin = "http://" + s.host
+	// Cookies are shared across loopback ports; each instance needs its own name.
+	s.cookieName = "mcplatform-local-" + token()
 	s.server = &http.Server{Handler: s, ReadHeaderTimeout: 10 * time.Second}
 	return s, nil
 }
@@ -101,7 +104,7 @@ func (s *Server) api(w http.ResponseWriter, r *http.Request) {
 		s.authenticate(w, r)
 		return
 	}
-	cookie, err := r.Cookie("mcplatform-local")
+	cookie, err := r.Cookie(s.cookieName)
 	if err != nil || !same(cookie.Value, s.session) {
 		failure(w, "Local session required", 401)
 		return
@@ -132,7 +135,7 @@ func (s *Server) api(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		cookie, err := r.Cookie("mcplatform-local")
+		cookie, err := r.Cookie(s.cookieName)
 		if err != nil || !same(cookie.Value, s.session) {
 			failure(w, "Open the one-time link printed by the connector", 401)
 			return
@@ -158,7 +161,7 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.openToken = ""
-	http.SetCookie(w, &http.Cookie{Name: "mcplatform-local", Value: s.session, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode})
+	http.SetCookie(w, &http.Cookie{Name: s.cookieName, Value: s.session, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode})
 	respond(w, map[string]string{"csrf": s.csrf})
 }
 func decode(r *http.Request, target any) error {

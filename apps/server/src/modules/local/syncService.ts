@@ -37,14 +37,15 @@ export class LocalSyncService {
         continue;
       }
       try {
-        await this.reconcileResource(row, resource, state);
+        await this.reconcileResource(row, resource);
       } catch (error) {
         const message =
           error instanceof AppError ? error.message : '同步失败，请检查平台和本机操作记录';
         const current = await this.deps.repository.owned(ownerId, { deviceId, id: row.id });
         await this.deps.repository.patch(current, {
           status:
-            error instanceof AppError && error.code === 'SYNC_CONNECTION_CONFLICT'
+            error instanceof AppError &&
+            ['SYNC_CONNECTION_CONFLICT', 'SYNC_RESOURCE_CONFLICT'].includes(error.code)
               ? 'conflict'
               : 'error',
           error: message,
@@ -54,7 +55,7 @@ export class LocalSyncService {
     }
     if (errors.length) throw new AppError('LOCAL_SYNC_FAILED', errors.join('; '), 409);
   }
-  private async reconcileResource(row: Binding, resource: LocalResource, _state: LocalState) {
+  private async reconcileResource(row: Binding, resource: LocalResource) {
     if (row.status === 'conflict' || row.status === 'deletion_pending' || row.status === 'deleted')
       return;
     if (resource.issues.length) {
@@ -85,7 +86,11 @@ export class LocalSyncService {
     if (!localChanged && !platformChanged && row.status === 'synced') return;
     let current = resource;
     if (platformChanged && !equal(resource.content, row.content)) {
-      await this.apply(row, await this.state(row.deviceId), {
+      const latest = await this.state(row.deviceId);
+      const target = latest.resources[row.resourceId];
+      if (!target || target.deleted || !target.selected || target.digest !== resource.digest)
+        throw new AppError('SYNC_RESOURCE_CONFLICT', '同步期间本机资源已改变，请比较差异', 409);
+      await this.apply(row, latest, {
         action: 'edit',
         content: row.content,
       });
