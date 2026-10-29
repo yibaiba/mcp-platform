@@ -122,3 +122,7 @@ node scripts/check.mjs 600 pnpm exec tsx scripts/benchmark-discovery.mts
 ```
 
 必须传入已迁移的隔离 PostgreSQL 数据库 `DATABASE_URL`。脚本创建并清理专用账号、10000 个工具、1536 维合成向量；记录各阶段 30 次热查询、P95 和 Recall@10。未满足 1000/300 ms 检索门槛、95% 召回或出现业务派发均返回非零。真实 HTTP Embedding 协议夹具不代表实际供应商推理质量。当前实现、实测数据、失败尝试与发布前未完成项见[本轮交付记录](search-cli-results-progress.md)。
+
+## 桌面连接器迁移验收
+
+2026-10-29 在独立仓库完成 20 组、288 项后端回归、Go test/vet、CLI 与桌面各六架构构建、七个桌面安装包及真实浏览器设备管理检查。每个后端测试进程保持 60 秒硬超时。Node.js 22/24、双架构应用镜像和 Compose，以及桌面打包 CI 均通过。环境、CI 链接、迁移与未完成的实机检查见[桌面迁移最终记录](connector-desktop.md#2026-10-29-独立仓库最终记录)。

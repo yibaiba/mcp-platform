@@ -78,3 +78,15 @@ GitHub 工作流在仓库根目录 `.github/workflows/connector-installers.yml`�
 迁移目标为独立仓库 `yibaiba/mcp-platform`。桌面程序、图标、配对和本机管理、平台同步接口、设备页管理入口及打包工作流在本仓库构建；没有修改 `mcp-manger` 工作区。数据库使用本仓库生成的增量迁移 `0018_blushing_punisher.sql`，不复制旧库的迁移编号。
 
 本地验收使用隔离 PostgreSQL 17 / pgvector 测试库。六种桌面二进制、七个安装包以及 Go 测试/vet 已通过；平台同步回归检查真实 Go HMAC 通道、凭证脱敏、所有权、编辑冲突、断线核对及 Skill 版本保留。界面截图由 MyGo 内存渲染器生成并检查，不代表三个操作系统的真实桌面、托盘、输入法和登录自启动均已实机验收。安装器未签名/公证的限制仍适用。
+
+### 2026-10-29 独立仓库最终记录
+
+本地完整后端回归 20 组、288 项通过（含 12 项本机资源管理专项），每个进程保持 60 秒硬超时。类型检查、ESLint、生产构建、冻结锁文件离线安装、Go test/vet、CLI 与桌面各六架构构建、真实无模型 Pi 桥接均通过。独立 PostgreSQL 17 / pgvector 新库应用全部迁移及重复迁移通过；用户原有数据库和旧仓库工作区未改动。
+
+七个安装包实际生成并校验 SHA-256，macOS 通用应用通过 ad-hoc 签名校验，DMG 完整性检查通过。Chrome 实际登录测试账号，经真实 Go HMAC 通道检查设备在线、扫描资源、纳入同步、local:// 脱敏引用和连接成功；临时账号所在的独立数据库、临时配置、进程及标签页已清理。原生界面浅色/深色及导航截图由 MyGo 内存渲染器生成并检查。
+
+[桌面打包 CI](https://github.com/yibaiba/mcp-platform/actions/runs/40801504637)和[平台 CI](https://github.com/yibaiba/mcp-platform/actions/runs/40801504514)全部通过：包括 Node.js 22/24、原生 Linux amd64/arm64 应用镜像、单端口 Compose 和 Python 冷/热缓存。桌面六架构编译、Linux/Windows 打包在 Ubuntu amd64 执行，macOS runner 封装预编译应用。仅保存 CI artifact，未发布 Release、镜像或 Release 附件。
+
+迁移通过 [PR #5](https://github.com/yibaiba/mcp-platform/pull/5) 合并。Windows/Linux/macOS 的真实桌面托盘、中文输入法、登录自启动及安装/卸载实机验收仍需对应环境；自动测试和交叉构建不代表这些检查已经完成。
+
+代码维护：保留现有应用入口、连接服务及 MCP 会话管理器的职责，仅接入本机资源解析；CLI 运行时已提取为独立文件，桌面 UI、扫描/存储/配对/打包分别归入对应模块。测试共享同一真实连接器验证连续同步生命周期，未为行数机械拆分夹具。
