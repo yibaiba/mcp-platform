@@ -126,3 +126,22 @@ node scripts/check.mjs 600 pnpm exec tsx scripts/benchmark-discovery.mts
 ## 桌面连接器迁移验收
 
 2026-10-29 在独立仓库完成 20 组、288 项后端回归、Go test/vet、CLI 与桌面各六架构构建、七个桌面安装包及真实浏览器设备管理检查。每个后端测试进程保持 60 秒硬超时。Node.js 22/24、双架构应用镜像和 Compose，以及桌面打包 CI 均通过。环境、CI 链接、迁移与未完成的实机检查见[桌面迁移最终记录](connector-desktop.md#2026-10-29-独立仓库最终记录)。
+
+## 本机 Web 与 SSH 迁移
+
+使用已迁移的隔离 PostgreSQL 数据库 `DATABASE_URL`，先构建本机页面和当前系统 CLI：
+
+```sh
+node scripts/check.mjs 60 pnpm --filter web build:local
+node scripts/check.mjs 60 go -C connector build -o bin/connector ./cmd/connector
+node scripts/check.mjs 60 pnpm exec vitest run tests/sshAccess.test.ts
+node scripts/check.mjs 60 pnpm exec tsx scripts/verify-ssh-forward.mts
+node scripts/check.mjs 60 pnpm exec tsx scripts/verify-local-clients.mjs
+node scripts/check.mjs 180 pnpm exec tsx scripts/verify-local-browser.mjs
+```
+
+OpenSSH 验收需要 `ssh`、`ssh-keygen`、`/usr/sbin/sshd`（可用 `SSHD_BIN` 指定）。它在临时目录生成测试密钥和独立 loopback sshd，实际反向转发 MCP 并验证断线不重放；不修改系统 SSH 服务、authorized_keys 或 known_hosts。Linux 需存在 sshd 的运行目录（CI 使用 `/run/sshd`）。
+
+客户端验收使用已安装的 `codex` 与 `claude`，可用 `CODEX_BIN` / `CLAUDE_BIN` 指定可执行文件。只在独立临时 HOME 修改配置并调用客户端的 MCP 配置读取命令，不请求模型。浏览器验收由环境提供 Chrome 和 Playwright（`PLAYWRIGHT_MODULE` 可指定现有模块），检查离线修改、选择同步、平台写回、冲突、恢复、重新配对、375px 布局及 SSH 创建/编辑/下载/删除，截图写入 `.data/local-browser-acceptance`。不使用业务账号或业务数据库。
+
+Windows CI 用 Windows PowerShell 5.1 执行 `scripts/verify-ssh-windows.ps1`，验证解析、原生命令参数边界、带空格私钥路径、多端口参数和退出码。该 argv 夹具不连接 SSH，不能替代真实 Windows 登录启动、远端设备网络和密钥配置验收。迁移细节见[本机管理](local-management.md)和[SSH 接入](ssh-access.md)。

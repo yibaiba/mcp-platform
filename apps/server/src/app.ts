@@ -1,3 +1,6 @@
+import { readFile } from 'node:fs/promises';
+import { sshAccessRoutes } from './modules/ssh-access/routes.js';
+import { SshAccessService } from './modules/ssh-access/service.js';
 import { localRoutes } from './modules/local/routes.js';
 import { cliPublicRoutes, cliManagementRoutes } from './modules/management-auth/routes.js';
 import { restRoutes } from './modules/rest/routes.js';
@@ -227,6 +230,13 @@ export function createApp(deps: {
         disabled: (ownerId) => disableUserRuntime({ db, services: s, ownerId }),
       }),
     ),
+  );
+  app.route(
+    '/api/v1/ssh-accesses',
+    sshAccessRoutes({
+      service: new SshAccessService({ db, connections: s.connections }),
+      readAsset: (name) => readFile(join(platformRoot, 'connector/ssh/windows', name)),
+    }),
   );
   app.route('/api/v1/devices', localRoutes(s.local));
   app.route('/api/v1/devices', deviceRoutes(s.devices));

@@ -59,6 +59,11 @@ jobs:
         run: node scripts/check.mjs 180 pnpm build
       - name: Backend integration tests (60 seconds per process)
         run: node scripts/check.mjs 1200 pnpm test
+      - name: Real OpenSSH reverse forwarding
+        if: matrix.node == '24'
+        run: |
+          sudo mkdir -p /run/sshd
+          node scripts/check.mjs 60 pnpm exec tsx scripts/verify-ssh-forward.mts
       - name: Pi bridge without inference
         run: pnpm test:pi
       - name: Go tests and vet
@@ -76,9 +81,19 @@ jobs:
         if: always()
         run: docker rm --force platform-ci-db
 
+  ssh-windows:
+    name: Windows SSH bundle validation
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: PowerShell syntax and native argument handling
+        shell: powershell
+        run: ./scripts/verify-ssh-windows.ps1
+
   installers:
     name: Publish connector release files
-    needs: verify
+    needs: [verify, ssh-windows]
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -94,6 +109,11 @@ jobs:
         with:
           go-version-file: connector/go.mod
           cache-dependency-path: connector/go.sum
+      - name: Install build dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.12.4 --activate
+          node scripts/check.mjs 300 pnpm install --frozen-lockfile
       - name: Build the six supported connector targets
         run: node scripts/check.mjs 600 node scripts/build-connector.mjs
       - name: Upload binaries, checksums and installers to this release
@@ -107,7 +127,7 @@ jobs:
 
   image:
     name: Verify platform image (${{ matrix.arch }})
-    needs: verify
+    needs: [verify, ssh-windows]
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false

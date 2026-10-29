@@ -4,7 +4,15 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { connectorTargets } from '../packages/contracts/src/connectorDistribution.ts';
+if (!process.argv.includes('--assets-built'))
+  execFileSync(
+    process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
+    ['--filter', 'web', 'build:local'],
+    { cwd: fileURLToPath(new URL('../', import.meta.url)), stdio: 'inherit', timeout: 60_000 },
+  );
 const root = fileURLToPath(new URL('../connector/', import.meta.url));
+// Refuse to distribute a CLI whose standalone management page was not built.
+readFileSync(join(root, 'internal/localhttp/assets/index.html'));
 mkdirSync(join(root, 'bin'), { recursive: true });
 const sums = [];
 for (const { os: GOOS, arch: GOARCH, filename: name } of connectorTargets) {

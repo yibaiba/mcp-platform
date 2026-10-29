@@ -5,3 +5,6 @@
 **/.data
 connector/bin
 .git
+
+connector/internal/localhttp/assets/*
+!connector/internal/localhttp/assets/README.txt

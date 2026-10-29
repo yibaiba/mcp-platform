@@ -1,4 +1,12 @@
 import { spawn, execFileSync } from 'node:child_process';
+execFileSync(
+  process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
+  ['--filter', 'web', 'build:local'],
+  {
+    stdio: 'inherit',
+    timeout: 60_000,
+  },
+);
 // Build the actual connector before starting the hard-timed backend test process.
 execFileSync('go', ['build', '-o', 'bin/connector', './cmd/connector'], {
   cwd: new URL('../connector/', import.meta.url),
@@ -90,6 +98,8 @@ const groups = requested.length
         'tests/resultPresentation.test.ts',
         '--exclude',
         'tests/localManagement.test.ts',
+        '--exclude',
+        'tests/sshAccess.test.ts',
       ],
       [
         'tests/workspacePermissions.test.ts',
@@ -104,6 +114,7 @@ const groups = requested.length
       ],
       ['tests/cliAuth.test.ts'],
       ['tests/localManagement.test.ts'],
+      ['tests/sshAccess.test.ts'],
       ['tests/workspaceOutputArtifacts.test.ts'],
       ['tests/pi.test.ts'],
       ['tests/core.test.ts', 'tests/openapiOAuth.test.ts', 'tests/mcpReliability.test.ts'],

@@ -312,3 +312,5 @@ export * from './discovery.js';
 export * from './managementAuth.js';
 
 export * from './resultPresentation.js';
+
+export * from './sshAccess.js';
