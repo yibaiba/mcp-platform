@@ -86,6 +86,13 @@ func (s *Store) saveConfiguration(input Install) error {
 		if string(old) != hex.EncodeToString(fingerprint[:]) {
 			return fmt.Errorf("operation ID already used with different configuration")
 		}
+		revision, err := s.configurationRevision(input.SHA256)
+		if err != nil {
+			return err
+		}
+		if revision == "" {
+			return fmt.Errorf("previous operation completed but configuration was removed; create a new preview to install again")
+		}
 		return nil
 	} else if !os.IsNotExist(err) {
 		return err
@@ -110,6 +117,9 @@ func (s *Store) saveConfiguration(input Install) error {
 func (s *Store) Configuration(hash string) (json.RawMessage, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.configuration(hash, "")
+}
+func (s *Store) configuration(hash, revision string) (json.RawMessage, error) {
 	if !hashPattern.MatchString(hash) {
 		return nil, fmt.Errorf("invalid bundle digest")
 	}
@@ -120,6 +130,12 @@ func (s *Store) Configuration(hash string) (json.RawMessage, error) {
 	data, err := os.ReadFile(filepath.Join(s.Dir, hash+".enc"))
 	if err != nil {
 		return nil, err
+	}
+	if revision != "" {
+		sum := sha256.Sum256(data)
+		if hex.EncodeToString(sum[:]) != revision {
+			return nil, fmt.Errorf("MCPB configuration changed; refresh the local resource and client configuration")
+		}
 	}
 	if len(data) < aead.NonceSize() {
 		return nil, fmt.Errorf("invalid encrypted bundle configuration")
@@ -153,7 +169,11 @@ func (s *Store) List() ([]map[string]string, error) {
 		if err = json.Unmarshal(data, &manifest); err != nil {
 			return nil, err
 		}
-		result = append(result, map[string]string{"sha256": hash, "name": manifest.Name, "version": manifest.Version})
+		revision, err := s.configurationRevision(hash)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, map[string]string{"sha256": hash, "name": manifest.Name, "version": manifest.Version, "revision": revision})
 	}
 	return result, nil
 }

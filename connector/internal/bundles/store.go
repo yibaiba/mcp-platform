@@ -3,6 +3,7 @@ package bundles
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -25,11 +26,13 @@ type Store struct {
 	mu  sync.Mutex
 }
 type Install struct {
-	SHA256      string          `json:"sha256"`
-	Archive     string          `json:"archive"`
-	OperationID string          `json:"operationId"`
-	Revision    string          `json:"revision,omitempty"`
-	Config      json.RawMessage `json:"config,omitempty"`
+	SHA256         string            `json:"sha256"`
+	Archive        string            `json:"archive"`
+	OperationID    string            `json:"operationId"`
+	Revision       string            `json:"revision,omitempty"`
+	Config         json.RawMessage   `json:"config,omitempty"`
+	RuntimeCommand string            `json:"runtimeCommand,omitempty"`
+	RuntimeEnv     map[string]string `json:"runtimeEnv,omitempty"`
 }
 
 func (s *Store) Environment(hash string) (any, error) {
@@ -95,6 +98,11 @@ func (s *Store) Install(raw json.RawMessage) (any, error) {
 		}
 	} else {
 		return nil, err
+	}
+	if len(input.Config) > 0 || input.RuntimeCommand != "" {
+		if err = s.checkRuntime(context.Background(), input); err != nil {
+			return nil, err
+		}
 	}
 	if len(input.Config) > 0 {
 		if err = s.saveConfiguration(input); err != nil {

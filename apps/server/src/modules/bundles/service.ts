@@ -1,3 +1,7 @@
+import { BundleLifecycle } from './lifecycle.js';
+import { bundleFailure } from './diagnostics.js';
+import type { Vault } from '../../shared/crypto.js';
+import { runtimeRequirement, verifyRuntime } from './runtime.js';
 import { randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
 import { and, eq } from 'drizzle-orm';
@@ -26,6 +30,7 @@ const installInput = target.extend({
   previewDigest: z.string(),
 });
 export class BundleService {
+  readonly lifecycle: BundleLifecycle;
   constructor(
     private readonly deps: {
       db: Database;
@@ -34,8 +39,12 @@ export class BundleService {
       connections: ConnectionService;
       devices: DeviceService;
       broker: DeviceBroker;
+      vault: Vault;
+      changed: (ids: string[]) => Promise<void>;
     },
-  ) {}
+  ) {
+    this.lifecycle = new BundleLifecycle(deps);
+  }
   async recover() {
     await this.deps.db
       .update(mcpbInstalls)
@@ -58,12 +67,28 @@ export class BundleService {
         .onConflictDoNothing()
         .returning();
       if (row) return this.publicPackage(row);
+      const restored = await this.deps.db.transaction(async (tx) => {
+        const [existing] = await tx
+          .select()
+          .from(mcpbPackages)
+          .where(and(eq(mcpbPackages.ownerId, ownerId), eq(mcpbPackages.sha256, saved.sha256)))
+          .for('update');
+        const found = requireValue(existing);
+        if (found.removedAt) {
+          await this.deps.files.write({
+            id: found.id,
+            body: (await this.deps.files.blob(id)).stream(),
+            sha256: found.sha256,
+          });
+          await tx
+            .update(mcpbPackages)
+            .set({ removedAt: null })
+            .where(eq(mcpbPackages.id, found.id));
+        }
+        return this.publicPackage(found);
+      });
       await this.deps.files.remove(id);
-      const [existing] = await this.deps.db
-        .select()
-        .from(mcpbPackages)
-        .where(and(eq(mcpbPackages.ownerId, ownerId), eq(mcpbPackages.sha256, saved.sha256)));
-      return this.publicPackage(requireValue(existing));
+      return restored;
     } catch (error) {
       await this.deps.files.remove(id);
       throw error;
@@ -80,7 +105,9 @@ export class BundleService {
       .select()
       .from(mcpbPackages)
       .where(and(eq(mcpbPackages.id, id), eq(mcpbPackages.ownerId, ownerId)));
-    return requireValue(row);
+    const found = requireValue(row);
+    if (found.removedAt) throw new AppError('MCPB_REMOVED', '扩展包已清理，请重新上传', 409);
+    return found;
   }
   private async environment(
     ownerId: string,
@@ -119,6 +146,7 @@ export class BundleService {
     const environment = await this.environment(ownerId, input, row.sha256);
     const manifest = mcpbManifest.parse(row.manifest);
     const config = compile({ manifest, environment, values: input.values, redact: true });
+    runtimeRequirement(manifest, config);
     return {
       ...this.publicPackage(row),
       adapter: input.adapter,
@@ -156,11 +184,28 @@ export class BundleService {
       if (revision !== connection.revision)
         throw new AppError('REVISION_CONFLICT', '替换连接需要当前修订号', 409);
     }
-    const [created] = await this.deps.db
-      .insert(mcpbInstalls)
-      .values({ id: operationId, ownerId, packageId: id, fingerprint, state: 'running' })
-      .onConflictDoNothing()
-      .returning();
+    const created = await this.deps.db.transaction(async (tx) => {
+      const [current] = await tx
+        .select()
+        .from(mcpbPackages)
+        .where(eq(mcpbPackages.id, id))
+        .for('update');
+      if (!current || current.removedAt)
+        throw new AppError('MCPB_REMOVED', '扩展包已清理，请重新上传', 409);
+      const [created] = await tx
+        .insert(mcpbInstalls)
+        .values({
+          id: operationId,
+          ownerId,
+          packageId: id,
+          fingerprint,
+          state: 'running',
+          destination: input.adapter === 'device' ? `device:${input.deviceId}` : input.adapter,
+        })
+        .onConflictDoNothing()
+        .returning();
+      return created;
+    });
     if (!created) {
       const previous = await this.status(ownerId, operationId);
       if (previous.fingerprint !== fingerprint)
@@ -174,17 +219,19 @@ export class BundleService {
         .update(mcpbInstalls)
         .set({
           state: 'failed',
-          error: '安装或连接失败；请检查连接诊断、设备和运行时。不会自动重试或回滚。',
+          error: bundleFailure(error, input.values),
         })
         .where(eq(mcpbInstalls.id, operationId));
-      if (error instanceof AppError) throw error;
       throw new AppError(
         'MCPB_INSTALL_FAILED',
-        '安装失败；请检查运行时与文件权限，不会自动重试或回滚',
+        `${bundleFailure(error, input.values)}。操作 ${operationId}；可在安装历史查看失败阶段，不会自动重试或回滚。`,
         502,
       );
     }
     return this.status(ownerId, operationId);
+  }
+  private phase(id: string, phase: string) {
+    return this.deps.db.update(mcpbInstalls).set({ phase }).where(eq(mcpbInstalls.id, id));
   }
   private async perform(
     ownerId: string,
@@ -199,17 +246,27 @@ export class BundleService {
     if (digest(Buffer.from(bytes)) !== row.sha256)
       throw new AppError('MCPB_DIGEST', '扩展包文件校验失败，未执行安装', 409);
     const pkg = unpackBundle(bytes);
+    await this.phase(input.operationId, input.adapter === 'device' ? 'device-install' : 'extract');
     const launch = compile({ manifest: pkg.manifest, environment, values: input.values });
     if (input.adapter === 'device') {
+      if (runtimeRequirement(pkg.manifest, launch).length)
+        this.deps.broker.requireCapability(input.deviceId!, 'mcpb-runtime');
       await this.deps.broker.request(input.deviceId!, {
         method: 'mcpb.install',
         params: {
           sha256: row.sha256,
           archive: Buffer.from(bytes).toString('base64'),
           operationId: input.operationId,
+          runtimeCommand: launch.command,
+          runtimeEnv: launch.env,
         },
       });
-    } else await this.deps.disk.extract({ ownerId, sha256: row.sha256, ...pkg });
+    } else {
+      await this.deps.disk.extract({ ownerId, sha256: row.sha256, ...pkg });
+      await this.phase(input.operationId, 'runtime');
+      await verifyRuntime(pkg.manifest, launch);
+    }
+    await this.phase(input.operationId, 'connection');
     const config = {
       name: pkg.manifest.display_name ?? pkg.manifest.name,
       adapter: input.adapter,
@@ -227,12 +284,16 @@ export class BundleService {
       : await this.deps.connections.create(ownerId, config);
     await this.deps.db
       .update(mcpbInstalls)
-      .set({ connectionId: connection.id })
+      .set({
+        connectionId: connection.id,
+        connectionRevision: connection.revision,
+        phase: 'discover',
+      })
       .where(eq(mcpbInstalls.id, input.operationId));
     await this.deps.connections.discover(ownerId, connection.id);
     await this.deps.db
       .update(mcpbInstalls)
-      .set({ state: 'succeeded' })
+      .set({ state: 'succeeded', phase: 'complete' })
       .where(eq(mcpbInstalls.id, input.operationId));
   }
 }

@@ -9,6 +9,9 @@ export class BundleDiskStore {
     if (!/^[a-f0-9]{64}$/.test(sha256)) throw new AppError('MCPB_DIGEST', '无效包摘要');
     return join(this.root, digest(ownerId), sha256);
   }
+  remove(ownerId: string, sha256: string) {
+    return rm(this.directory(ownerId, sha256), { recursive: true, force: true });
+  }
   async extract(input: {
     ownerId: string;
     sha256: string;

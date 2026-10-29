@@ -115,7 +115,7 @@ const groups = requested.length
         '--exclude',
         'tests/library.test.ts',
         '--exclude',
-        'tests/bundles*.test.ts',
+        'tests/bundle*.test.ts',
       ],
       [
         'tests/network.test.ts',
@@ -130,6 +130,7 @@ const groups = requested.length
       ],
       ['tests/devices.test.ts', 'tests/deviceAuth.test.ts'],
       ['tests/library.test.ts', 'tests/bundles.test.ts', 'tests/bundlesDevice.test.ts'],
+      ['tests/bundleLifecycle.test.ts', 'tests/bundleLocal.test.ts'],
       [
         'tests/workspacePermissions.test.ts',
         'tests/workspaceIdentity.test.ts',

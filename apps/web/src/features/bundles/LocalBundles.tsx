@@ -10,7 +10,7 @@ import type { ManagementApi } from '../local/api.js';
 import { Action, Code, Feedback, Field, Form } from '../../components/shared/Controls.js';
 import { Input } from '../../components/ui/input.js';
 import { BundleFields, bundleValues } from './BundleFields.js';
-type Item = { sha256: string; name: string; version: string };
+type Item = { sha256: string; name: string; version: string; revision: string };
 export function LocalBundles({ api }: { api: ManagementApi }) {
   const [pkg, setPackage] = useState<{
     archive: string;
@@ -29,7 +29,10 @@ export function LocalBundles({ api }: { api: ManagementApi }) {
   return (
     <section>
       <h2>本机 MCPB 扩展包</h2>
-      <p>配置加密保存在本机。安装不启动服务；点击“连接验证”才会执行 MCP。</p>
+      <p>
+        配置加密保存在本机。保存后可在本机资源中选择同步，再到平台授权给
+        Profile；也可复制客户端配置直接使用。安装不启动服务。
+      </p>
       <Feedback error={error} />
       <Form
         label="解析本机 MCPB"
@@ -65,7 +68,9 @@ export function LocalBundles({ api }: { api: ManagementApi }) {
             {pkg.manifest.name} · {pkg.manifest.version}
           </h3>
           {pkg.environment.configurationRevision ? (
-            <p>此包已有本机配置。保存将替换该修订，运行中的服务需要重新连接。</p>
+            <p>
+              此包已有本机配置。保存将替换该修订，旧会话会关闭；同步后重新连接，并更新外部客户端配置。
+            </p>
           ) : null}
           <Form
             label="预览本机配置"
@@ -113,6 +118,14 @@ export function LocalBundles({ api }: { api: ManagementApi }) {
                 }),
               );
               await refresh();
+              setReview(undefined);
+              setPackage({
+                ...pkg,
+                environment: (await api.request({
+                  action: 'mcpb.environment',
+                  id: pkg.sha256,
+                })) as BundleEnvironment,
+              });
             }}
           >
             保存到本机
@@ -138,6 +151,28 @@ export function LocalBundles({ api }: { api: ManagementApi }) {
           >
             停止
           </Action>
+          <Action
+            action={async () =>
+              setResult(await api.request({ action: 'mcpb.client', id: item.sha256 }))
+            }
+          >
+            查看客户端配置
+          </Action>
+          <Action
+            action={async () => {
+              setResult(
+                await api.request({
+                  action: 'mcpb.remove',
+                  id: item.sha256,
+                  content: { revision: item.revision },
+                }),
+              );
+              await refresh();
+            }}
+          >
+            移除本机配置
+          </Action>
+          <p>移除会关闭连接并撤下同步资源。包文件保留，避免影响平台在此设备上的安装。</p>
         </div>
       ))}
       {result ? <Code value={result} /> : null}

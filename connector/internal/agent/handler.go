@@ -96,7 +96,7 @@ func (d *Dispatch) Capabilities() []string {
 		values = append(values, "package-updates")
 	}
 	if d.Local != nil {
-		values = append(values, "local-management", "local-sync", "package-updates", "mcpb")
+		values = append(values, "local-management", "local-sync", "package-updates", "mcpb", "mcpb-runtime")
 	}
 	return values
 }

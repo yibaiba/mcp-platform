@@ -156,3 +156,80 @@ test('configuration export/import carries logical references and content without
   expect(copied[0]!.id).not.toBe(item.id);
   expect(copied[0]).toMatchObject({ template: prompt.template });
 });
+
+test('deletion atomically removes Profile grants and presentation references while preserving other content', async () => {
+  const { ownerId } = await h.signup();
+  const item = await h.services.library.save(ownerId, { kind: 'prompt', value: prompt });
+  const keep = await h.services.library.save(ownerId, {
+    kind: 'prompt',
+    value: { ...prompt, name: 'keep' },
+  });
+  const profile = (await h.services.profiles.save(ownerId, {
+    name: 'delete-regression',
+    contentIds: [item.contentId, keep.contentId],
+    requestable: { toolIds: [], contentIds: [item.contentId], artifactIds: [] },
+    catalog: {
+      connectionAliases: { [item.id]: 'removed', [keep.id]: 'kept' },
+      content: {
+        [item.contentId]: { description: 'remove' },
+        [keep.contentId]: { description: 'keep' },
+      },
+    },
+    connectionIdentities: { [item.id]: 'profile' },
+  }))!;
+  const unaffected = (await h.services.profiles.save(ownerId, {
+    name: 'unaffected',
+    contentIds: [keep.contentId],
+  }))!;
+  await h.services.library.remove(ownerId, {
+    id: item.id,
+    kind: 'prompt',
+    revision: item.revision,
+  });
+  const updated = await h.services.profiles.owned(ownerId, profile.id);
+  expect(updated.contentIds).toEqual([keep.contentId]);
+  expect(updated.requestable.contentIds).toEqual([]);
+  expect(updated.catalog.connectionAliases).toEqual({ [keep.id]: 'kept' });
+  expect(updated.catalog.content).toEqual({ [keep.contentId]: { description: 'keep' } });
+  expect(updated.connectionIdentities).toEqual({});
+  expect(updated.revision).toBe(profile.revision + 1);
+  expect((await h.services.profiles.owned(ownerId, unaffected.id)).revision).toBe(
+    unaffected.revision,
+  );
+  await expect(h.services.configExport.export(ownerId, 'after-delete')).resolves.toBeDefined();
+  await expect(
+    h.services.profiles.save(
+      ownerId,
+      {
+        name: updated.name,
+        contentIds: updated.contentIds,
+        revision: updated.revision,
+        instructions: 'can still edit',
+      },
+      updated.id,
+    ),
+  ).resolves.toMatchObject({ instructions: 'can still edit' });
+  await expect(
+    h.services.profiles.save(
+      ownerId,
+      {
+        name: 'stale',
+        contentIds: [item.contentId],
+        revision: profile.revision,
+      },
+      profile.id,
+    ),
+  ).rejects.toMatchObject({ code: 'REVISION_CONFLICT' });
+});
+test('concurrent grant creation and content deletion never leave a dangling reference', async () => {
+  const { ownerId } = await h.signup();
+  const item = await h.services.library.save(ownerId, { kind: 'prompt', value: prompt });
+  const results = await Promise.allSettled([
+    h.services.profiles.save(ownerId, { name: 'racing', contentIds: [item.contentId] }),
+    h.services.library.remove(ownerId, { id: item.id, kind: 'prompt', revision: item.revision }),
+  ]);
+  expect(results[1]!.status).toBe('fulfilled');
+  if (results[0]!.status === 'rejected') expect(results[0]!.reason.code).toBe('INVALID_GRANTS');
+  for (const profile of await h.services.profiles.list(ownerId))
+    expect(profile.contentIds).not.toContain(item.contentId);
+});

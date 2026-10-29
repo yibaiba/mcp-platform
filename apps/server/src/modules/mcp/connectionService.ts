@@ -224,7 +224,7 @@ export class ConnectionService {
             config: this.deps.vault.seal(config, `${ownerId}:${input.id}`),
           })
           .onConflictDoNothing()
-          .returning({ id: connections.id });
+          .returning({ id: connections.id, revision: connections.revision });
         if (inserted.length) await indexLibrary(tx, { id: input.id, ownerId, config });
       })
       .catch(libraryConflict);
@@ -249,7 +249,7 @@ export class ConnectionService {
         const inserted = await tx
           .insert(connections)
           .values(rows)
-          .returning({ id: connections.id });
+          .returning({ id: connections.id, revision: connections.revision });
         for (const [index, row] of rows.entries())
           await indexLibrary(tx, { id: row.id, ownerId, config: configs[index]! });
         return inserted;
@@ -518,14 +518,14 @@ export class ConnectionService {
             error: null,
           })
           .where(and(eq(connections.id, id), eq(connections.revision, row.revision)))
-          .returning({ id: connections.id });
+          .returning({ id: connections.id, revision: connections.revision });
         if (updated.length) await indexLibrary(tx, { id, ownerId, config });
         return updated;
       })
       .catch(libraryConflict);
     if (!updated.length) throw new AppError('REVISION_CONFLICT', '连接配置已变化，请重新加载', 409);
     await this.deps.db.delete(catalogSnapshots).where(eq(catalogSnapshots.connectionId, id));
-    return { id };
+    return { id, revision: row.revision + 1 };
   }
   async wake(ownerId: string, id: string) {
     const context = await this.context(ownerId, id);

@@ -20,6 +20,9 @@ func (s *Service) write(ctx context.Context, input mutation) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("resource not found")
 	}
+	if s.options.Bundles != nil && resource.Path == filepath.Join(s.options.Bundles.Dir, "clients.json") {
+		return nil, fmt.Errorf("manage MCPB configuration in the local MCPB panel")
+	}
 	if resource.ReadOnly {
 		return nil, fmt.Errorf("resource is read-only")
 	}

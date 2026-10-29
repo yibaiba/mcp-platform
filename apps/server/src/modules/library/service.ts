@@ -1,3 +1,4 @@
+import { removeConnectionReferences } from '../mcp/removeReferences.js';
 import { and, eq } from 'drizzle-orm';
 import { connections, libraryEntries, type Database } from '@platform/db';
 import {
@@ -17,7 +18,7 @@ export class LibraryService {
       db: Database;
       vault: Vault;
       connections: ConnectionService;
-      changed: (ownerId: string, contentId: string) => Promise<void>;
+      changed: (ownerId: string, contentId: string, profileIds?: string[]) => Promise<void>;
     },
   ) {}
   async list(ownerId: string, kind: LibraryItem['kind']) {
@@ -81,18 +82,25 @@ export class LibraryService {
       throw new AppError('REVISION_CONFLICT', '内容已改变，请重新加载', 409);
     await this.deps.connections.close(ownerId, input.id);
     // Compare and delete atomically; a concurrent edit must not be silently deleted.
-    const deleted = await this.deps.db
-      .delete(connections)
-      .where(
-        and(
-          eq(connections.ownerId, ownerId),
-          eq(connections.id, input.id),
-          eq(connections.revision, input.revision),
-        ),
-      )
-      .returning();
-    if (!deleted.length) throw new AppError('REVISION_CONFLICT', '内容已改变，请重新加载', 409);
-    await this.deps.changed(ownerId, previous.contentId);
+    const affected = await this.deps.db.transaction(async (tx) => {
+      const deleted = await tx
+        .delete(connections)
+        .where(
+          and(
+            eq(connections.ownerId, ownerId),
+            eq(connections.id, input.id),
+            eq(connections.revision, input.revision),
+          ),
+        )
+        .returning();
+      if (!deleted.length) throw new AppError('REVISION_CONFLICT', '内容已改变，请重新加载', 409);
+      return removeConnectionReferences(tx, {
+        connectionId: input.id,
+        contentIds: [previous.contentId],
+        toolIds: [],
+      });
+    });
+    await this.deps.changed(ownerId, previous.contentId, affected);
   }
   preview(value: unknown) {
     const input = z

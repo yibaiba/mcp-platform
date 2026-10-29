@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { harness } from './harness.js';
-import { archive } from './fixtureBundle.js';
+import { archive, manifest } from './fixtureBundle.js';
 let h: Awaited<ReturnType<typeof harness>>;
 let child: ChildProcess;
 beforeAll(async () => {
@@ -69,6 +69,28 @@ test('real HMAC connector installs immutable bytes, discovers MCP and denies rev
       },
     }),
   ).rejects.toThrow();
+  const incompatibleBytes = archive({
+    ...manifest(),
+    compatibility: { runtimes: { node: '>=999' } },
+  } as ReturnType<typeof manifest>);
+  const incompatible = await h.services.bundles.upload(
+    ownerId,
+    new Blob([new Uint8Array(incompatibleBytes)]).stream(),
+  );
+  const review = await h.services.bundles.preview(ownerId, incompatible.id, destination);
+  const failedId = randomUUID();
+  await expect(
+    h.services.bundles.install(ownerId, incompatible.id, {
+      ...destination,
+      previewDigest: review.previewDigest,
+      operationId: failedId,
+    }),
+  ).rejects.toThrow('MCPB_RUNTIME_INCOMPATIBLE');
+  expect(await h.services.bundles.status(ownerId, failedId)).toMatchObject({
+    state: 'failed',
+    phase: 'device-install',
+    connectionId: null,
+  });
   await h.services.devices.revoke(ownerId, device.deviceId);
   await expect(h.services.bundles.preview(ownerId, pkg.id, destination)).rejects.toThrow();
 }, 20000);

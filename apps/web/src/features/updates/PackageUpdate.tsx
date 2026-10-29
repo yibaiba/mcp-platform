@@ -15,6 +15,7 @@ type Status = {
   scheduled: boolean;
   stale: boolean;
   result: Result | null;
+  runtimeVersion: string | null;
   runtimeVersionReason: string;
 };
 export function PackageUpdate({ id }: { id: string }) {
@@ -28,7 +29,7 @@ export function PackageUpdate({ id }: { id: string }) {
       <h3>包版本与更新</h3>
       <Feedback error={query.error} />
       <p className="text-xs text-muted-foreground">
-        已验证运行版本：未知。{query.data?.runtimeVersionReason}
+        已验证运行版本：{query.data?.runtimeVersion ?? '未知'}。{query.data?.runtimeVersionReason}
       </p>
       {query.data?.stale ? <p>连接或网络配置已变化，历史检查结果已过期。</p> : null}
       {result?.state === 'failed' ? (

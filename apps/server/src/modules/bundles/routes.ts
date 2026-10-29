@@ -4,6 +4,11 @@ import { AppError } from '../../shared/errors.js';
 import type { BundleService } from './service.js';
 export function bundleRoutes(service: BundleService) {
   const app = new Hono<ApiEnv>();
+  app.get('/', async (c) => c.json(await service.lifecycle.history(owner(c))));
+  app.delete('/:id', async (c) => c.json(await service.lifecycle.remove(owner(c), paramId(c))));
+  app.post('/operations/:id/uninstall', async (c) =>
+    c.json(await service.lifecycle.uninstall(owner(c), paramId(c))),
+  );
   app.post('/', async (c) => {
     if (!c.req.raw.body) throw new AppError('MCPB_UPLOAD', '请选择 MCPB 文件');
     return c.json(await service.upload(owner(c), c.req.raw.body), 201);

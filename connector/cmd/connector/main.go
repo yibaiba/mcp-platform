@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/kardianos/service"
 	"log"
+	"mcplatform/connector/internal/bundles"
 	"mcplatform/connector/internal/install"
 	"mcplatform/connector/internal/processtree"
 	"os"
@@ -25,6 +26,9 @@ func execute() error {
 		return fmt.Errorf("usage: connector connect|pair|re-pair|run|manage|install|uninstall --config path [--server URL] [--scope user|system]")
 	}
 	action := os.Args[1]
+	if action == "bundle-stdio" {
+		return bundles.Stdio(os.Args[2:])
+	}
 	flags := flag.NewFlagSet(action, flag.ContinueOnError)
 	grace := flags.Duration("grace", 5*time.Second, "managed process shutdown grace period")
 	offline := flags.Bool("offline", true, "manage without a platform connection (use --offline=false with --config to sync)")

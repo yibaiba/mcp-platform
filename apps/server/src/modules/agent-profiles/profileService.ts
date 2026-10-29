@@ -9,6 +9,7 @@ import type { ShareService } from '../shares/shareService.js';
 import { and, eq, inArray, gt, isNull, or, sql } from 'drizzle-orm';
 import {
   profiles,
+  connections,
   artifacts,
   tools,
   mcpEntries,
@@ -120,28 +121,70 @@ export class ProfileService {
       throw new AppError('SKILL_DEPENDENCY', 'Skill 依赖的 MCP 工具尚未授权');
     if (new Set(versions.map((v) => v.name)).size !== versions.length)
       throw new AppError('SKILL_DUPLICATE', '每个 Skill 只能选择一个版本');
-    if (id) {
-      const [profile] = await this.db
-        .update(profiles)
-        .set({
-          ...value,
-          artifactIds,
-          contentIds,
-          toolIds,
-          skillVersionIds: versionIds,
-          revision: sql`${profiles.revision} + 1`,
-        })
-        .where(and(eq(profiles.id, id), eq(profiles.revision, previous!.revision)))
+    return this.db.transaction(async (tx) => {
+      const connectionIds = [
+        ...new Set([
+          ...Object.keys(value.catalog.connectionAliases),
+          ...Object.keys(value.connectionIdentities ?? {}),
+        ]),
+      ];
+      if (connectionIds.length) {
+        const locked = await tx
+          .select({ id: connections.id })
+          .from(connections)
+          .where(inArray(connections.id, connectionIds))
+          .orderBy(connections.id)
+          .for('key share');
+        if (locked.length !== connectionIds.length)
+          throw new AppError('INVALID_GRANTS', '连接已删除，请重新加载授权目录', 409);
+      }
+      // Hold content rows until the grant write commits so deletion cannot leave a new dangling grant.
+      const required = [...new Set([...contentIds, ...(value.requestable?.contentIds ?? [])])];
+      if (required.length) {
+        const locked = await tx
+          .select({ id: mcpEntries.id })
+          .from(mcpEntries)
+          .where(inArray(mcpEntries.id, required))
+          .orderBy(mcpEntries.id)
+          .for('key share');
+        if (locked.length !== required.length)
+          throw new AppError('INVALID_GRANTS', '内容已删除，请重新加载授权目录', 409);
+      }
+      const requiredTools = [...new Set([...toolIds, ...(value.requestable?.toolIds ?? [])])];
+      if (requiredTools.length) {
+        const locked = await tx
+          .select({ id: tools.id })
+          .from(tools)
+          .where(inArray(tools.id, requiredTools))
+          .orderBy(tools.id)
+          .for('key share');
+        if (locked.length !== requiredTools.length)
+          throw new AppError('INVALID_GRANTS', '工具已删除，请重新加载授权目录', 409);
+      }
+      if (id) {
+        const [profile] = await tx
+          .update(profiles)
+          .set({
+            ...value,
+            artifactIds,
+            contentIds,
+            toolIds,
+            skillVersionIds: versionIds,
+            revision: sql`${profiles.revision} + 1`,
+          })
+          .where(and(eq(profiles.id, id), eq(profiles.revision, previous!.revision)))
+          .returning();
+        if (!profile) throw new AppError('REVISION_CONFLICT', '配置已改变，请重新加载', 409);
+        return profile;
+      }
+      const [profile] = await tx
+        .insert(profiles)
+        .values({ ...value, contentIds, ownerId, toolIds, skillVersionIds: versionIds })
         .returning();
-      if (!profile) throw new AppError('REVISION_CONFLICT', '配置已改变，请重新加载', 409);
       return profile;
-    }
-    const [profile] = await this.db
-      .insert(profiles)
-      .values({ ...value, contentIds, ownerId, toolIds, skillVersionIds: versionIds })
-      .returning();
-    return profile;
+    });
   }
+
   private async validateRequestable(ownerId: string, value: ReturnType<typeof profileInput.parse>) {
     for (const [kind, table] of [
       ['toolIds', tools],

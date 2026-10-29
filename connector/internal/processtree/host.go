@@ -1,11 +1,14 @@
 package processtree
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -14,7 +17,12 @@ func Host(args []string, grace time.Duration) error {
 	if len(args) == 0 {
 		return fmt.Errorf("stdio-host requires a command after --")
 	}
-	command := exec.Command(args[0], args[1:]...)
+	return HostCommand(exec.Command(args[0], args[1:]...), grace)
+}
+
+func HostCommand(command *exec.Cmd, grace time.Duration) error {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
 	input, err := command.StdinPipe()
 	if err != nil {
 		return err
@@ -29,6 +37,8 @@ func Host(args []string, grace time.Duration) error {
 	go func() { _, err := io.Copy(input, os.Stdin); copied <- errors.Join(err, input.Close()) }()
 	go func() { exited <- tree.Wait() }()
 	select {
+	case <-ctx.Done():
+		return tree.Stop(grace)
 	case err := <-copied:
 		return errors.Join(err, tree.Stop(grace))
 	case err := <-exited:
