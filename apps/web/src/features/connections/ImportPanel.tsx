@@ -11,7 +11,7 @@ export function ImportPanel({ devices }: { devices: Device[] }) {
   const [review, setReview] = useState<{ input: unknown; preview: ImportPreview[] }>();
   const [result, setResult] = useState<unknown>();
   return (
-    <Disclosure title="导入旧 MCPHub 配置" className="panel padded">
+    <Disclosure title="导入 MCP 配置" className="panel padded">
       <Form
         label="验证并预览"
         submit={async (data) => {
