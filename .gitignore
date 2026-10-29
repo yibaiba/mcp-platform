@@ -52,3 +52,6 @@ temp
 connector/bin/
 /artifacts/
 integrations/pi/.pi/
+
+connector/internal/localhttp/assets/*
+!connector/internal/localhttp/assets/README.txt

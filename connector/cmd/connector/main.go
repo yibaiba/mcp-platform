@@ -22,11 +22,12 @@ func main() {
 }
 func execute() error {
 	if len(os.Args) < 2 {
-		return fmt.Errorf("usage: connector connect|pair|re-pair|run|install|uninstall --config path [--server URL] [--scope user|system]")
+		return fmt.Errorf("usage: connector connect|pair|re-pair|run|manage|install|uninstall --config path [--server URL] [--scope user|system]")
 	}
 	action := os.Args[1]
 	flags := flag.NewFlagSet(action, flag.ContinueOnError)
 	grace := flags.Duration("grace", 5*time.Second, "managed process shutdown grace period")
+	offline := flags.Bool("offline", true, "manage without a platform connection (use --offline=false with --config to sync)")
 	dataDir := flags.String("data-dir", "", "absolute local management storage directory")
 	path := flags.String("config", "connector.json", "configuration path")
 	certificatePath := flags.String("ca-cert", "", "additional platform CA certificate PEM file")
@@ -42,6 +43,11 @@ func execute() error {
 	client, err := newHTTPClient(*certificatePath)
 	if err != nil {
 		return err
+	}
+	if action == "manage" {
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer cancel()
+		return manage(ctx, managementOptions{ConfigPath: *path, DataDir: *dataDir, Client: client, Offline: *offline})
 	}
 	if action == "re-pair" {
 		return pairingCommand(client, repairOptions{Action: action, Path: *path, Server: *server, DeviceID: *deviceID})

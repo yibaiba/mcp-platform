@@ -134,6 +134,13 @@
       "when": 1793237431973,
       "tag": "0018_blushing_punisher",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793239990777,
+      "tag": "0019_mute_karen_page",
+      "breakpoints": true
     }
   ]
 }

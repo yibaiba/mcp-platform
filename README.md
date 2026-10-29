@@ -6,7 +6,7 @@
 
 ## 本地启动
 
-要求 Node.js 22.19+、pnpm **10.12.4**、PostgreSQL 17；构建设备连接器需要 Go 1.25+。
+要求 Node.js 22.19+、pnpm **10.12.4**、PostgreSQL 17；构建设备连接器需要 Go 1.27.3+。
 
 ```sh
 git clone https://github.com/yibaiba/mcp-platform.git
@@ -21,7 +21,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 
 ```sh
 pnpm db:migrate
-pnpm connector:build # 平台管理员构建六种设备安装包；需要 Go 1.25+
+pnpm connector:build # 平台管理员构建六种设备安装包；需要 Go 1.27.3+
 pnpm dev
 ```
 
@@ -55,7 +55,7 @@ pnpm dev
 - 工具目录按连接、设备和实际 Agent 权限筛选，显示执行位置与身份归属；从 Agent 或工具直达调用记录，按名称筛选并查看阶段、耗时与关联标识。目录筛选和调用详情地址可保存、刷新与分享给同账号使用。
 - 外部 Agent 工具说明包含连接、设备及身份方式；MCP 可列出授权产物并按字节读取文本或二进制，不要求内置模型。接入边界见[外部 Agent 接入与隔离](docs/external-agents.md)。
 
-桌面连接器支持原生窗口、托盘、本机 MCP/Skills 管理及六架构安装包，使用方式见[桌面端说明](docs/connector-desktop.md)。
+桌面连接器支持原生窗口、托盘、本机 MCP/Skills 管理及六架构安装包，使用方式见[桌面端说明](docs/connector-desktop.md)。CLI 也可用 `connector manage` 打开[独立本机管理页](docs/local-management.md)，无需配对。已有 HTTP MCP 可通过[SSH 反向转发接入](docs/ssh-access.md)，设备页提供绑定及 Windows 连接包。
 
 ## 验证
 

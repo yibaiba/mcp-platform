@@ -8,6 +8,7 @@ import { api, type Device } from '../../lib/api.js';
 import { DevicePairing } from './DevicePairing.js';
 import { DeviceToolsDialog } from './DeviceToolsDialog.js';
 import { Action, Code, date, Empty, Feedback, Status } from '../../components/shared/Controls.js';
+const SshAccesses = lazy(() => import('./SshAccesses.js'));
 const DeviceLocalManager = lazy(() => import('../local/DeviceLocalManager.js'));
 export default function DevicesPage() {
   const [localDevice, setLocalDevice] = useState<string>();
@@ -101,6 +102,9 @@ export default function DevicesPage() {
           <Empty>尚未绑定设备。生成配对码，然后在目标设备上连接。</Empty>
         )}
       </Card>
+      <Suspense fallback={<p>正在加载 SSH 接入…</p>}>
+        <SshAccesses />
+      </Suspense>
     </>
   );
 }

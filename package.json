@@ -44,6 +44,7 @@
     "@types/ws": "8.18.1",
     "drizzle-orm": "0.45.2",
     "eslint": "10.9.1",
+    "fflate": "0.8.2",
     "globals": "16.5.0",
     "hono": "4.13.11",
     "prettier": "3.6.2",

@@ -68,6 +68,9 @@ importers:
       eslint:
         specifier: 10.9.1
         version: 10.9.1(jiti@2.7.0)
+      fflate:
+        specifier: 0.8.2
+        version: 0.8.2
       globals:
         specifier: 16.5.0
         version: 16.5.0

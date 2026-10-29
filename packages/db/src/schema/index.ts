@@ -11,3 +11,5 @@ export * from './discovery.js';
 export * from './rest.js';
 export * from './management.js';
 export * from './resultOriginals.js';
+
+export * from './sshAccess.js';
