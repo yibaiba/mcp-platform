@@ -93,7 +93,7 @@ jobs:
 
   installers:
     name: Publish connector release files
-    needs: verify
+    needs: [verify, ssh-windows]
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -127,7 +127,7 @@ jobs:
 
   image:
     name: Verify platform image (${{ matrix.arch }})
-    needs: verify
+    needs: [verify, ssh-windows]
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false

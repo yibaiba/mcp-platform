@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
-import { tmpdir, userInfo } from 'node:os';
+import { homedir, userInfo } from 'node:os';
 import { join } from 'node:path';
 import { createServer, connect } from 'node:net';
 import { setTimeout as pause } from 'node:timers/promises';
 import { harness } from '../tests/harness.js';
 import { fixtureMcp } from '../tests/fixtureMcp.js';
-const directory = await mkdtemp(join(tmpdir(), 'platform-ssh-'));
+const directory = await mkdtemp(join(homedir(), '.platform-ssh-test-'));
 const h = await harness();
 const mcp = await fixtureMcp();
 let daemon: ChildProcess | undefined;

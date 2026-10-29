@@ -370,6 +370,32 @@ try {
   assert.match(bundle.suggestedFilename(), /^mcp-platform-ssh-.*\.zip$/);
   assert.equal(await bundle.failure(), null);
   await platform.getByRole('button', { name: '编辑接入', exact: true }).click();
+  const sshRecords = await (await account.request('/ssh-accesses')).json();
+  const sshRecord = sshRecords[0];
+  const {
+    id: sshId,
+    revision: sshRevision,
+    services: _services,
+    tunnelStatus: _status,
+    ...sshConfig
+  } = sshRecord;
+  const changed = await account.request(`/ssh-accesses/${sshId}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      ...sshConfig,
+      revision: sshRevision,
+      name: 'Browser SSH updated elsewhere',
+    }),
+  });
+  assert.equal(changed.status, 200);
+  // Real discovery invalidates the UI query while the editor must retain its old revision.
+  await platform.getByRole('button', { name: '发现 MCP', exact: true }).click();
+  await platform.getByText('Browser SSH updated elsewhere', { exact: true }).waitFor();
+  await platform.getByRole('button', { name: '保存 SSH 接入', exact: true }).click();
+  await platform.getByRole('alert').filter({ hasText: 'SSH 接入已变化' }).waitFor();
+  await platform.getByRole('button', { name: '编辑接入', exact: true }).click();
+  await platform.getByRole('button', { name: '编辑接入', exact: true }).click();
+  await platform.getByLabel('接入名称', { exact: true }).fill('Browser SSH');
   await platform.getByLabel('断线重连间隔（秒）', { exact: true }).fill('7');
   await platform.screenshot({ path: join(screenshots, 'ssh-editor.png'), fullPage: true });
   await platform.getByRole('button', { name: '保存 SSH 接入', exact: true }).click();

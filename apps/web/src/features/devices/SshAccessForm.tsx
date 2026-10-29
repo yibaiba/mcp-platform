@@ -4,7 +4,7 @@ import { Field, Form, value } from '../../components/shared/Controls.js';
 import { Input } from '../../components/ui/input.js';
 import { api, json, type Connection } from '../../lib/api.js';
 export function SshAccessForm({
-  current,
+  current: initial,
   connections,
   done,
 }: {
@@ -12,6 +12,8 @@ export function SshAccessForm({
   connections: Connection[];
   done: () => void;
 }) {
+  // Keep the revision paired with this editor's initial values during background refresh.
+  const [current] = useState(initial);
   const [bindings, setBindings] = useState<SshAccessInput['bindings']>(
     current?.bindings ?? [{ connectionId: '', localPort: 3000, remotePort: 13000 }],
   );
