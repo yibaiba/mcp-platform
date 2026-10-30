@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Card } from '../../components/ui/card.js';
@@ -54,15 +55,7 @@ export default function ToolsPage() {
     void navigate({ replace: true, search: (previous) => ({ ...previous, ...patch }) });
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">TOOL CATALOG</span>
-          <h1>工具目录</h1>
-          <p>
-            按连接和设备找到工具，以所选身份执行真实调用。切换工具或测试身份会取消未完成的请求。
-          </p>
-        </div>
-      </div>
+      <PageHeader title="工具" info="切换工具或测试身份会取消未完成的请求。" />
       <Feedback error={tools.error ?? connections.error ?? devices.error ?? profiles.error} />
       <ToolFilters
         values={filters}

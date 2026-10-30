@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { useState } from 'react';
 import { Button } from '../../components/ui/button.js';
 import { Action, Status, ListSkeleton } from '../../components/shared/Controls.js';
@@ -72,13 +73,7 @@ export default function ActivityPage() {
   };
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">ACTIVITY</span>
-          <h1>运行记录</h1>
-          <p>按 Agent、连接和设备定位调用，查看实际身份与执行阶段。</p>
-        </div>
-      </div>
+      <PageHeader title="运行记录" />
       <Feedback
         error={calls.error ?? tools.error ?? connections.error ?? profiles.error ?? devices.error}
       />

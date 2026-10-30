@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, json } from '../../lib/api.js';
@@ -47,13 +48,7 @@ export default function ConfigurationPage() {
   });
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">CONFIGURATION</span>
-          <h1>配置模板</h1>
-          <p>一次保存完整声明，凭证、设备和真实目录就绪后自动解析能力。</p>
-        </div>
-      </div>
+      <PageHeader title="配置模板" />
       <Feedback error={manifests.error ?? secrets.error} />
       <div className="overview-grid">
         <Card className="panel padded">

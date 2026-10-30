@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { useState } from 'react';
 import { useBlocker } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -50,12 +51,7 @@ export default function LibraryPage() {
   }
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <h1>内容库</h1>
-          <p>维护自己的提示词和静态资源，再到 Agent 配置授权使用。</p>
-        </div>
-      </div>
+      <PageHeader title="内容库" />
       <div className="library-kind">
         <Field label="内容类型">
           <select

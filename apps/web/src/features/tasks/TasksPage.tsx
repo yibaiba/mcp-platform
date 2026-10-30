@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { TaskDetail } from './TaskDetail.js';
 import { ApprovalPanel } from './ApprovalPanel.js';
 import { InteractionPanel } from '../interactions/InteractionPanel.js';
@@ -37,13 +38,10 @@ export default function TasksPage() {
   });
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">BUILT-IN AGENT</span>
-          <h1>内置 Pi Agent</h1>
-          <p>按所选 Agent 配置使用工具和 Skills；只有执行推理任务才需要模型。</p>
-        </div>
-      </div>
+      <PageHeader
+        title="内置 Agent"
+        info="按所选 Agent 配置使用工具和 Skills；只有执行推理任务才需要模型。"
+      />
       <Feedback error={me.error ?? profiles.error ?? tasks.error} />
       {!me.data?.piEnabled ? (
         <Card className="panel padded">

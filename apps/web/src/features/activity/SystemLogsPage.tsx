@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, isForbidden } from '../../lib/api.js';
@@ -58,12 +59,10 @@ export default function SystemLogsPage() {
   if (isForbidden(logs.error)) return <Forbidden />;
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <h1>系统日志</h1>
-          <p>仅管理员可见。记录元数据与错误类别；默认永久保留，自动清理由部署配置显式启用。</p>
-        </div>
-      </div>
+      <PageHeader
+        title="系统日志"
+        info="记录元数据与错误类别；默认永久保留，自动清理由部署配置显式启用。"
+      />
       <Feedback error={logs.error ?? streamError} />
       <div className="overview-grid">
         {Object.entries(filters).map(([key, value]) => (

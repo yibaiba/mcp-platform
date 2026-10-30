@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { ImportConnections } from './ImportConnections.js';
 import { ConnectionSettings } from './ConnectionSettings.js';
 import { useState } from 'react';
@@ -113,46 +114,44 @@ export default function ConnectionsPage() {
   );
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">CONNECTIONS</span>
-          <h1>MCP 连接</h1>
-          <p>连接、授权和调用 MCP 工具无需配置模型；选择执行位置、连接方式和凭证归属。</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <ImportConnections devices={devices.data ?? []} connections={connections.data ?? []} />
-          <Dialog open={show} onOpenChange={setShow}>
-            <DialogTrigger render={<Button onClick={() => setPreset(undefined)} />}>
-              <Plus size={17} />
-              添加连接
-            </DialogTrigger>
-            <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>{preset ? `添加 ${preset.name}` : '新建 MCP 连接'}</DialogTitle>
-                <DialogDescription>
-                  {preset
-                    ? '选择服务运行方式和认证信息，保存后自动连接，再配置 Agent 权限。'
-                    : '选择执行位置和连接协议，再填写服务地址或启动命令。'}
-                </DialogDescription>
-              </DialogHeader>
-              {preset ? (
-                <ConnectorForm key={preset.id} preset={preset} onSaved={connectCreated} />
-              ) : (
-                <ConnectionForm
-                  devices={devices.data ?? []}
-                  onSaved={() => {
-                    setShow(false);
-                    setSetupError(null);
-                    setSetupMessage(
-                      '配置已保存。点击新连接的“连接”读取工具目录；OAuth 服务请先打开“授权与账号”。',
-                    );
-                  }}
-                />
-              )}
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+      <PageHeader
+        title="连接"
+        actions={
+          <>
+            <ImportConnections devices={devices.data ?? []} connections={connections.data ?? []} />
+            <Dialog open={show} onOpenChange={setShow}>
+              <DialogTrigger render={<Button onClick={() => setPreset(undefined)} />}>
+                <Plus size={17} />
+                添加连接
+              </DialogTrigger>
+              <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>{preset ? `添加 ${preset.name}` : '新建 MCP 连接'}</DialogTitle>
+                  <DialogDescription>
+                    {preset
+                      ? '选择服务运行方式和认证信息，保存后自动连接，再配置 Agent 权限。'
+                      : '选择执行位置和连接协议，再填写服务地址或启动命令。'}
+                  </DialogDescription>
+                </DialogHeader>
+                {preset ? (
+                  <ConnectorForm key={preset.id} preset={preset} onSaved={connectCreated} />
+                ) : (
+                  <ConnectionForm
+                    devices={devices.data ?? []}
+                    onSaved={() => {
+                      setShow(false);
+                      setSetupError(null);
+                      setSetupMessage(
+                        '配置已保存。点击新连接的“连接”读取工具目录；OAuth 服务请先打开“授权与账号”。',
+                      );
+                    }}
+                  />
+                )}
+              </DialogContent>
+            </Dialog>
+          </>
+        }
+      />
       <Feedback error={connections.error ?? devices.error} />
       {setupMessage ? <p role="status">{setupMessage}</p> : null}
       <Feedback error={setupError} />

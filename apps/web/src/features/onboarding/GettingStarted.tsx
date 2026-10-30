@@ -5,11 +5,12 @@ import { Button } from '../../components/ui/button.js';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '../../components/ui/dialog.js';
+import { Hint } from '../../components/ui/tooltip.js';
+import { Disclosure } from '../../components/shared/Disclosure.js';
 
 export const setupSteps = [
   {
@@ -41,37 +42,47 @@ export const setupSteps = [
   },
 ] as const;
 
-export function GettingStarted() {
-  const [open, setOpen] = useState(false);
+export function GettingStarted({
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+} = {}) {
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = controlledOpen ?? localOpen;
+  const setOpen = (next: boolean) => {
+    setLocalOpen(next);
+    onOpenChange?.(next);
+  };
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="ghost" />}>
-        <CircleHelp aria-hidden="true" /> 使用指南
-      </DialogTrigger>
+      <Hint content="使用指南">
+        <DialogTrigger render={<Button variant="ghost" size="icon" aria-label="使用指南" />}>
+          <CircleHelp aria-hidden="true" />
+        </DialogTrigger>
+      </Hint>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>让 Agent 用上第一个工具</DialogTitle>
-          <DialogDescription>
-            先接入服务账号，再为 Agent 分配权限，最后连接你的客户端。
-          </DialogDescription>
+          <DialogTitle>使用指南</DialogTitle>
         </DialogHeader>
         <ol className="divide-y">
           {setupSteps.map((step, index) => (
-            <li key={step.title} className="flex gap-4 py-5 first:pt-2">
+            <li key={step.title} className="flex gap-4 py-4 first:pt-2">
               <span
-                className="flex size-7 shrink-0 items-center justify-center rounded-full border text-xs text-muted-foreground"
+                className="flex size-7 shrink-0 items-center justify-center rounded-full border text-caption text-muted-foreground"
                 aria-hidden="true"
               >
                 {index + 1}
               </span>
               <div className="min-w-0 space-y-2">
-                <h3 className="text-sm font-medium">{step.title}</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">{step.description}</p>
+                <h3>{step.title}</h3>
+                <p className="text-muted-foreground">{step.description}</p>
                 <Link
                   to={step.to}
                   hash={step.hash}
                   onClick={() => setOpen(false)}
-                  className="inline-flex min-h-10 items-center gap-1 text-xs text-primary hover:underline"
+                  className="inline-flex min-h-8 items-center gap-1 text-caption text-primary hover:underline"
                 >
                   {step.action}
                   <ArrowUpRight size={14} aria-hidden="true" />
@@ -80,28 +91,29 @@ export function GettingStarted() {
             </li>
           ))}
         </ol>
-        <div className="space-y-2 rounded-lg border bg-muted/30 p-4 text-xs leading-relaxed text-muted-foreground">
-          <p>
-            <strong className="text-foreground">怎么确认可用？</strong> 到工具目录选择对应 Agent
-            身份，再选工具查看参数。点击“执行工具”会执行真实操作，请先确认参数。
-          </p>
-          <p>
-            <strong className="text-foreground">设备和模型需要配置吗？</strong>{' '}
-            远程服务不用配对设备；只有工具要在另一台电脑上运行时才去“设备”页。连接、授权和工具测试无需模型，内置
-            Agent 推理才需要模型配置。
-          </p>
-          <p>
-            <strong className="text-foreground">想接同一服务的多个账号？</strong>{' '}
-            在内置连接器的“管理 / 已连接”菜单中选“添加另一个”，分别命名，再为不同 Agent
-            选择对应连接的工具。
-          </p>
-          <Link
-            to="/tools"
-            onClick={() => setOpen(false)}
-            className="inline-flex min-h-10 items-center gap-1 text-primary hover:underline"
-          >
-            去工具目录检查 <ArrowUpRight size={14} aria-hidden="true" />
-          </Link>
+        <div className="space-y-1 border-t pt-3 text-muted-foreground">
+          <Disclosure title="怎么确认可用？">
+            <p>
+              到工具目录选择对应 Agent
+              身份，再选工具查看参数。点击“执行”会执行真实操作，请先确认参数。
+            </p>
+            <Link
+              to="/tools"
+              onClick={() => setOpen(false)}
+              className="inline-flex min-h-8 items-center gap-1 text-primary hover:underline"
+            >
+              去工具目录 <ArrowUpRight size={14} aria-hidden="true" />
+            </Link>
+          </Disclosure>
+          <Disclosure title="设备和模型需要配置吗？">
+            <p>
+              远程服务不用配对设备；只有工具要在另一台电脑上运行时才去“设备”页。连接、授权和工具测试无需模型，内置
+              Agent 推理才需要模型配置。
+            </p>
+          </Disclosure>
+          <Disclosure title="想接同一服务的多个账号？">
+            <p>在添加连接时再次选择同一服务并分别命名，再为不同 Agent 选择对应连接的工具。</p>
+          </Disclosure>
         </div>
       </DialogContent>
     </Dialog>

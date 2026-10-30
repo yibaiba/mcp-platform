@@ -1,4 +1,6 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { Card } from '../../components/ui/card.js';
+import { Button } from '../../components/ui/button.js';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Plug, Monitor, Wrench, ArrowUpRight, Plus, Network } from 'lucide-react';
@@ -19,19 +21,15 @@ export default function OverviewPage() {
   const calls = useQuery({ queryKey: ['calls'], queryFn: () => api<Call[]>('/calls?limit=5') });
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">WORKSPACE OVERVIEW</span>
-          <h1>
-            一处连接，随处调用<span className="accent">。</span>
-          </h1>
-          <p>管理你的 MCP 服务、设备与 Agent，让每个工具各就其位。</p>
-        </div>
-        <Link className="primary-link" to="/connections">
-          <Plus size={17} />
-          添加 MCP 连接
-        </Link>
-      </div>
+      <PageHeader
+        title="概览"
+        actions={
+          <Button render={<Link to="/connections" />}>
+            <Plus aria-hidden="true" />
+            添加连接
+          </Button>
+        }
+      />
       <Feedback error={connections.error ?? devices.error ?? tools.error ?? calls.error} />
       <div className="stats">
         {[

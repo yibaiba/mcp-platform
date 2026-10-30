@@ -50,7 +50,7 @@ try {
   await page.getByLabel('名称', { exact: true }).fill('keep me');
   await page.getByRole('link', { name: 'MCP 连接', exact: true }).click();
   await page.getByRole('button', { name: '放弃修改并继续', exact: true }).click();
-  await page.getByRole('heading', { name: 'MCP 连接', exact: true }).waitFor();
+  await page.getByRole('heading', { name: '连接', exact: true }).waitFor();
   await page.setViewportSize({ width: 390, height: 600 });
   await page.getByRole('button', { name: '打开导航菜单', exact: true }).click();
   await mkdir('.data/ui-browser-acceptance', { recursive: true });

@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
 import { Card } from '../../components/ui/card.js';
 import { Input } from '../../components/ui/input.js';
@@ -30,13 +31,7 @@ export default function AuthorizationsPage() {
   const [result, setResult] = useState<unknown>();
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">AUTHORIZATIONS</span>
-          <h1>授权连接</h1>
-          <p>平台登录、Agent 接入授权与上游 MCP 凭证分别管理。</p>
-        </div>
-      </div>
+      <PageHeader title="授权连接" />
       <Feedback error={connections.error ?? grants.error} />
       <Card className="panel">
         <div className="panel-heading">

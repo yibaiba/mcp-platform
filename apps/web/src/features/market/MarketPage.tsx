@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { RegistryServer, RegistryInputField, MarketSelection } from '@platform/contracts';
@@ -39,13 +40,7 @@ export default function MarketPage() {
   });
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">MCP REGISTRY</span>
-          <h1>服务市场</h1>
-          <p>从官方 Registry 选择固定版本，在平台或设备安装并连接。</p>
-        </div>
-      </div>
+      <PageHeader title="服务市场" />
       <Card className="panel padded">
         <Form
           label="搜索"
