@@ -147,40 +147,41 @@ export function ListSkeleton({ rows = 5 }: { rows?: number }) {
 const Spinner = () => (
   <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
 );
+const statusLabels: Record<string, string> = {
+  connected: '已连接',
+  disconnected: '待连接',
+  stopped: '已停止',
+  error: '连接错误',
+  succeeded: '成功',
+  failed: '失败',
+  unknown: '结果未知',
+  running: '执行中',
+  tool_error: '工具返回错误',
+  online: '在线',
+  offline: '离线',
+  cancelled: '已取消',
+  revoked: '已撤销',
+  pairing_required: '待重新配对',
+  installed: '已安装',
+  waiting: '等待上游交互',
+  waiting_authorization: '等待平台授权',
+  pending: '待审批',
+  approved: '已批准',
+  rejected: '已拒绝',
+  expired: '已到期',
+  invalidated: '配置或身份已改变',
+  interrupted: '进程重启已中断',
+  queued: '待执行',
+  created: '已保存',
+  executing: '执行中',
+  exported: '外部任务包已就绪',
+};
+export const statusText = (value: string) => statusLabels[value] ?? value;
 export function Status({ value }: { value: string }) {
-  const labels: Record<string, string> = {
-    connected: '已连接',
-    disconnected: '待连接',
-    stopped: '已停止',
-    error: '连接错误',
-    succeeded: '成功',
-    failed: '失败',
-    unknown: '结果未知',
-    running: '执行中',
-    tool_error: '工具返回错误',
-    online: '在线',
-    offline: '离线',
-    cancelled: '已取消',
-    revoked: '已撤销',
-    pairing_required: '待重新配对',
-    installed: '已安装',
-    waiting: '等待上游交互',
-    waiting_authorization: '等待平台授权',
-    pending: '待审批',
-    approved: '已批准',
-    rejected: '已拒绝',
-    expired: '已到期',
-    invalidated: '配置或身份已改变',
-    interrupted: '进程重启已中断',
-    queued: '待执行',
-    created: '已保存',
-    executing: '执行中',
-    exported: '外部任务包已就绪',
-  };
   return (
     <Badge variant="outline" className={`status status-${value}`}>
       <i aria-hidden="true" />
-      {labels[value] ?? value}
+      {statusText(value)}
     </Badge>
   );
 }
@@ -253,7 +254,7 @@ export function Action({
     </span>
   );
 }
-/** Derives a result note that names the action instead of a generic 「操作已完成」. */
+/** Derives a result note that names the action (预览 → 预览已更新, 保存 → 已保存). */
 export function successText(label: string) {
   if (/预览/.test(label)) return '预览已更新';
   const rules: [RegExp, string][] = [
@@ -338,6 +339,20 @@ export function Form({
 export const value = (data: FormData, key: string) => String(data.get(key) ?? '');
 export const date = (input: string | null) =>
   input ? new Date(input).toLocaleString('zh-CN') : '尚无记录';
+/** 「3 分钟前」 style time; pair with `date()` in a tooltip for the exact value. */
+export function relativeTime(input: string | null, now = Date.now()) {
+  if (!input) return '—';
+  const seconds = Math.round((now - new Date(input).getTime()) / 1000);
+  if (seconds < 45) return '刚刚';
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} 分钟前`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} 小时前`;
+  const days = Math.round(hours / 24);
+  if (days < 2) return '昨天';
+  if (days < 30) return `${days} 天前`;
+  return new Date(input).toLocaleDateString('zh-CN');
+}
 export function Code({ value }: { value: unknown }) {
   return (
     <pre className="code">{typeof value === 'string' ? value : JSON.stringify(value, null, 2)}</pre>

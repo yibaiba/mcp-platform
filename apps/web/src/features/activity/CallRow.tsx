@@ -1,6 +1,7 @@
 import { TableCell, TableRow } from '../../components/ui/table.js';
 import { Button } from '../../components/ui/button.js';
-import { date, Status } from '../../components/shared/Controls.js';
+import { date, relativeTime, Status } from '../../components/shared/Controls.js';
+import { Hint } from '../../components/ui/tooltip.js';
 import type { Call } from '../../lib/api.js';
 import { callDuration, callLocation, callPhase, type CallNames } from './callPresentation.js';
 export function CallRow({
@@ -13,7 +14,7 @@ export function CallRow({
   onOpen: () => void;
 }) {
   return (
-    <TableRow>
+    <TableRow className="cursor-pointer" onClick={onOpen}>
       <TableCell>
         <Status value={call.status} />
       </TableCell>
@@ -28,12 +29,28 @@ export function CallRow({
           {callPhase(call.phase)}
         </div>
       </TableCell>
-      <TableCell>{date(call.startedAt)}</TableCell>
+      <TableCell>
+        <Hint content={date(call.startedAt)}>
+          <span>{relativeTime(call.startedAt)}</span>
+        </Hint>
+      </TableCell>
       <TableCell>{callDuration(call)}</TableCell>
       <TableCell className="max-w-sm whitespace-normal">
-        {call.error ? <p className="text-destructive break-all">{call.error}</p> : null}
-        <Button variant="outline" onClick={onOpen}>
-          查看调用详情
+        {call.error ? (
+          <p className="m-0 line-clamp-2 break-all text-destructive" title={call.error}>
+            {call.error}
+          </p>
+        ) : null}
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label="查看调用详情"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen();
+          }}
+        >
+          详情
         </Button>
       </TableCell>
     </TableRow>

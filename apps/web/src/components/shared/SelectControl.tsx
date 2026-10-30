@@ -9,12 +9,16 @@ type SelectControlProps = {
   onValueChange?: (value: string) => void;
   children: ReactNode;
   'aria-describedby'?: string;
+  'aria-label'?: string;
+  className?: string;
 };
 export function SelectControl({
   id,
   children,
   onValueChange,
   'aria-describedby': description,
+  'aria-label': label,
+  className,
   ...props
 }: SelectControlProps) {
   const items = Children.toArray(children)
@@ -28,7 +32,12 @@ export function SelectControl({
         if (value !== null) onValueChange?.(value);
       }}
     >
-      <SelectTrigger id={id} aria-describedby={description} className="w-full">
+      <SelectTrigger
+        id={id}
+        aria-describedby={description}
+        aria-label={label}
+        className={className ?? 'w-full'}
+      >
         <SelectValue>
           {(value: string | null) => items.find((item) => item.value === value)?.label ?? '请选择'}
         </SelectValue>

@@ -6,6 +6,8 @@ import { Code, Field, Form, value } from '../../components/shared/Controls.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import { Input } from '../../components/ui/input.js';
 import { Button } from '../../components/ui/button.js';
+import { Hint } from '../../components/ui/tooltip.js';
+import { Copy, History } from 'lucide-react';
 import { api, json, type Tool } from '../../lib/api.js';
 const AppHost = lazy(() =>
   import('../apps/AppHost.js').then((module) => ({ default: module.AppHost })),
@@ -23,6 +25,8 @@ export function ToolRunner({
 }) {
   const root = profileId ? `/profiles/${profileId}/agent` : '';
   const [result, setResult] = useState<unknown>();
+  const [running, setRunning] = useState(false);
+  const [copied, setCopied] = useState(false);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => () => controller.current?.abort(), []);
   const appSession = (result as { _meta?: Record<string, unknown> } | undefined)?._meta?.[
@@ -31,20 +35,42 @@ export function ToolRunner({
   const interactionId = (result as { interactionId?: string } | undefined)?.interactionId;
   return (
     <>
-      <h2>{selected.name}</h2>
-      <p>
+      <div className="runner-title">
+        <h2 className="truncate">{selected.name}</h2>
+        <Hint content={copied ? '已复制' : `复制标识 ${selected.id}`}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="复制工具标识"
+            onClick={() =>
+              void navigator.clipboard
+                .writeText(selected.id)
+                .then(() => setCopied(true))
+                .catch(() => setCopied(false))
+            }
+          >
+            <Copy aria-hidden="true" />
+          </Button>
+        </Hint>
+        <Hint content="调用记录">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="查看此工具的调用记录"
+            render={<Link to="/activity" search={{ profileId, toolId: selected.id }} />}
+          >
+            <History aria-hidden="true" />
+          </Button>
+        </Hint>
+      </div>
+      <p className="runner-meta">
         {location} · {identity}
       </p>
-      <small className="break-all">稳定标识：{selected.id}</small>
-      <p>
-        <Link to="/activity" search={{ profileId, toolId: selected.id }}>
-          查看此工具的调用记录
-        </Link>
-      </p>
-      <Disclosure title="参数结构">
+      {selected.definition.description ? <p>{selected.definition.description}</p> : null}
+      <Disclosure title="定义">
+        <h3>参数结构</h3>
         <Code value={selected.definition.inputSchema} />
-      </Disclosure>
-      <Disclosure title="完整工具定义（输出结构与元数据）">
+        <h3>完整定义</h3>
         <Code value={selected.definition} />
       </Disclosure>
       <Form
@@ -52,6 +78,7 @@ export function ToolRunner({
         label="执行工具"
         submit={async (data) => {
           controller.current = new AbortController();
+          setRunning(true);
           try {
             setResult(
               await api(`${root}/tools/${selected.id}/call`, {
@@ -67,19 +94,24 @@ export function ToolRunner({
             );
           } finally {
             controller.current = null;
+            setRunning(false);
           }
         }}
       >
         <Field label="参数（JSON 对象）">
           <Textarea name="args" defaultValue="{}" rows={8} required />
         </Field>
-        <Field label="交互等待截止时间（可选）" hint="留空时不额外限制用户补充信息的等待时间。">
-          <Input name="deadline" type="datetime-local" />
-        </Field>
+        <Disclosure title="高级">
+          <Field label="交互等待截止时间" hint="留空不限制等待用户补充信息的时间。">
+            <Input name="deadline" type="datetime-local" />
+          </Field>
+        </Disclosure>
       </Form>
-      <Button variant="outline" onClick={() => controller.current?.abort()}>
-        取消请求
-      </Button>
+      {running ? (
+        <Button variant="outline" onClick={() => controller.current?.abort()}>
+          取消请求
+        </Button>
+      ) : null}
       {result !== undefined ? (
         <>
           <h3>返回结果</h3>

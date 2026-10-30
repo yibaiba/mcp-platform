@@ -4,17 +4,24 @@ import { Action, Code, date } from '../../components/shared/Controls.js';
 export function RePairDevice({
   device,
   platformOrigin,
+  startConfirming = false,
+  onCancel,
 }: {
   device: Device;
   platformOrigin: string;
+  /** Skip the first 「重新配对」 click when opened from a menu. */
+  startConfirming?: boolean;
+  onCancel?: () => void;
 }) {
-  const [confirming, setConfirming] = useState(false);
+  const [confirming, setConfirming] = useState(startConfirming);
   const [pairing, setPairing] = useState<{ code: string; expiresAt: string }>();
   return (
-    <div className="padded">
-      <button className="button" onClick={() => setConfirming(true)}>
-        重新配对
-      </button>
+    <div className={startConfirming ? 'grid gap-3' : 'padded'}>
+      {startConfirming ? null : (
+        <button className="button" onClick={() => setConfirming(true)}>
+          重新配对
+        </button>
+      )}
       {confirming ? (
         <div className="result" role="group" aria-label={`重新配对 ${device.name}`}>
           <p>
@@ -31,7 +38,13 @@ export function RePairDevice({
           >
             确认断线并生成重配码
           </Action>
-          <button className="button" onClick={() => setConfirming(false)}>
+          <button
+            className="button"
+            onClick={() => {
+              setConfirming(false);
+              onCancel?.();
+            }}
+          >
             取消
           </button>
         </div>

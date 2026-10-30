@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '../../components/ui/dialog.js';
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '../../components/ui/sheet.js';
 import {
   Action,
   Code,
@@ -40,22 +40,22 @@ export function CallDetail({
       ['running', 'waiting'].includes(state.state.data?.status ?? '') ? 5000 : false,
   });
   return (
-    <Dialog
+    <Sheet
       open
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
     >
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>调用详情</DialogTitle>
-          <DialogDescription>查看此次调用的身份、执行位置和诊断信息。</DialogDescription>
-        </DialogHeader>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>调用详情</SheetTitle>
+          <SheetDescription>身份、执行位置和诊断信息。</SheetDescription>
+        </SheetHeader>
         <Feedback error={query.error} />
         {query.isPending ? <ListSkeleton rows={3} /> : null}
         {query.data ? <CallInformation call={query.data} names={names} /> : null}
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
 function CallInformation({ call, names }: { call: Call; names: CallNames }) {

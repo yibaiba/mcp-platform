@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { api, json, type Profile, type Tool } from '../../lib/api.js';
-import { Card } from '../../components/ui/card.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
 import { CheckChoice } from '../../components/shared/CheckChoice.js';
@@ -19,12 +18,7 @@ export function DiscoveryEditor({
   const [mode, setMode] = useState(profile.discoveryMode);
   const [footprint, setFootprint] = useState<unknown>();
   return (
-    <Card className="panel padded">
-      <h2>智能发现 · {profile.name}</h2>
-      <p>
-        默认直接暴露授权目录。搜索模式通过独立 Embedding
-        服务检索，仅展示三个发现工具和钉选工具。搜索不会唤醒休眠连接。
-      </p>
+    <div className="grid gap-4">
       <Form
         label="保存发现配置"
         submit={async (data) => {
@@ -307,6 +301,6 @@ export function DiscoveryEditor({
       </Action>
       <p>使用本地 o200k_base 编码估算最终工具定义，展示完整目录与当前暴露量，不代表模型账单。</p>
       {footprint ? <Code value={footprint} /> : null}
-    </Card>
+    </div>
   );
 }

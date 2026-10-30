@@ -7,9 +7,10 @@ import { CheckChoice } from '../../components/shared/CheckChoice.js';
 import { Button } from '../../components/ui/button.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import { Input } from '../../components/ui/input.js';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
+import { Bot, ChevronRight, MoreHorizontal, Plus } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog.js';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../../components/ui/dropdown-menu.js';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '../../components/ui/sheet.js';
 import {
   api,
   json,
@@ -27,7 +42,8 @@ import {
   type ContentEntry,
 } from '../../lib/api.js';
 import { ContentGrants, appInfo } from './ContentGrants.js';
-import { ClientExport } from './ClientExport.js';
+import { ClientExportBody, type Export } from './ClientExport.js';
+import { Disclosure } from '../../components/shared/Disclosure.js';
 import {
   Action,
   Code,
@@ -35,8 +51,17 @@ import {
   Feedback,
   Field,
   Form,
+  ListSkeleton,
   value,
 } from '../../components/shared/Controls.js';
+
+type Drawer =
+  | { kind: 'create' }
+  | { kind: 'edit'; profile: Profile }
+  | { kind: 'access'; profile: Profile }
+  | { kind: 'catalog'; profile: Profile }
+  | { kind: 'discovery'; profile: Profile };
+
 export default function ProfilesPage() {
   const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api<Profile[]>('/profiles') });
   const tools = useQuery({ queryKey: ['tools'], queryFn: () => api<Tool[]>('/tools') });
@@ -59,18 +84,31 @@ export default function ProfilesPage() {
   });
   const { workspace } = useSearch({ from: '/profiles' });
   const navigate = useNavigate({ from: '/profiles' });
-  const [discoveryEditing, setDiscoveryEditing] = useState<Profile>();
-  const [catalogEditing, setCatalogEditing] = useState<Profile>();
-  const [editing, setEditing] = useState<Profile>();
-  const [key, setKey] = useState<unknown>();
+  const [drawer, setDrawer] = useState<Drawer>();
+  const [key, setKey] = useState<{ exports?: Export[] }>();
+  const editing = drawer?.kind === 'edit' ? drawer.profile : undefined;
+  const close = () => setDrawer(undefined);
+  useEffect(() => {
+    // Onboarding links to #create-profile; open the drawer instead of scrolling to a form.
+    if (window.location.hash === '#create-profile') setDrawer({ kind: 'create' });
+  }, []);
   const connectionNames = new Map(
     connections.data?.map((connection) => [connection.id, connection.name]),
   );
   if (workspace)
     return <WorkspacePage profileId={workspace} onBack={() => void navigate({ search: {} })} />;
+  const drawerProfile = drawer && 'profile' in drawer ? drawer.profile : undefined;
   return (
     <>
-      <PageHeader title="Agent" />
+      <PageHeader
+        title="Agent"
+        actions={
+          <Button onClick={() => setDrawer({ kind: 'create' })}>
+            <Plus aria-hidden="true" />
+            新建 Agent
+          </Button>
+        }
+      />
       <Feedback
         error={
           profiles.error ??
@@ -82,168 +120,212 @@ export default function ProfilesPage() {
           catalog.error
         }
       />
-      <div className="mb-5 rounded-lg border bg-muted/20 p-4 text-xs leading-relaxed text-muted-foreground">
-        <strong className="text-foreground">在这里把工具交给 Agent：</strong>{' '}
-        填写名称、勾选工具并保存，然后在“已创建配置”中生成接入密钥。首次生成后，点击“复制完整客户端配置”即可带上密钥，无需手动拼接。
-      </div>
-      {discoveryEditing ? (
-        <DiscoveryEditor
-          key={discoveryEditing.id}
-          profile={discoveryEditing}
-          tools={tools.data ?? []}
-          close={() => setDiscoveryEditing(undefined)}
-        />
-      ) : null}
-      {catalogEditing ? (
-        <CatalogEditor
-          key={catalogEditing.id}
-          profile={catalogEditing}
-          tools={tools.data ?? []}
-          entries={catalog.data ?? []}
-          connections={connections.data ?? []}
-          close={() => setCatalogEditing(undefined)}
-        />
-      ) : null}
-      <div className="overview-grid">
-        <Card id="create-profile" className="panel padded scroll-mt-6">
-          <h2>{editing ? `编辑：${editing.name}` : '创建配置'}</h2>
-          <Form
-            key={editing?.id ?? 'new'}
-            submit={async (data) => {
-              await api(editing ? `/profiles/${editing.id}` : '/profiles', {
-                method: editing ? 'PUT' : 'POST',
-                body: json({
-                  revision: editing?.revision,
-                  name: value(data, 'name'),
-                  instructions: value(data, 'instructions'),
-                  toolIds: data.getAll('toolId'),
-                  contentIds: data.getAll('contentId'),
-                  skillVersionIds: data.getAll('skillVersionId'),
-                  artifactIds: data.getAll('artifactId'),
-                }),
-              });
-              setEditing(undefined);
-            }}
+      <Card id="agent-configurations" className="panel scroll-mt-6">
+        {profiles.isPending ? <ListSkeleton /> : null}
+        {profiles.data?.length ? (
+          profiles.data.map((profile) => {
+            const activeKeys =
+              keys.data?.filter((k) => k.profileId === profile.id && !k.revoked).length ?? 0;
+            return (
+              <div className="profile-row" key={profile.id}>
+                <button
+                  type="button"
+                  className="profile-open"
+                  onClick={() => void navigate({ search: { workspace: profile.id } })}
+                >
+                  <strong>{profile.name}</strong>
+                  <small>
+                    {profile.toolIds.length} 工具 · {profile.skillVersionIds.length} Skills ·{' '}
+                    {activeKeys ? `${activeKeys} 个密钥` : '未生成密钥'}
+                    {profile.deploymentState !== 'ready' ? ' · 配置模板待处理' : ''}
+                  </small>
+                  <ChevronRight size={16} aria-hidden="true" className="profile-chevron" />
+                </button>
+                <Button variant="outline" onClick={() => setDrawer({ kind: 'access', profile })}>
+                  接入
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={<Button variant="ghost" size="icon" />}
+                    aria-label={`${profile.name} 更多操作`}
+                  >
+                    <MoreHorizontal aria-hidden="true" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-40">
+                    <DropdownMenuItem onClick={() => setDrawer({ kind: 'edit', profile })}>
+                      编辑权限
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setDrawer({ kind: 'catalog', profile })}>
+                      目录展示
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setDrawer({ kind: 'discovery', profile })}>
+                      智能发现
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => void navigate({ search: { workspace: profile.id } })}
+                    >
+                      打开工作空间
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            );
+          })
+        ) : profiles.isSuccess ? (
+          <Empty
+            icon={Bot}
+            title="还没有 Agent"
+            action={
+              <Button variant="outline" onClick={() => setDrawer({ kind: 'create' })}>
+                新建 Agent
+              </Button>
+            }
           >
-            <Field label="配置名称">
-              <Input
-                name="name"
-                required
-                defaultValue={editing?.name}
-                placeholder="例如：Claude Code"
+            选择允许使用的工具，再生成客户端接入配置。
+          </Empty>
+        ) : null}
+      </Card>
+      <Sheet
+        open={Boolean(drawer)}
+        onOpenChange={(open) => {
+          if (!open) close();
+        }}
+      >
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>
+              {drawer?.kind === 'create'
+                ? '新建 Agent'
+                : drawer?.kind === 'edit'
+                  ? `编辑：${drawer.profile.name}`
+                  : drawer?.kind === 'access'
+                    ? `接入 ${drawer.profile.name}`
+                    : drawer?.kind === 'catalog'
+                      ? `目录展示 · ${drawer.profile.name}`
+                      : drawer?.kind === 'discovery'
+                        ? `智能发现 · ${drawer.profile.name}`
+                        : ''}
+            </SheetTitle>
+            <SheetDescription>
+              {drawer?.kind === 'create' || drawer?.kind === 'edit'
+                ? '勾选允许这个 Agent 使用的工具和内容。'
+                : drawer?.kind === 'access'
+                  ? '复制配置到客户端；密钥只在生成时显示。'
+                  : drawer?.kind === 'catalog'
+                    ? '修改对外名称、描述和可选参数；授权仍关联原工具。'
+                    : drawer?.kind === 'discovery'
+                      ? '搜索模式只展示发现工具和钉选工具，不会唤醒休眠连接。'
+                      : ''}
+            </SheetDescription>
+          </SheetHeader>
+          {drawer?.kind === 'create' || drawer?.kind === 'edit' ? (
+            <Form
+              key={editing?.id ?? 'new'}
+              label={editing ? '保存' : '创建'}
+              submit={async (data) => {
+                await api(editing ? `/profiles/${editing.id}` : '/profiles', {
+                  method: editing ? 'PUT' : 'POST',
+                  body: json({
+                    revision: editing?.revision,
+                    name: value(data, 'name'),
+                    instructions: value(data, 'instructions'),
+                    toolIds: data.getAll('toolId'),
+                    contentIds: data.getAll('contentId'),
+                    skillVersionIds: data.getAll('skillVersionId'),
+                    artifactIds: data.getAll('artifactId'),
+                  }),
+                });
+                close();
+              }}
+            >
+              <Field label="配置名称">
+                <Input
+                  name="name"
+                  required
+                  defaultValue={editing?.name}
+                  placeholder="例如：Claude Code"
+                />
+              </Field>
+              <Field label="Agent 说明" hint="按授权服务的稳定顺序追加上游服务说明，并标记来源。">
+                <Textarea name="instructions" defaultValue={editing?.instructions ?? ''} />
+              </Field>
+              <fieldset>
+                <legend>允许访问的工具</legend>
+                {tools.data?.map((tool) => (
+                  <CheckChoice
+                    key={tool.id}
+                    name="toolId"
+                    value={tool.id}
+                    defaultChecked={editing?.toolIds.includes(tool.id)}
+                  >
+                    <span>
+                      <strong>{tool.name}</strong>
+                      <small>{connectionNames.get(tool.connectionId)}</small>
+                      {appInfo(tool) ? (
+                        <small>
+                          {appInfo(tool)?.resourceUri
+                            ? `App UI：${appInfo(tool)?.resourceUri} · `
+                            : ''}
+                          {appInfo(tool)?.visibility?.includes('app') &&
+                          !appInfo(tool)?.visibility?.includes('model')
+                            ? '仅 App 可用，不提供给模型'
+                            : '可供模型调用'}
+                        </small>
+                      ) : null}
+                    </span>
+                  </CheckChoice>
+                ))}
+                {!tools.data?.length ? <small>先连接 MCP 并发现工具。</small> : null}
+              </fieldset>
+              <ContentGrants
+                entries={catalog.data ?? []}
+                selected={editing?.contentIds ?? []}
+                connectionNames={connectionNames}
+                tools={tools.data ?? []}
               />
-            </Field>
-            <Field label="Agent 说明" hint="按授权服务的稳定顺序追加上游服务说明，并标记来源。">
-              <Textarea name="instructions" defaultValue={editing?.instructions ?? ''} />
-            </Field>
-            <fieldset>
-              <legend>允许访问的工具</legend>
-              {tools.data?.map((tool) => (
-                <CheckChoice
-                  key={tool.id}
-                  name="toolId"
-                  value={tool.id}
-                  defaultChecked={editing?.toolIds.includes(tool.id)}
-                >
-                  <span>
-                    <strong>{tool.name}</strong>
-                    <small>{connectionNames.get(tool.connectionId)}</small>
-                    {appInfo(tool) ? (
-                      <small>
-                        {appInfo(tool)?.resourceUri
-                          ? `App UI：${appInfo(tool)?.resourceUri} · `
-                          : ''}
-                        {appInfo(tool)?.visibility?.includes('app') &&
-                        !appInfo(tool)?.visibility?.includes('model')
-                          ? '仅 App 可用，不提供给模型'
-                          : '可供模型调用'}
-                      </small>
-                    ) : null}
-                  </span>
-                </CheckChoice>
-              ))}
-              {!tools.data?.length ? <small>先连接 MCP 并发现工具。</small> : null}
-            </fieldset>
-            <ContentGrants
-              entries={catalog.data ?? []}
-              selected={editing?.contentIds ?? []}
-              connectionNames={connectionNames}
-              tools={tools.data ?? []}
-            />
-            <fieldset>
-              <legend>Skill 版本</legend>
-              {skills.data?.map((skill) => (
-                <CheckChoice
-                  key={skill.id}
-                  name="skillVersionId"
-                  value={skill.id}
-                  defaultChecked={editing?.skillVersionIds.includes(skill.id)}
-                >
-                  <span>
-                    {skill.name} <code>{skill.digest.slice(0, 10)}</code>
-                  </span>
-                </CheckChoice>
-              ))}
-            </fieldset>
-            <fieldset>
-              <legend>允许下载的产物</legend>
-              {artifacts.data?.map((artifact) => (
-                <CheckChoice
-                  key={artifact.id}
-                  name="artifactId"
-                  value={artifact.id}
-                  defaultChecked={editing?.artifactIds?.includes(artifact.id)}
-                >
-                  <span>{artifact.name}</span>
-                </CheckChoice>
-              ))}
-            </fieldset>
-          </Form>
-        </Card>
-        <Card id="agent-configurations" className="panel scroll-mt-6">
-          <div className="panel-heading">
-            <h2>已创建配置</h2>
-          </div>
-          {profiles.data?.length ? (
-            profiles.data.map((profile) => (
-              <div className="connection-row" key={profile.id}>
-                <h3>{profile.name}</h3>
-                {profile.deploymentState !== 'ready' ? (
-                  <p>配置模板尚未就绪；请到配置模板页面检查待配置条目。</p>
-                ) : null}
-                <small>
-                  {profile.toolIds.length} 个工具 · {profile.skillVersionIds.length} 个 Skills
-                </small>
-                <Code value={`${window.location.origin}/mcp/${profile.id}`} />
-                <div className="row-actions">
-                  <Button
-                    onClick={() => {
-                      void navigate({ search: { workspace: profile.id } });
-                    }}
+              <fieldset>
+                <legend>Skill 版本</legend>
+                {skills.data?.map((skill) => (
+                  <CheckChoice
+                    key={skill.id}
+                    name="skillVersionId"
+                    value={skill.id}
+                    defaultChecked={editing?.skillVersionIds.includes(skill.id)}
                   >
-                    打开工作空间
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setEditing(profile);
-                      window.location.hash = 'create-profile';
-                    }}
+                    <span>
+                      {skill.name} <code>{skill.digest.slice(0, 10)}</code>
+                    </span>
+                  </CheckChoice>
+                ))}
+                {!skills.data?.length ? <small>还没有 Skill。</small> : null}
+              </fieldset>
+              <fieldset>
+                <legend>允许下载的产物</legend>
+                {artifacts.data?.map((artifact) => (
+                  <CheckChoice
+                    key={artifact.id}
+                    name="artifactId"
+                    value={artifact.id}
+                    defaultChecked={editing?.artifactIds?.includes(artifact.id)}
                   >
-                    编辑权限
-                  </Button>
-                  <Button onClick={() => setCatalogEditing(profile)}>目录展示</Button>
-                  <Button onClick={() => setDiscoveryEditing(profile)}>智能发现</Button>
-                  <ClientExport profileId={profile.id} />
-                  <Action
-                    action={async () =>
-                      setKey(await api(`/profiles/${profile.id}/keys`, { method: 'POST' }))
-                    }
-                  >
-                    生成接入密钥
-                  </Action>
-                </div>
+                    <span>{artifact.name}</span>
+                  </CheckChoice>
+                ))}
+                {!artifacts.data?.length ? <small>还没有产物。</small> : null}
+              </fieldset>
+            </Form>
+          ) : null}
+          {drawer?.kind === 'access' ? (
+            <div className="grid gap-5">
+              <Field label="MCP 地址">
+                <Code value={`${window.location.origin}/mcp/${drawer.profile.id}`} />
+              </Field>
+              <ClientExportBody profileId={drawer.profile.id} />
+              <section className="grid gap-2" aria-label="接入密钥">
+                <h3>接入密钥</h3>
                 {keys.data
-                  ?.filter((k) => k.profileId === profile.id && !k.revoked)
+                  ?.filter((k) => k.profileId === drawer.profile.id && !k.revoked)
                   .map((k) => (
                     <div className="row" key={k.id}>
                       <code className="grow">{k.id.slice(0, 8)}…</code>
@@ -260,13 +342,41 @@ export default function ProfilesPage() {
                       </Action>
                     </div>
                   ))}
-              </div>
-            ))
-          ) : (
-            <Empty>创建配置后，可生成外部 Agent 接入设置。</Empty>
-          )}
-        </Card>
-      </div>
+                <Action
+                  variant="default"
+                  action={async () =>
+                    setKey(
+                      await api<{ exports?: Export[] }>(`/profiles/${drawer.profile.id}/keys`, {
+                        method: 'POST',
+                      }),
+                    )
+                  }
+                >
+                  生成接入密钥
+                </Action>
+              </section>
+            </div>
+          ) : null}
+          {drawer?.kind === 'catalog' && drawerProfile ? (
+            <CatalogEditor
+              key={drawerProfile.id}
+              profile={drawerProfile}
+              tools={tools.data ?? []}
+              entries={catalog.data ?? []}
+              connections={connections.data ?? []}
+              close={close}
+            />
+          ) : null}
+          {drawer?.kind === 'discovery' && drawerProfile ? (
+            <DiscoveryEditor
+              key={drawerProfile.id}
+              profile={drawerProfile}
+              tools={tools.data ?? []}
+              close={close}
+            />
+          ) : null}
+        </SheetContent>
+      </Sheet>
       <Dialog
         open={Boolean(key)}
         onOpenChange={(open) => {
@@ -275,19 +385,25 @@ export default function ProfilesPage() {
       >
         <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>接入配置已生成</DialogTitle>
-            <DialogDescription>
-              密钥仅在此时展示。先复制完整客户端配置，再关闭此窗口。
-            </DialogDescription>
+            <DialogTitle>接入密钥已生成</DialogTitle>
+            <DialogDescription>密钥只显示这一次。</DialogDescription>
           </DialogHeader>
           {key ? (
-            <>
-              <ClientExport
-                issued={(key as { exports: Parameters<typeof ClientExport>[0]['issued'] }).exports}
-              />
-              <Code value={key} />
-              <Button onClick={() => setKey(undefined)}>关闭密钥展示</Button>
-            </>
+            <ol className="key-steps">
+              <li>
+                <h3>选择客户端并复制配置</h3>
+                <ClientExportBody issued={key.exports} />
+              </li>
+              <li>
+                <h3>粘贴到客户端的 MCP 设置后关闭</h3>
+                <Button onClick={() => setKey(undefined)}>我已复制</Button>
+              </li>
+              <li>
+                <Disclosure title="查看原始返回">
+                  <Code value={key} />
+                </Disclosure>
+              </li>
+            </ol>
           ) : null}
         </DialogContent>
       </Dialog>

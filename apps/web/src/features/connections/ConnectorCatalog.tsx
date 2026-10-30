@@ -2,7 +2,6 @@ import { connectorPresets, type ConnectorPreset } from '@platform/contracts';
 import { Check, ChevronDown } from 'lucide-react';
 import { ConnectorIcon } from './ConnectorIcon.js';
 import { Button } from '../../components/ui/button.js';
-import { Card } from '../../components/ui/card.js';
 import type { Connection } from '../../lib/api.js';
 import {
   DropdownMenu,
@@ -20,10 +19,12 @@ function ConnectorRow({
   preset,
   connections,
   onSelect,
+  onManage,
 }: {
   preset: ConnectorPreset;
   connections: readonly Connection[];
   onSelect: (preset: ConnectorPreset) => void;
+  onManage: (connection: Connection) => void;
 }) {
   const matches = connections.filter(
     (connection) =>
@@ -65,12 +66,7 @@ function ConnectorRow({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-48">
             {matches.map((connection) => (
-              <DropdownMenuItem
-                key={connection.id}
-                onClick={() => {
-                  window.location.hash = `connection-${connection.id}`;
-                }}
-              >
+              <DropdownMenuItem key={connection.id} onClick={() => onManage(connection)}>
                 管理 {connection.name}
               </DropdownMenuItem>
             ))}
@@ -95,27 +91,19 @@ function ConnectorRow({
 
 export function ConnectorCatalog({
   onSelect,
+  onManage,
   connections,
 }: {
   onSelect: (preset: ConnectorPreset) => void;
+  onManage: (connection: Connection) => void;
   connections: readonly Connection[];
 }) {
   return (
-    <Card
-      id="connector-catalog"
-      className="mb-6 scroll-mt-6 gap-5 p-5"
-      aria-labelledby="connector-catalog-title"
-    >
-      <div>
-        <h2 id="connector-catalog-title">内置连接器</h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          选择服务，配置账号后自动连接。连接成功后，在工作空间授予 Agent 使用。
-        </p>
-      </div>
+    <div className="grid gap-5" aria-label="内置连接器">
       {groups.map((group) => (
         <section key={group.name} aria-label={group.name}>
-          <h3 className="mb-2 text-xs font-medium text-muted-foreground">{group.name}</h3>
-          <div className="grid gap-x-10 gap-y-1 md:grid-cols-2">
+          <h3 className="mb-1 text-xs font-medium text-muted-foreground">{group.name}</h3>
+          <div className="grid gap-y-1">
             {connectorPresets
               .filter((preset) => preset.category === group.category)
               .map((preset) => (
@@ -124,11 +112,12 @@ export function ConnectorCatalog({
                   preset={preset}
                   connections={connections}
                   onSelect={onSelect}
+                  onManage={onManage}
                 />
               ))}
           </div>
         </section>
       ))}
-    </Card>
+    </div>
   );
 }

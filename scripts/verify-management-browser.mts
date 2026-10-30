@@ -153,7 +153,8 @@ try {
   await page.getByRole('button', { name: '确认删除', exact: true }).click();
   await page.getByText('还没有内容', { exact: true }).waitFor();
   await page.goto(h.baseURL + '/profiles');
-  await page.getByRole('button', { name: '智能发现', exact: true }).click();
+  await page.getByRole('button', { name: `${profile!.name} 更多操作` }).click();
+  await page.getByRole('menuitem', { name: '智能发现', exact: true }).click();
   await page.getByRole('checkbox', { name: '启用明确节选并保存完整原文' }).check();
   await page.getByLabel('节选策略', { exact: true }).selectOption('json');
   const savedDiscovery = page.waitForResponse(
@@ -167,7 +168,8 @@ try {
     'json',
   );
   await page.goto(h.baseURL + '/connections');
-  await page.getByRole('button', { name: '导入连接', exact: true }).click();
+  await page.getByRole('banner').getByRole('button', { name: '添加连接', exact: true }).click();
+  await page.getByRole('tab', { name: '导入', exact: true }).click();
   await page.getByLabel('MCPB 文件', { exact: true }).setInputFiles(file);
   await page.getByRole('button', { name: '上传并解析' }).click();
   await page.getByLabel('key', { exact: true }).fill('browser-bundle-secret');
@@ -186,7 +188,8 @@ try {
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await page.screenshot({ path: join(screenshots, 'bundle-mobile.png'), fullPage: true });
   await page.reload();
-  await page.getByRole('button', { name: '导入连接', exact: true }).click();
+  await page.getByRole('banner').getByRole('button', { name: '添加连接', exact: true }).click();
+  await page.getByRole('tab', { name: '导入', exact: true }).click();
   const history = page.getByRole('region', { name: 'MCPB 安装历史' });
   await history.getByText('成功', { exact: true }).waitFor();
   await history.getByRole('button', { name: '卸载此连接及授权' }).click();
