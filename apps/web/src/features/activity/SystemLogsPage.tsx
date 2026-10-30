@@ -60,7 +60,7 @@ export default function SystemLogsPage() {
   return (
     <>
       <PageHeader
-        title="系统日志"
+        title="运行记录"
         info="记录元数据与错误类别；默认永久保留，自动清理由部署配置显式启用。"
       />
       <Feedback error={logs.error ?? streamError} />

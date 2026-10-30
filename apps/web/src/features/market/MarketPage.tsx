@@ -40,7 +40,7 @@ export default function MarketPage() {
   });
   return (
     <>
-      <PageHeader title="服务市场" />
+      <PageHeader title="连接" />
       <Card className="panel padded">
         <Form
           label="搜索"

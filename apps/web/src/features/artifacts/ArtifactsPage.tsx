@@ -25,7 +25,7 @@ export default function ArtifactsPage() {
   const [direction, setDirection] = useState('receive');
   return (
     <>
-      <PageHeader title="产物" info="使用产物 ID 传递文件，上传与接收均校验 SHA-256。" />
+      <PageHeader title="Agent" info="使用产物 ID 传递文件，上传与接收均校验 SHA-256。" />
       <Feedback error={artifacts.error ?? devices.error} />
       <div className="overview-grid">
         <Card className="panel padded">

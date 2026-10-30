@@ -31,7 +31,7 @@ export default function AuthorizationsPage() {
   const [result, setResult] = useState<unknown>();
   return (
     <>
-      <PageHeader title="授权连接" />
+      <PageHeader title="连接" />
       <Feedback error={connections.error ?? grants.error} />
       <Card className="panel">
         <div className="panel-heading">

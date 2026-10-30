@@ -103,15 +103,6 @@ textarea:disabled {
   min-height: 0;
   padding-bottom: 16px;
 }
-.workspace-navigation section + section {
-  margin-top: 18px;
-}
-.workspace-navigation .nav-label {
-  display: block;
-  font-size: var(--text-caption);
-  letter-spacing: 0.4px;
-  margin: 8px 0;
-}
 .sidebar-bottom {
   flex-shrink: 0;
   padding-top: 12px;
@@ -147,19 +138,14 @@ textarea:disabled {
     display: inline-flex;
   }
   .mobile-navigation-drawer .workspace-navigation {
-    display: block;
+    display: flex;
+    flex-direction: column;
     margin: 0;
     padding: 0 0 12px;
   }
-  .mobile-navigation-drawer nav a {
+  .mobile-navigation-drawer .workspace-navigation a {
     padding: 10px 12px;
     font-size: var(--text-body);
-  }
-  .mobile-navigation-drawer .nav-label {
-    display: block;
-  }
-  .mobile-navigation-drawer nav small {
-    display: inline;
   }
   .connection-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -246,4 +232,33 @@ textarea:disabled {
   .route-progress {
     animation: none;
   }
+}
+
+/* Route tabs under the topbar; scroll sideways on narrow screens. */
+.page-tabs {
+  display: flex;
+  gap: 4px;
+  margin: -8px 0 24px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.page-tab {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted-foreground);
+  font-size: var(--text-body);
+  white-space: nowrap;
+}
+.page-tab:hover {
+  color: var(--foreground);
+}
+.page-tab.active {
+  color: var(--foreground);
+  border-bottom-color: var(--primary);
+}
+.page-tab.inactive {
+  color: var(--subtle-foreground);
 }

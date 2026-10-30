@@ -25,7 +25,7 @@ export default function SkillsPage() {
   const [result, setResult] = useState<unknown>();
   return (
     <>
-      <PageHeader title="Skills" />
+      <PageHeader title="Agent" />
       <Feedback error={skills.error ?? profiles.error ?? devices.error} />
       <div className="overview-grid">
         <Card className="panel padded">

@@ -51,7 +51,7 @@ export default function LibraryPage() {
   }
   return (
     <>
-      <PageHeader title="内容库" />
+      <PageHeader title="Agent" />
       <div className="library-kind">
         <Field label="内容类型">
           <select

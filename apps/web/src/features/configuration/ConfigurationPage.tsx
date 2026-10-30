@@ -48,7 +48,7 @@ export default function ConfigurationPage() {
   });
   return (
     <>
-      <PageHeader title="配置模板" />
+      <PageHeader title="Agent" />
       <Feedback error={manifests.error ?? secrets.error} />
       <div className="overview-grid">
         <Card className="panel padded">

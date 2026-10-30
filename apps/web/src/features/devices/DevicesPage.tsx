@@ -4,6 +4,7 @@ import { RePairDevice } from './RePairDevice.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
 import { Card } from '../../components/ui/card.js';
 import { useQuery } from '@tanstack/react-query';
+import { useSearch } from '@tanstack/react-router';
 import { Monitor } from 'lucide-react';
 import { api, type Device } from '../../lib/api.js';
 import { DevicePairing } from './DevicePairing.js';
@@ -20,6 +21,7 @@ import {
 const SshAccesses = lazy(() => import('./SshAccesses.js'));
 const DeviceLocalManager = lazy(() => import('../local/DeviceLocalManager.js'));
 export default function DevicesPage() {
+  const { tab } = useSearch({ from: '/devices' });
   const [localDevice, setLocalDevice] = useState<string>();
   const platform = useQuery({
     queryKey: ['me'],
@@ -30,6 +32,15 @@ export default function DevicesPage() {
     queryFn: () => api<Device[]>('/devices'),
     refetchInterval: 15_000,
   });
+  if (tab === 'ssh')
+    return (
+      <>
+        <PageHeader title="设备" />
+        <Suspense fallback={<ListSkeleton rows={2} />}>
+          <SshAccesses />
+        </Suspense>
+      </>
+    );
   return (
     <>
       <PageHeader title="设备" info="连接器主动连接平台，设备无需开放公网端口。" />
@@ -113,9 +124,6 @@ export default function DevicesPage() {
           <Empty>尚未绑定设备。生成配对码，然后在目标设备上连接。</Empty>
         )}
       </Card>
-      <Suspense fallback={<ListSkeleton rows={2} />}>
-        <SshAccesses />
-      </Suspense>
     </>
   );
 }
