@@ -134,33 +134,39 @@ export function Action({
     </span>
   );
 }
+type FormFeedback = { version: number | undefined; outcome: 'success' | Error };
 export function Form({
   children,
   submit,
   label = '保存',
   noValidate = false,
+  feedbackVersion,
 }: {
   children: ReactNode;
   submit: (data: FormData) => Promise<unknown>;
   label?: string;
   noValidate?: boolean;
+  feedbackVersion?: number;
 }) {
   const query = useQueryClient();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [done, setDone] = useState(false);
+  const [feedback, setFeedback] = useState<FormFeedback>();
+  // Async handlers retain the submitted version; edits invalidate their later feedback.
+  const outcome = feedback?.version === feedbackVersion ? feedback?.outcome : undefined;
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     setBusy(true);
-    setError(null);
-    setDone(false);
+    setFeedback(undefined);
     try {
       await submit(data);
       await query.invalidateQueries();
-      setDone(true);
+      setFeedback({ version: feedbackVersion, outcome: 'success' });
     } catch (error) {
-      setError(error instanceof Error ? error : new Error(String(error)));
+      setFeedback({
+        version: feedbackVersion,
+        outcome: error instanceof Error ? error : new Error(String(error)),
+      });
     } finally {
       setBusy(false);
     }
@@ -168,22 +174,19 @@ export function Form({
   return (
     <form
       onSubmit={(e) => void onSubmit(e)}
-      onChange={() => {
-        setDone(false);
-        setError(null);
-      }}
+      onChange={() => setFeedback(undefined)}
       className="form"
       noValidate={noValidate}
     >
       <fieldset disabled={busy} className="form-fields">
         {children}
       </fieldset>
-      <Feedback error={error} />
+      <Feedback error={outcome instanceof Error ? outcome : null} />
       <div className="form-footer">
         <Button type="submit" disabled={busy}>
           {busy ? '处理中…' : label}
         </Button>
-        {done ? <span role="status">操作已完成</span> : null}
+        {outcome === 'success' ? <span role="status">操作已完成</span> : null}
       </div>
     </form>
   );
