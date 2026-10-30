@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { lazy, Suspense, useState } from 'react';
 import { RePairDevice } from './RePairDevice.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
@@ -31,13 +32,7 @@ export default function DevicesPage() {
   });
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">DEVICES</span>
-          <h1>设备</h1>
-          <p>连接器主动连接平台，设备无需开放公网端口。</p>
-        </div>
-      </div>
+      <PageHeader title="设备" info="连接器主动连接平台，设备无需开放公网端口。" />
       <Feedback error={devices.error ?? platform.error} />
       <DevicePairing />
       <Card className="panel">

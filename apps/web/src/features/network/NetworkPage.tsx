@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { useQuery } from '@tanstack/react-query';
 import type { NetworkView } from '@platform/contracts';
 import { api, isForbidden, json } from '../../lib/api.js';
@@ -11,12 +12,7 @@ export default function NetworkPage() {
   if (isForbidden(query.error)) return <Forbidden />;
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <h1>网络与安装源</h1>
-          <p>平台代理、公共包镜像与 GitHub 加速</p>
-        </div>
-      </div>
+      <PageHeader title="网络与安装源" />
       <QueryError error={query.error} onRetry={() => query.refetch()} />
       {query.data ? (
         <section className="panel network-panel p-5 sm:p-6">

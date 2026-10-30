@@ -132,7 +132,9 @@ try {
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await page.screenshot({ path: join(screenshots, 'library-mobile.png'), fullPage: true });
   await page.getByRole('button', { name: '打开导航菜单', exact: true }).click();
-  await page.getByRole('button', { name: '退出登录', exact: true }).waitFor();
+  await page.getByRole('dialog').getByRole('button', { name: '账号菜单', exact: true }).click();
+  await page.getByRole('menuitem', { name: '退出登录', exact: true }).waitFor();
+  await page.keyboard.press('Escape');
   await page.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).click();
   await page.getByLabel('名称', { exact: true }).fill('unsaved');
   await page.getByLabel('内容类型').selectOption('resource');

@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api, isForbidden } from '../../lib/api.js';
@@ -67,14 +68,7 @@ export default function UsersPage() {
   if (isForbidden(users.error)) return <Forbidden />;
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <h1>用户管理</h1>
-          <p>
-            每个用户保留个人空间。停用会撤销 Agent 凭证并终止活跃调用；重新启用后需重新签发凭证。
-          </p>
-        </div>
-      </div>
+      <PageHeader title="用户管理" />
       <QueryError error={users.error} onRetry={() => users.refetch()} />
       <Card className="panel padded">
         <h2>创建用户</h2>

@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
 import { Card } from '../../components/ui/card.js';
 import { SelectControl } from '../../components/shared/SelectControl.js';
@@ -24,13 +25,7 @@ export default function SkillsPage() {
   const [result, setResult] = useState<unknown>();
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">SKILL LIBRARY</span>
-          <h1>Skills</h1>
-          <p>导入不可变版本，关联 MCP 依赖，分发到真正执行任务的环境。</p>
-        </div>
-      </div>
+      <PageHeader title="Skills" />
       <Feedback error={skills.error ?? profiles.error ?? devices.error} />
       <div className="overview-grid">
         <Card className="panel padded">

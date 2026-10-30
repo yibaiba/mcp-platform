@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { useQuery } from '@tanstack/react-query';
 import { api, json } from '../../lib/api.js';
 import { Action, Feedback, ListSkeleton } from '../../components/shared/Controls.js';
@@ -34,12 +35,7 @@ export default function AboutPage() {
   const info = version.data;
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <h1>关于与更新</h1>
-          <p>MCP Platform · yibaiba/mcp-platform</p>
-        </div>
-      </div>
+      <PageHeader title="关于与更新" />
       <Feedback error={version.error ?? me.error ?? devices.error} />
       {info ? (
         <section className="panel space-y-4 p-5 sm:p-6">

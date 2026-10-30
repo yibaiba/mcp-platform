@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { DiscoveryEditor } from './DiscoveryEditor.js';
 import { CatalogEditor } from './CatalogEditor.js';
 import { WorkspacePage } from './WorkspacePage.js';
@@ -69,13 +70,7 @@ export default function ProfilesPage() {
     return <WorkspacePage profileId={workspace} onBack={() => void navigate({ search: {} })} />;
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">AGENT PROFILES</span>
-          <h1>Agent 配置</h1>
-          <p>工具、提示词和资源分别授权。内部 Pi 与外部 Agent 共用权限。</p>
-        </div>
-      </div>
+      <PageHeader title="Agent" />
       <Feedback
         error={
           profiles.error ??

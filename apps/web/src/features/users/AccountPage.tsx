@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { CliGrants } from './CliGrants.js';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api.js';
@@ -25,12 +26,7 @@ export default function AccountPage() {
   });
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <h1>个人账号</h1>
-          <p>修改密码、绑定登录身份或撤销登录会话。</p>
-        </div>
-      </div>
+      <PageHeader title="个人账号" />
       <Feedback error={sessions.error ?? options.error} />
       <CliGrants />
       <Card className="panel padded">

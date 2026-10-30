@@ -134,7 +134,7 @@ body:has(.local-shell) {
 .local-history article {
   padding: 20px;
   border: 1px solid var(--local-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md, 8px);
   background: var(--local-panel);
   margin-bottom: 12px;
   min-width: 0;
@@ -151,7 +151,7 @@ body:has(.local-shell) {
   background: transparent;
 }
 .local-resource-title strong {
-  font-size: 17px;
+  font-size: 15px;
 }
 .local-resource-title span,
 .local-manager small {
@@ -170,7 +170,7 @@ body:has(.local-shell) {
 .local-statuses span {
   font-size: 12px;
   border: 1px solid var(--local-border);
-  border-radius: 5px;
+  border-radius: var(--radius-sm, 6px);
   padding: 2px 7px;
 }
 .local-manager .local-select {
@@ -194,7 +194,7 @@ body:has(.local-shell) {
   color: var(--local-muted);
   padding: 36px 20px;
   border: 1px dashed var(--local-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md, 8px);
 }
 .local-sources summary,
 .local-conflict summary {

@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { Card } from '../../components/ui/card.js';
 import { SelectControl } from '../../components/shared/SelectControl.js';
 import { Input } from '../../components/ui/input.js';
@@ -24,13 +25,7 @@ export default function ArtifactsPage() {
   const [direction, setDirection] = useState('receive');
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">ARTIFACTS</span>
-          <h1>产物与文件交接</h1>
-          <p>使用产物 ID 传递文件，上传与接收均校验 SHA-256。</p>
-        </div>
-      </div>
+      <PageHeader title="产物" info="使用产物 ID 传递文件，上传与接收均校验 SHA-256。" />
       <Feedback error={artifacts.error ?? devices.error} />
       <div className="overview-grid">
         <Card className="panel padded">

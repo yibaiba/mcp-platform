@@ -1,3 +1,4 @@
+import { PageHeader } from '../../components/shared/PageHeader.js';
 import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -11,6 +12,8 @@ import {
 } from '../../lib/api.js';
 import { Card } from '../../components/ui/card.js';
 import { Button } from '../../components/ui/button.js';
+import { Badge } from '../../components/ui/badge.js';
+import { ArrowLeft } from 'lucide-react';
 import { Code, Feedback } from '../../components/shared/Controls.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
 import { IdentitySettings } from './IdentitySettings.js';
@@ -44,16 +47,15 @@ export function WorkspacePage({ profileId, onBack }: { profileId: string; onBack
   const current = profile.data;
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <span className="eyebrow">AGENT WORKSPACE</span>
-          <h1>{current?.name ?? 'Agent 工作空间'}</h1>
-          <p>配置此 Agent 的账号身份、执行设备和访问权限；修订 {current?.revision ?? '—'}。</p>
-        </div>
-        <Button variant="outline" onClick={onBack}>
-          返回 Agent 配置
-        </Button>
-      </div>
+      <PageHeader
+        title={current?.name ?? 'Agent'}
+        badge={current ? <Badge variant="outline">v{current.revision}</Badge> : null}
+        actions={
+          <Button variant="ghost" onClick={onBack}>
+            <ArrowLeft aria-hidden="true" /> 返回
+          </Button>
+        }
+      />
       <Feedback
         error={
           profile.error ??
