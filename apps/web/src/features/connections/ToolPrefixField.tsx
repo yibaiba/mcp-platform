@@ -63,7 +63,7 @@ export function ToolPrefixField({
         </p>
       ) : null}
       {needsPrefix ? (
-        <p role="status" className="attention text-sm">
+        <p role="status" className="attention prose text-sm">
           名称里没有英文，工具名前缀会变成一串编号
           {current ? `（现在是 ${current}__…）` : '（例如 c3595bf__…）'}。建议填一个英文标识。
         </p>
@@ -81,9 +81,9 @@ export function ToolPrefixField({
         ) : null}
       </div>
       {connectionId && current && effective && effective !== current ? (
-        <p role="status" className="attention text-sm">
+        <p role="status" className="attention prose text-sm">
           保存后这个连接的工具名会从 <code>{current}__…</code> 变成 <code>{effective}__…</code>
-          ；已接入的客户端需要刷新工具列表（t_ 开头的旧名称仍可调用）。
+          ；已接入的客户端需要刷新工具列表，旧名称之后不能再调用。
         </p>
       ) : null}
     </div>

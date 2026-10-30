@@ -21,7 +21,7 @@ export const setupSteps = [
     hash: 'connector-catalog',
     action: '选择服务',
     description:
-      '选择 GitHub、Cloudflare 等服务，填写自己的 Token 或发起 OAuth 授权。保存后自动发现工具；自定义连接需要点击“连接”。',
+      '选择 GitHub、Cloudflare 等服务，填写自己的 Token 或发起 OAuth 授权。保存后自动读取工具列表；自定义连接点“保存并连接”即可。',
   },
   {
     title: '为 Agent 选择权限',
@@ -30,7 +30,7 @@ export const setupSteps = [
     hash: 'create-profile',
     action: '配置 Agent',
     description:
-      '连接成功后点击“给 Agent 授权”，选择已有 Agent 或新建，再勾选允许使用的工具。保存后直接进入客户端接入。',
+      '连接成功后点击“给 Agent 授权”，选择已有 Agent 或新建；新建时这个连接的工具已默认勾选。保存后直接进入客户端接入。',
   },
   {
     title: '复制配置到客户端',
@@ -39,7 +39,7 @@ export const setupSteps = [
     hash: 'agent-configurations',
     action: '获取接入配置',
     description:
-      '点击 Agent 旁的“接入”，生成接入密钥后选择客户端并复制配置，再粘贴到客户端的 MCP 设置。密钥只显示一次；请在客户端刷新工具列表确认接通。',
+      '点击 Agent 旁的“接入客户端”，生成接入密钥后选择客户端并复制配置，再粘贴到客户端的 MCP 设置。密钥只显示一次；请在客户端刷新工具列表确认接通。',
   },
 ] as const;
 

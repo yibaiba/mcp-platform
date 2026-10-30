@@ -87,21 +87,9 @@ export function WorkspacePage({
         title={current?.name ?? 'Agent 详情'}
         badge={current ? <Badge variant="outline">第 {current.revision} 版</Badge> : null}
         actions={
-          <>
-            <Button variant="ghost" onClick={onBack}>
-              <ArrowLeft aria-hidden="true" /> 返回
-            </Button>
-            {current ? (
-              <>
-                <Button variant="outline" onClick={() => onAccess(current)}>
-                  <KeyRound aria-hidden="true" /> 接入客户端
-                </Button>
-                <Button onClick={() => onEdit(current)}>
-                  <ShieldCheck aria-hidden="true" /> 编辑权限
-                </Button>
-              </>
-            ) : null}
-          </>
+          <Button variant="ghost" onClick={onBack}>
+            <ArrowLeft aria-hidden="true" /> 返回
+          </Button>
         }
       />
       <Feedback
@@ -119,7 +107,17 @@ export function WorkspacePage({
       {current ? (
         <div className="space-y-5">
           <Card className="panel padded" aria-labelledby="agent-tools-title">
-            <h2 id="agent-tools-title">这个 Agent 能用的工具</h2>
+            <div className="agent-head">
+              <h2 id="agent-tools-title">这个 Agent 能用的工具</h2>
+              <div className="agent-head-actions">
+                <Button variant="outline" onClick={() => onAccess(current)}>
+                  <KeyRound aria-hidden="true" /> 接入客户端
+                </Button>
+                <Button onClick={() => onEdit(current)}>
+                  <ShieldCheck aria-hidden="true" /> 编辑权限
+                </Button>
+              </div>
+            </div>
             {agentTools.isPending ? <ListSkeleton /> : null}
             {agentTools.isSuccess && !groups.size ? (
               <Empty
@@ -188,7 +186,7 @@ export function WorkspacePage({
                 ) : null}
               </dl>
             ) : null}
-            <div className="flex flex-wrap gap-4">
+            <div className="mt-4 flex flex-wrap gap-4">
               <Link to="/tools" search={{ profileId: current.id }}>
                 以此 Agent 测试工具
               </Link>
@@ -197,9 +195,9 @@ export function WorkspacePage({
               </Link>
             </div>
           </Card>
-          <ApprovalPanel profileId={profileId} />
-          <Disclosure title="高级：身份、可申请范围、任务与技术详情">
+          <Disclosure title="高级：临时授权、身份、可申请范围、任务与技术详情">
             <div className="space-y-5">
+              <ApprovalPanel profileId={profileId} />
               <Card className="panel padded">
                 <h2>身份与运行位置</h2>
                 {connections.data?.map((connection) => (
@@ -224,6 +222,7 @@ export function WorkspacePage({
                   tools={tools.data ?? []}
                   content={content.data ?? []}
                   artifacts={artifacts.data ?? []}
+                  connectionName={names.label}
                 />
               </Card>
               <Card className="panel padded">

@@ -470,8 +470,13 @@ textarea:disabled {
   font-weight: 600;
 }
 .agent-tool-group h3 small {
+  display: inline;
   color: var(--muted-foreground);
   font-weight: 400;
+}
+.agent-tool-table + .agent-grants,
+.agent-tool-group:last-of-type {
+  margin-bottom: 12px;
 }
 .agent-tool-table {
   width: 100%;
@@ -712,4 +717,32 @@ textarea:disabled {
 }
 .glossary-list small {
   color: var(--muted-foreground);
+}
+
+/* Inline-text variant of .attention: sentences with <code> must wrap as text, not flex items. */
+.attention.prose {
+  display: block;
+  margin-bottom: 0;
+  line-height: 1.6;
+}
+.attention.prose code {
+  overflow-wrap: anywhere;
+}
+
+/* Agent 详情: the two main actions sit on the first card and wrap on narrow screens */
+.agent-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+.agent-head h2 {
+  margin: 0;
+}
+.agent-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
