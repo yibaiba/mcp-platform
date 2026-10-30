@@ -107,8 +107,14 @@ export function ConnectionItem({
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-medium">{connection.name}</h3>
             <Status
-              value={connection.status}
-              label={connection.status === 'waiting_authorization' ? '等待账号授权' : undefined}
+              value={connection.deviceOffline ? 'error' : connection.status}
+              label={
+                connection.deviceOffline
+                  ? '设备离线'
+                  : connection.status === 'waiting_authorization'
+                    ? '等待账号授权'
+                    : undefined
+              }
             />
             <Hint content={`${executionLocation(connection, devices)} · ${identity}`}>
               <span

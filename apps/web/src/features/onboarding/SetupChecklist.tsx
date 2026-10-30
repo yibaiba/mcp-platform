@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { Check, ChevronRight, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronRight, X } from 'lucide-react';
 import { api, type Connection, type Profile } from '../../lib/api.js';
 import { Button } from '../../components/ui/button.js';
 import { Feedback } from '../../components/shared/Controls.js';
 import { setupSteps } from './GettingStarted.js';
-import { setupProgress, type AccessKey } from './setupProgress.js';
+import { setupStatus, type AccessKey } from './setupProgress.js';
 
 const dismissedKey = 'mcp-platform:setup-dismissed';
 
@@ -32,14 +32,30 @@ export function SetupChecklist() {
   const error = connections.error ?? profiles.error ?? keys.error;
   if (error) return <Feedback error={error} />;
   if (!loaded) return null;
-  const complete = setupProgress({
+  const status = setupStatus({
     connections: connections.data,
     profiles: profiles.data,
     keys: keys.data,
   });
+  const complete = status.steps;
   const done = complete.filter(Boolean).length;
   const nextIndex = complete.findIndex((value) => !value);
   const next = setupSteps[nextIndex];
+  if (status.broken.length) {
+    // Configured is not the same as working: fixing a broken connection comes before any next step.
+    return (
+      <section className="setup setup-degraded" role="status" aria-label="上手流程">
+        <AlertTriangle size={16} aria-hidden="true" />
+        <span className="grow">
+          配置 {done}/{setupSteps.length}，但有 {status.broken.length} 个连接不可用，Agent
+          暂时缺少这些工具；其余工具照常可用
+        </span>
+        <Link to="/connections" className="setup-next">
+          去修复 <ChevronRight size={14} aria-hidden="true" />
+        </Link>
+      </section>
+    );
+  }
   if (!next) {
     if (dismissed) return null;
     return (

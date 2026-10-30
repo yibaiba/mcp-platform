@@ -7,7 +7,7 @@ import { Textarea } from '../../components/ui/textarea.js';
 import { Input } from '../../components/ui/input.js';
 import { Button } from '../../components/ui/button.js';
 import { Hint } from '../../components/ui/tooltip.js';
-import { Check, Copy, History } from 'lucide-react';
+import { AlertTriangle, Check, Copy, History } from 'lucide-react';
 import { api, json, type Tool } from '../../lib/api.js';
 const AppHost = lazy(() =>
   import('../apps/AppHost.js').then((module) => ({ default: module.AppHost })),
@@ -73,6 +73,14 @@ export function ToolRunner({
       <p className="runner-meta">
         {location} · {identity}
       </p>
+      {selected.unavailable ? (
+        <p className="attention" role="status">
+          <AlertTriangle size={16} aria-hidden="true" />
+          <span className="grow">
+            {selected.unavailable.message}。现在执行会失败并记入调用记录。
+          </span>
+        </p>
+      ) : null}
       {selected.definition.description ? <p>{selected.definition.description}</p> : null}
       <Disclosure title="定义">
         <h3>参数结构</h3>

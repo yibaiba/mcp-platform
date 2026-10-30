@@ -92,6 +92,8 @@ export class InvocationService {
     if (connection.status === 'stopped')
       throw new AppError('CONNECTION_STOPPED', '连接已停止，请先启动', 409);
     const id = input.callId ?? randomUUID();
+    if ('unavailable' in tool && tool.unavailable)
+      return this.unavailable(input, id, connection.id, tool.unavailable);
     const abort = new AbortController();
     const deadline = input.interactionDeadline ? Date.parse(input.interactionDeadline) : undefined;
     if (deadline !== undefined && (!Number.isFinite(deadline) || deadline <= Date.now()))
@@ -300,6 +302,53 @@ export class InvocationService {
       }
     };
     return round();
+  }
+  /**
+   * The upstream or device is known to be down: record a failed call naming the connection and
+   * the next step instead of letting the call disappear before it reaches the call log.
+   */
+  private async unavailable(
+    input: CallInput,
+    id: string,
+    connectionId: string,
+    reason: { code: string; message: string },
+  ): Promise<never> {
+    const execution = currentExecution();
+    const context = await this.deps.connections.context(input.ownerId, connectionId);
+    const error = `${reason.code}: ${reason.message}`;
+    await this.deps.db.insert(calls).values({
+      id,
+      ownerId: input.ownerId,
+      profileId: input.profileId,
+      toolId: input.toolId,
+      connectionId,
+      adapter: context.config.adapter,
+      deviceId: context.config.deviceId,
+      status: 'failed',
+      error,
+      phase: 'dispatch',
+      // Same clock as startedAt so the recorded duration is never negative.
+      endedAt: sql`now()`,
+      taskId: execution?.taskId,
+      credentialId: execution?.credentialId,
+      bindingId: context.bindingId,
+      shareId: context.shareId,
+      shareVersion: context.shareVersion,
+      resourceOwnerId: context.resourceOwnerId ?? input.ownerId,
+      credentialOwnerId: context.credentialScope?.ownerId ?? input.ownerId,
+      sessionId: context.sessionId,
+      entry: execution?.entry ?? 'dashboard',
+      correlationId: execution?.correlationId,
+    });
+    this.deps.events.publish({
+      ownerId: input.ownerId,
+      kind: 'call',
+      id,
+      status: 'failed',
+      error,
+      revision: 1,
+    });
+    throw new AppError('CONNECTION_UNAVAILABLE', reason.message, 503);
   }
   private async finish(id: string, status: string, error?: string) {
     const [row] = await this.deps.db

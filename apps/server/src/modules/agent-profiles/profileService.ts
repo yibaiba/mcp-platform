@@ -25,7 +25,9 @@ import { legacyToolName } from '../catalog/toolNames.js';
 import { digest, secretToken } from '../../shared/crypto.js';
 import { AppError, requireValue } from '../../shared/errors.js';
 export type Principal = { ownerId: string; profileId: string; credentialId: string; token: string };
-import type { ConnectionService } from '../mcp/connectionService.js';
+import type { ConnectionService, ConnectionUnavailable } from '../mcp/connectionService.js';
+/** Set on catalog rows whose connection or device is down; their tools are not listed to Agents. */
+export type ToolUnavailable = { code: string; message: string };
 export class ProfileService {
   access?: AccessService;
   discovery!: DiscoveryService;
@@ -273,22 +275,45 @@ export class ProfileService {
     }
     throw new AppError('UNAUTHORIZED', 'Agent 凭证无效、已过期或已撤销', 401);
   }
+  /**
+   * Per-connection isolation: a broken upstream or offline device keeps its cached definitions,
+   * marked `unavailable`, instead of failing every tool in the Agent.
+   */
   private async scopedCatalog(
     ownerId: string,
     rows: (typeof tools.$inferSelect)[],
     cached = false,
   ) {
+    type Scope = {
+      tools: readonly ({ name: string } & Record<string, unknown>)[];
+      unavailable?: ConnectionUnavailable;
+    };
     const snapshots = new Map(
       await Promise.all(
-        [...new Set(rows.map((row) => row.connectionId))].map(async (id) => {
-          const snapshot = await (cached
-            ? this.searchDefinitions(ownerId, {
+        [...new Set(rows.map((row) => row.connectionId))].map(
+          async (id): Promise<readonly [string, Scope]> => {
+            if (!cached) {
+              const { snapshot, unavailable } = await this.connections.catalogOrUnavailable(
+                ownerId,
+                id,
+              );
+              return [id, { tools: snapshot?.tools ?? [], unavailable }];
+            }
+            try {
+              const snapshot = await this.searchDefinitions(ownerId, {
                 id,
                 names: rows.filter((row) => row.connectionId === id).map((row) => row.name),
-              })
-            : this.connections.catalogForAccess(ownerId, id));
-          return [id, snapshot] as const;
-        }),
+              });
+              return [id, { tools: snapshot.tools }];
+            } catch (error) {
+              if (!(error instanceof AppError)) throw error;
+              return [
+                id,
+                { tools: [], unavailable: await this.connections.unavailable(ownerId, id, error) },
+              ];
+            }
+          },
+        ),
       ),
     );
     const permitted = new Set(
@@ -301,11 +326,23 @@ export class ProfileService {
     return rows
       .filter((row) => permitted.has(row.id))
       .flatMap((row) => {
-        const definition = snapshots
-          .get(row.connectionId)
-          ?.tools.find((tool) => tool.name === row.name);
-        return definition ? [{ ...row, definition }] : [];
+        const entry = snapshots.get(row.connectionId);
+        const definition = entry?.tools.find((tool) => tool.name === row.name);
+        if (!definition) return [];
+        const unavailable: ToolUnavailable | undefined = entry?.unavailable
+          ? { code: entry.unavailable.code, message: entry.unavailable.message }
+          : undefined;
+        return [{ ...row, definition: definition as Record<string, unknown>, unavailable }];
       });
+  }
+  /** Connections whose tools are hidden from tools/list because they cannot run right now. */
+  async unavailableConnections(ownerId: string, profileId?: string) {
+    const catalog = await this.catalog(ownerId, profileId);
+    const seen = new Map<string, { connectionId: string; code: string; message: string }>();
+    for (const tool of catalog)
+      if (tool.unavailable && !seen.has(tool.connectionId))
+        seen.set(tool.connectionId, { connectionId: tool.connectionId, ...tool.unavailable });
+    return [...seen.values()];
   }
   async instructions(ownerId: string, profileId: string) {
     const profile = await this.owned(ownerId, profileId);
@@ -323,10 +360,16 @@ export class ProfileService {
           )
       : [];
     const ids = [...new Set([...catalog, ...content].map((row) => row.connectionId))].sort();
+    const down = new Set(
+      catalog.filter((tool) => tool.unavailable).map((tool) => tool.connectionId),
+    );
     const descriptions = await Promise.all(
       ids.map(async (id) => {
         const row = await this.connections.accessible(ownerId, id);
-        const snapshot = await this.connections?.catalogForAccess(ownerId, id);
+        // Never fail the handshake: use cached instructions when this connection is down.
+        const snapshot = down.has(id)
+          ? await this.connections.snapshot(ownerId, id).catch(() => undefined)
+          : (await this.connections.catalogOrUnavailable(ownerId, id)).snapshot;
         const text = snapshot?.instructions;
         return text ? `[${row?.name ?? id} · ${id}]\n${text}` : '';
       }),
@@ -392,10 +435,10 @@ export class ProfileService {
   ) {
     return this.describeCatalog(ownerId, profileId, await this.scopedCatalog(ownerId, rows));
   }
-  private async describeCatalog(
+  private async describeCatalog<T extends typeof tools.$inferSelect>(
     ownerId: string,
     profileId: string | undefined,
-    catalog: (typeof tools.$inferSelect)[],
+    catalog: T[],
   ) {
     if (!profileId) return catalog;
     const [owned, shared] = await Promise.all([

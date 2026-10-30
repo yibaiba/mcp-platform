@@ -139,6 +139,12 @@ export default function DevicesPage() {
                     <span tabIndex={0}>{relativeTime(device.lastSeen)}</span>
                   </Hint>
                 </small>
+                {deviceStatus(device) === 'offline' ? (
+                  <p role="status" className="mt-1 text-xs text-warning">
+                    这台设备上的连接暂不可用。在那台电脑重新运行安装命令（更多操作 →
+                    重新配对可再次获取），上线后自动恢复。
+                  </p>
+                ) : null}
               </div>
               {!device.revoked ? <DeviceToolsDialog device={device} /> : null}
               <DropdownMenu>

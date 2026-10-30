@@ -21,6 +21,7 @@ import type { ContentService } from './contentService.js';
 import type { ResourceSubscriptions } from './resourceSubscriptions.js';
 import { currentExecution, withExecution } from './executionContext.js';
 import { legacyToolDefinition, isInputRequiredResult } from '@platform/mcp';
+import { AppError } from '../../shared/errors.js';
 
 export type GatewayHandlers = {
   version?: string;
@@ -156,15 +157,25 @@ export async function createGatewayServer(
           import('@modelcontextprotocol/client').ElicitResult
         >,
       }) as Promise<import('@platform/mcp').McpToolResult>;
-    let result = await input.invocations.dispatch({
-      ...access(),
-      toolId,
-      arguments: invocation.arguments,
-      ...(input.era === 'legacy'
-        ? { signal: context.mcpReq.signal }
-        : { requestSignal: context.mcpReq.signal }),
-      onprogress: progressReporter(request.params._meta?.progressToken, context, input.logger),
-    });
+    let result = await input.invocations
+      .dispatch({
+        ...access(),
+        toolId,
+        arguments: invocation.arguments,
+        ...(input.era === 'legacy'
+          ? { signal: context.mcpReq.signal }
+          : { requestSignal: context.mcpReq.signal }),
+        onprogress: progressReporter(request.params._meta?.progressToken, context, input.logger),
+      })
+      .catch((error: unknown) => {
+        // A down connection is a tool-level failure the model can read and relay, not a protocol error.
+        if (error instanceof AppError && error.code === 'CONNECTION_UNAVAILABLE')
+          return {
+            isError: true,
+            content: [{ type: 'text' as const, text: `CONNECTION_UNAVAILABLE: ${error.message}` }],
+          };
+        throw error;
+      });
     while (input.era === 'legacy' && isInputRequiredResult(result)) {
       const responses: Record<string, import('@modelcontextprotocol/client').ElicitResult> = {};
       for (const [id, request] of Object.entries(result.inputRequests ?? {})) {

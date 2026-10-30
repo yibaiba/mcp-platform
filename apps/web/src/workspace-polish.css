@@ -277,6 +277,18 @@ textarea:disabled {
 .setup-done {
   color: var(--success);
 }
+.attention p {
+  margin: 4px 0 0;
+  color: var(--foreground);
+}
+.tool-option strong .status {
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.setup-degraded {
+  border-color: color-mix(in oklch, var(--warning) 40%, var(--border));
+  color: var(--warning);
+}
 .setup-steps {
   display: flex;
   align-items: center;

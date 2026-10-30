@@ -24,6 +24,7 @@ import {
 } from '../../components/shared/Controls.js';
 import { PageHeader } from '../../components/shared/PageHeader.js';
 import { SetupChecklist } from '../onboarding/SetupChecklist.js';
+import { brokenConnections } from '../onboarding/setupProgress.js';
 function StatTile({
   icon: Icon,
   label,
@@ -128,7 +129,8 @@ export default function OverviewPage() {
   const tools = useQuery({ queryKey: ['tools'], queryFn: () => api<Tool[]>('/tools') });
   const calls = useQuery({ queryKey: ['calls'], queryFn: () => api<Call[]>('/calls?limit=5') });
   const userConnections = connections.data?.filter((connection) => connection.source !== 'library');
-  const failing = connections.data?.filter((connection) => connection.status === 'error') ?? [];
+  const failing = brokenConnections(connections.data ?? []);
+  const unavailableTools = tools.data?.filter((tool) => tool.unavailable) ?? [];
   const activeDevices = devices.data?.filter((device) => !device.revoked) ?? [];
   const offline = activeDevices.filter((device) => !device.online);
   const failed = connections.error ?? devices.error ?? tools.error ?? calls.error;
@@ -154,7 +156,10 @@ export default function OverviewPage() {
           <AlertTriangle size={16} aria-hidden="true" />
           <span className="grow">
             {[
-              failing.length ? `${failing.length} 个连接出错` : '',
+              failing.length
+                ? `${failing.length} 个连接不可用：${failing.map((c) => `「${c.name}」`).join('、')}`
+                : '',
+              unavailableTools.length ? `${unavailableTools.length} 个工具暂不可调用` : '',
               offline.length ? `${offline.length} 台设备离线` : '',
             ]
               .filter(Boolean)
@@ -174,14 +179,18 @@ export default function OverviewPage() {
           value={userConnections?.length}
           detail={
             userConnections
-              ? `${userConnections.filter((c) => c.status === 'connected').length} 个已连接`
+              ? `${userConnections.filter((c) => c.status === 'connected' && !c.deviceOffline).length} 个已连接`
               : undefined
           }
         >
           {userConnections?.length ? (
             <ConnectionMap
               states={userConnections.map((c) =>
-                c.status === 'connected' ? 'ok' : c.status === 'error' ? 'error' : 'idle',
+                c.deviceOffline || c.status === 'error'
+                  ? 'error'
+                  : c.status === 'connected'
+                    ? 'ok'
+                    : 'idle',
               )}
             />
           ) : null}
@@ -195,8 +204,14 @@ export default function OverviewPage() {
         <StatTile
           icon={Wrench}
           label="工具"
-          value={tools.data?.length}
-          detail={calls.data ? `最近 ${calls.data.length} 次调用` : undefined}
+          value={tools.data ? tools.data.length - unavailableTools.length : undefined}
+          detail={
+            unavailableTools.length
+              ? `另有 ${unavailableTools.length} 个不可用`
+              : calls.data
+                ? `最近 ${calls.data.length} 次调用`
+                : undefined
+          }
         />
       </div>
       <div className="overview-lists">
@@ -217,7 +232,11 @@ export default function OverviewPage() {
                 key={connection.id}
               >
                 <strong className="grow truncate">{connection.name}</strong>
-                <Status value={connection.status} />
+                {connection.deviceOffline ? (
+                  <Status value="error" label="设备离线" />
+                ) : (
+                  <Status value={connection.status} />
+                )}
                 <small className="row-meta">
                   {tools.data
                     ? `${tools.data.filter((tool) => tool.connectionId === connection.id).length} 工具`
