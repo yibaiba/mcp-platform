@@ -64,6 +64,11 @@ export default function AuthorizationsPage() {
                 />
                 <Action
                   danger
+                  confirmation={{
+                    title: `删除「${connection.name}」的平台凭证？`,
+                    description: '需要重新授权后才能继续调用。',
+                    confirmLabel: '删除',
+                  }}
                   action={async () =>
                     setResult(
                       await api(`/connections/${connection.id}/oauth`, { method: 'DELETE' }),
@@ -119,6 +124,11 @@ export default function AuthorizationsPage() {
               {!grant.revoked ? (
                 <Action
                   danger
+                  confirmation={{
+                    title: '撤销该 Agent 的访问？',
+                    description: '使用此授权的外部 Agent 会立即失去访问。',
+                    confirmLabel: '撤销',
+                  }}
                   action={() => api(`/oauth/grants/${grant.id}`, { method: 'DELETE' })}
                 >
                   撤销访问

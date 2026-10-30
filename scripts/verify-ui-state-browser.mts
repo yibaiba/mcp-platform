@@ -29,10 +29,10 @@ try {
     await route.continue();
   });
   await page.goto(h.baseURL + '/library');
-  await page.getByText('正在读取内容…', { exact: true }).waitFor();
-  assert.equal(await page.getByText('还没有内容。', { exact: true }).count(), 0);
+  await page.locator('[aria-busy="true"]').first().waitFor();
+  assert.equal(await page.getByText('还没有内容', { exact: true }).count(), 0);
   release();
-  await page.getByText('还没有内容。', { exact: true }).waitFor();
+  await page.getByText('还没有内容', { exact: true }).waitFor();
   await page.unroute('**/api/v1/library/prompts');
   await page.route('**/api/v1/library/prompts', (route) =>
     route.fulfill({
@@ -43,10 +43,10 @@ try {
   );
   await page.reload();
   await page.getByRole('alert').filter({ hasText: '内容服务暂不可用' }).waitFor();
-  assert.equal(await page.getByText('还没有内容。', { exact: true }).count(), 0);
+  assert.equal(await page.getByText('还没有内容', { exact: true }).count(), 0);
   await page.unroute('**/api/v1/library/prompts');
-  await page.getByRole('button', { name: '重新读取内容', exact: true }).click();
-  await page.getByText('还没有内容。', { exact: true }).waitFor();
+  await page.getByRole('alert').getByRole('button', { name: '重试', exact: true }).click();
+  await page.getByText('还没有内容', { exact: true }).waitFor();
   await page.getByLabel('名称', { exact: true }).fill('keep me');
   await page.getByRole('link', { name: 'MCP 连接', exact: true }).click();
   await page.getByRole('button', { name: '放弃修改并继续', exact: true }).click();

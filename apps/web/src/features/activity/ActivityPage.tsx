@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from '../../components/ui/button.js';
-import { Action, Status } from '../../components/shared/Controls.js';
+import { Action, Status, ListSkeleton } from '../../components/shared/Controls.js';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Card } from '../../components/ui/card.js';
@@ -122,6 +122,11 @@ export default function ActivityPage() {
             <span>将清理 {preview.count} 条已结束记录，运行和等待回答的调用保留。</span>
             <Action
               danger
+              confirmation={{
+                title: `清理 ${preview.count} 条已结束记录？`,
+                description: '运行中和等待中的调用会保留。',
+                confirmLabel: '清理',
+              }}
               action={async () => {
                 await api('/activity/calls/cleanup', {
                   method: 'POST',
@@ -141,11 +146,7 @@ export default function ActivityPage() {
           <h2>调用记录 · 每页 50 条</h2>
           <span className="label">每 5 秒刷新</span>
         </div>
-        {calls.isPending ? (
-          <p className="quiet-empty" role="status">
-            正在读取调用记录…
-          </p>
-        ) : null}
+        {calls.isPending ? <ListSkeleton /> : null}
         {calls.data?.items.length ? (
           <Table>
             <TableHeader>

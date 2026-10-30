@@ -2,12 +2,18 @@ import {
   useId,
   cloneElement,
   isValidElement,
+  useEffect,
+  useRef,
   useState,
   type ReactNode,
   type FormEvent,
 } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
+import { CircleCheck, LoaderCircle, ShieldAlert, type LucideIcon } from 'lucide-react';
 import { ConfirmDialog, type Confirmation } from './ConfirmDialog.js';
+import { Skeleton } from '../ui/skeleton.js';
+import { isForbidden } from '../../lib/api.js';
 import { Button } from '../ui/button.js';
 import { Badge } from '../ui/badge.js';
 import { Field as FieldContainer, FieldLabel, FieldDescription } from '../ui/field.js';
@@ -33,16 +39,114 @@ export function Field({
     </FieldContainer>
   );
 }
-export function Empty({ children }: { children: ReactNode }) {
-  return <div className="empty">{children}</div>;
-}
-export function Feedback({ error }: { error: Error | null }) {
-  return error ? (
-    <div className="error" role="alert">
-      {error.message}
+/**
+ * Empty states: one short title plus at most one action. `children` stays supported for
+ * screens that still render free-form content.
+ */
+export function Empty({
+  children,
+  icon: Icon,
+  title,
+  action,
+  variant = 'default',
+}: {
+  children?: ReactNode;
+  icon?: LucideIcon;
+  title?: string;
+  action?: ReactNode;
+  variant?: 'default' | 'filtered';
+}) {
+  return (
+    <div className="empty" data-variant={variant}>
+      {Icon ? <Icon size={28} aria-hidden="true" /> : null}
+      {title ? <h3>{title}</h3> : null}
+      {children}
+      {action ? <div className="empty-action">{action}</div> : null}
     </div>
-  ) : null;
+  );
 }
+/** Error block: the original message plus an optional retry that re-runs the request. */
+export function ErrorState({
+  error,
+  onRetry,
+  title,
+}: {
+  error: Error | null | undefined;
+  onRetry?: () => unknown;
+  title?: string;
+}) {
+  if (!error) return null;
+  return (
+    <div className="error error-state" role="alert">
+      <div className="min-w-0">
+        {title ? <strong>{title}</strong> : null}
+        <span>{error.message}</span>
+      </div>
+      {onRetry ? (
+        <Button type="button" variant="outline" size="sm" onClick={() => void onRetry()}>
+          重试
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+export function Feedback({ error, onRetry }: { error: Error | null; onRetry?: () => unknown }) {
+  return <ErrorState error={error} onRetry={onRetry} />;
+}
+/** Short success note next to the control that triggered it; fades after three seconds. */
+export function InlineStatus({ children, onDone }: { children: ReactNode; onDone?: () => void }) {
+  const done = useRef(onDone);
+  done.current = onDone;
+  useEffect(() => {
+    const timer = setTimeout(() => done.current?.(), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <span role="status" className="inline-status">
+      <CircleCheck size={14} aria-hidden="true" />
+      {children}
+    </span>
+  );
+}
+/** Whole-page state for administrator-only screens opened by other accounts. */
+export function Forbidden() {
+  return (
+    <div className="empty forbidden" role="alert">
+      <ShieldAlert size={28} aria-hidden="true" />
+      <h3>需要管理员权限</h3>
+      <div className="empty-action">
+        <Button variant="outline" render={<Link to="/" />}>
+          返回概览
+        </Button>
+      </div>
+    </div>
+  );
+}
+/** Renders `Forbidden` for permission errors, otherwise the error with retry. */
+export function QueryError({ error, onRetry }: { error: Error | null; onRetry?: () => unknown }) {
+  if (isForbidden(error)) return <Forbidden />;
+  return <ErrorState error={error} onRetry={onRetry} title="加载失败" />;
+}
+/** Placeholder rows that match the height of real list rows. */
+export function ListSkeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <div aria-busy="true" className="list-skeleton">
+      <span className="sr-only">加载中</span>
+      {Array.from({ length: rows }, (_, index) => (
+        <div className="list-skeleton-row" key={index}>
+          <Skeleton className="size-8 rounded-sm" />
+          <div className="grow space-y-2">
+            <Skeleton className="h-3 w-2/5 rounded-sm" />
+            <Skeleton className="h-3 w-1/4 rounded-sm" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+const Spinner = () => (
+  <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+);
 export function Status({ value }: { value: string }) {
   const labels: Record<string, string> = {
     connected: '已连接',
@@ -85,23 +189,36 @@ export function Action({
   action,
   danger = false,
   confirmation,
+  onError,
+  variant,
+  confirmed = false,
 }: {
   children: ReactNode;
   action: () => Promise<unknown>;
   danger?: boolean;
   confirmation?: Confirmation;
+  /** Lets the caller show the failure elsewhere, for example under the owning row. */
+  onError?: (error: Error | null) => void;
+  variant?: 'outline' | 'ghost' | 'default' | 'destructive';
+  /** The surrounding UI already asked the user to confirm (inline confirmation step). */
+  confirmed?: boolean;
 }) {
   const [confirming, setConfirming] = useState(false);
   const query = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  if (import.meta.env.DEV && danger && !confirmation && !confirmed)
+    console.warn('Destructive Action rendered without confirmation:', children);
   async function run() {
     setBusy(true);
     setError(null);
+    onError?.(null);
     try {
       await action();
     } catch (error) {
-      setError(error instanceof Error ? error : new Error(String(error)));
+      const failure = error instanceof Error ? error : new Error(String(error));
+      if (onError) onError(failure);
+      else setError(failure);
     } finally {
       // Failed connection attempts also persist a new diagnostic status.
       await query.invalidateQueries();
@@ -111,12 +228,14 @@ export function Action({
   return (
     <span className="action">
       <Button
-        variant={danger ? 'destructive' : 'outline'}
+        variant={variant ?? (danger ? 'destructive' : 'outline')}
         disabled={busy}
+        aria-busy={busy}
         type="button"
         onClick={() => (confirmation ? setConfirming(true) : void run())}
       >
-        {busy ? '处理中…' : children}
+        {busy ? <Spinner /> : null}
+        {children}
       </Button>
       <Feedback error={error} />
       {confirmation ? (
@@ -134,17 +253,37 @@ export function Action({
     </span>
   );
 }
+/** Derives a result note that names the action instead of a generic 「操作已完成」. */
+export function successText(label: string) {
+  if (/预览/.test(label)) return '预览已更新';
+  const rules: [RegExp, string][] = [
+    [/^保存/, '已保存'],
+    [/^创建/, '已创建'],
+    [/^添加/, '已添加'],
+    [/^导入/, '已导入'],
+    [/^生成/, '已生成'],
+    [/上传/, '已上传'],
+    [/^安装/, '已安装'],
+    [/^更新/, '已更新'],
+    [/^批准/, '已批准'],
+    [/^测试/, '测试完成'],
+  ];
+  return rules.find(([pattern]) => pattern.test(label))?.[1] ?? '已完成';
+}
 type FormFeedback = { version: number | undefined; outcome: 'success' | Error };
 export function Form({
   children,
   submit,
   label = '保存',
+  successLabel,
   noValidate = false,
   feedbackVersion,
 }: {
   children: ReactNode;
   submit: (data: FormData) => Promise<unknown>;
   label?: string;
+  /** Names what happened, e.g. 「已创建」; shown next to the submit button. */
+  successLabel?: string;
   noValidate?: boolean;
   feedbackVersion?: number;
 }) {
@@ -183,10 +322,15 @@ export function Form({
       </fieldset>
       <Feedback error={outcome instanceof Error ? outcome : null} />
       <div className="form-footer">
-        <Button type="submit" disabled={busy}>
-          {busy ? '处理中…' : label}
+        <Button type="submit" disabled={busy} aria-busy={busy}>
+          {busy ? <Spinner /> : null}
+          {label}
         </Button>
-        {outcome === 'success' ? <span role="status">操作已完成</span> : null}
+        {outcome === 'success' ? (
+          <InlineStatus onDone={() => setFeedback(undefined)}>
+            {successLabel ?? successText(label)}
+          </InlineStatus>
+        ) : null}
       </div>
     </form>
   );

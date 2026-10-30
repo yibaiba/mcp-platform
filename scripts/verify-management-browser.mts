@@ -40,9 +40,9 @@ try {
   await page.getByLabel('提示词模板', { exact: true }).fill('Draft hello {{topic}}');
   await page.getByRole('button', { name: '预览当前草稿', exact: true }).click();
   await page.getByText('Draft hello browser', { exact: false }).waitFor();
-  await page.getByText('操作已完成', { exact: true }).waitFor();
+  await page.getByText('预览已更新', { exact: true }).waitFor();
   await page.getByLabel('参数值（JSON）').fill('{"topic":"changed"}');
-  assert.equal(await page.getByText('操作已完成', { exact: true }).count(), 0);
+  assert.equal(await page.getByText('预览已更新', { exact: true }).count(), 0);
   assert.equal(await page.locator('pre').filter({ hasText: 'Draft hello browser' }).count(), 0);
   await page.getByRole('button', { name: '预览当前草稿', exact: true }).click();
   await page.locator('pre').filter({ hasText: 'Draft hello changed' }).waitFor();
@@ -61,9 +61,9 @@ try {
   assert.equal(await page.getByRole('alert').count(), 0);
   await page.getByRole('checkbox', { name: '必填', exact: true }).uncheck();
   await page.getByRole('button', { name: '预览当前草稿', exact: true }).click();
-  await page.getByText('操作已完成', { exact: true }).waitFor();
+  await page.getByText('预览已更新', { exact: true }).waitFor();
   await page.getByRole('checkbox', { name: '必填', exact: true }).check();
-  assert.equal(await page.getByText('操作已完成', { exact: true }).count(), 0);
+  assert.equal(await page.getByText('预览已更新', { exact: true }).count(), 0);
   let releaseFailure!: () => void;
   const pendingFailure = new Promise<void>((done) => {
     releaseFailure = done;
@@ -81,10 +81,10 @@ try {
   assert.equal((await failingResponse).status(), 400);
   await page.getByRole('button', { name: '预览当前草稿', exact: true }).waitFor();
   assert.equal(await page.getByRole('alert').count(), 0);
-  assert.equal(await page.getByText('操作已完成', { exact: true }).count(), 0);
+  assert.equal(await page.getByText('预览已更新', { exact: true }).count(), 0);
   await page.unroute('**/api/v1/library/prompts/preview');
   await page.getByRole('button', { name: '预览当前草稿', exact: true }).click();
-  await page.getByText('操作已完成', { exact: true }).waitFor();
+  await page.getByText('预览已更新', { exact: true }).waitFor();
   await page.getByLabel('参数值（JSON）').fill('{"topic":"changed"}');
   await page.getByRole('checkbox', { name: '必填', exact: true }).check();
   await page.getByLabel('内容类型').selectOption('resource');
@@ -119,13 +119,13 @@ try {
   releasePreview();
   await page.getByText('草稿已修改，请重新预览。', { exact: true }).waitFor();
   await page.getByRole('button', { name: '预览当前草稿', exact: true }).waitFor();
-  assert.equal(await page.getByText('操作已完成', { exact: true }).count(), 0);
+  assert.equal(await page.getByText('预览已更新', { exact: true }).count(), 0);
   await page.unroute('**/api/v1/library/prompts/preview');
   await page.getByRole('button', { name: '预览当前草稿', exact: true }).click();
   await page.getByText('Newer draft changed', { exact: false }).waitFor();
   await page.screenshot({ path: join(screenshots, 'library-desktop.png'), fullPage: true });
   await page.getByLabel('状态', { exact: true }).selectOption('false');
-  assert.equal(await page.getByText('操作已完成', { exact: true }).count(), 0);
+  assert.equal(await page.getByText('预览已更新', { exact: true }).count(), 0);
   await page.getByRole('button', { name: '保存', exact: true }).click();
   await page.getByText('已停用 · 修订 2').waitFor();
   await page.setViewportSize({ width: 390, height: 844 });
@@ -149,7 +149,7 @@ try {
   await page.getByText('Browser resource', { exact: true }).waitFor();
   await page.getByRole('button', { name: '删除', exact: true }).click();
   await page.getByRole('button', { name: '确认删除', exact: true }).click();
-  await page.getByText('还没有内容。').waitFor();
+  await page.getByText('还没有内容', { exact: true }).waitFor();
   await page.goto(h.baseURL + '/profiles');
   await page.getByRole('button', { name: '智能发现', exact: true }).click();
   await page.getByRole('checkbox', { name: '启用明确节选并保存完整原文' }).check();

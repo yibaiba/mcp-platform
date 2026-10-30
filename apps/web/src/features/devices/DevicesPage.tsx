@@ -7,7 +7,15 @@ import { Monitor } from 'lucide-react';
 import { api, type Device } from '../../lib/api.js';
 import { DevicePairing } from './DevicePairing.js';
 import { DeviceToolsDialog } from './DeviceToolsDialog.js';
-import { Action, Code, date, Empty, Feedback, Status } from '../../components/shared/Controls.js';
+import {
+  Action,
+  Code,
+  date,
+  Empty,
+  Feedback,
+  Status,
+  ListSkeleton,
+} from '../../components/shared/Controls.js';
 const SshAccesses = lazy(() => import('./SshAccesses.js'));
 const DeviceLocalManager = lazy(() => import('../local/DeviceLocalManager.js'));
 export default function DevicesPage() {
@@ -78,7 +86,15 @@ export default function DevicesPage() {
                 <small>最近通信：{date(device.lastSeen)}</small>
                 {!device.revoked ? <DeviceToolsDialog device={device} /> : null}
                 {!device.revoked ? (
-                  <Action danger action={() => api(`/devices/${device.id}`, { method: 'DELETE' })}>
+                  <Action
+                    danger
+                    confirmation={{
+                      title: `撤销「${device.name}」？`,
+                      description: '设备将断开，需重新配对。',
+                      confirmLabel: '撤销',
+                    }}
+                    action={() => api(`/devices/${device.id}`, { method: 'DELETE' })}
+                  >
                     撤销设备
                   </Action>
                 ) : null}
@@ -87,7 +103,7 @@ export default function DevicesPage() {
                 <RePairDevice device={device} platformOrigin={platform.data.platformOrigin} />
               ) : null}
               {localDevice === device.id && !device.revoked ? (
-                <Suspense fallback={<p>正在加载资源管理…</p>}>
+                <Suspense fallback={<ListSkeleton rows={2} />}>
                   <DeviceLocalManager deviceId={device.id} />
                 </Suspense>
               ) : null}
@@ -102,7 +118,7 @@ export default function DevicesPage() {
           <Empty>尚未绑定设备。生成配对码，然后在目标设备上连接。</Empty>
         )}
       </Card>
-      <Suspense fallback={<p>正在加载 SSH 接入…</p>}>
+      <Suspense fallback={<ListSkeleton rows={2} />}>
         <SshAccesses />
       </Suspense>
     </>

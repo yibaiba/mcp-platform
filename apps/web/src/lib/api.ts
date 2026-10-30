@@ -11,11 +11,26 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   });
   const value = await response.json();
   if (!response.ok)
-    throw new Error(
+    throw new ApiError(
       value.error?.message ?? value.error ?? value.message ?? `请求失败 (${response.status})`,
+      response.status,
+      typeof value.code === 'string' ? value.code : undefined,
     );
   return value as T;
 }
+/** Carries the HTTP status so screens can tell permission failures from other errors. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly code?: string,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+export const isForbidden = (error: unknown) =>
+  error instanceof ApiError && (error.status === 403 || error.code === 'ADMIN_REQUIRED');
 export const json = (value: unknown) => JSON.stringify(value);
 export type Device = {
   id: string;
