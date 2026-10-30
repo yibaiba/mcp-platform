@@ -7,6 +7,8 @@ import { Input } from '../../components/ui/input.js';
 import { Card } from '../../components/ui/card.js';
 import { Action, date, Field, Feedback, Form, value } from '../../components/shared/Controls.js';
 import type { LoginOptions } from '../../components/shared/AuthScreen.js';
+import { Badge } from '../../components/ui/badge.js';
+import { roleLabel, useMe } from '../../lib/me.js';
 type Session = {
   id: string;
   createdAt: string;
@@ -24,10 +26,36 @@ export default function AccountPage() {
     queryKey: ['login-options'],
     queryFn: () => api<LoginOptions>('/login-options'),
   });
+  const me = useMe();
+  const session = authClient.useSession();
+  const role = me.data?.role;
   return (
     <>
       <PageHeader title="个人账号" />
-      <Feedback error={sessions.error ?? options.error} />
+      <Feedback error={sessions.error ?? options.error ?? me.error} />
+      <Card className="panel padded" aria-label="账号与角色">
+        <h2>账号与角色</h2>
+        <dl className="account-role-summary">
+          <dt>账号</dt>
+          <dd>{session.data?.user.email ?? '—'}</dd>
+          <dt>角色</dt>
+          <dd>
+            {role ? (
+              <Badge variant={role === 'admin' ? 'secondary' : 'outline'}>{roleLabel[role]}</Badge>
+            ) : (
+              '读取中…'
+            )}
+          </dd>
+        </dl>
+        {role === 'admin' ? (
+          <p>管理员可以管理用户、网络与安装源和平台设置；在“用户管理”里可以调整其他账号的角色。</p>
+        ) : role === 'member' ? (
+          <p>
+            普通用户可以管理自己的连接和
+            Agent。需要管理员权限时，请联系平台管理员在“用户管理”里调整。
+          </p>
+        ) : null}
+      </Card>
       <CliGrants />
       <Card className="panel padded">
         <h2>修改密码</h2>

@@ -60,7 +60,7 @@ export function Shell() {
   const account = (
     <AccountMenu
       user={session.user}
-      admin={admin}
+      role={info.data?.role}
       version={versionLabel}
       onGuide={() => setGuideOpen(true)}
       onNavigate={() => setMenuOpen(false)}

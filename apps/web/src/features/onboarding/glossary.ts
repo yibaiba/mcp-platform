@@ -17,6 +17,11 @@ export const glossary = [
     meaning: '客户端里工具名的前缀：英文标识__工具名',
     was: '连接展示前缀',
   },
+  {
+    term: '角色',
+    meaning: '管理员或普通用户；全新部署里第一个注册的账号是管理员，在账号菜单里可以看到',
+    was: 'admin / member',
+  },
   { term: 'Agent', meaning: '一组权限，客户端以它的身份接入', was: 'Agent 配置、Profile' },
   {
     term: 'Agent 详情',

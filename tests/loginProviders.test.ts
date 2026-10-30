@@ -82,6 +82,14 @@ test.each([true, false])(
         headers: { Cookie: cookie(start) },
       });
     };
+    // An existing account, so the OIDC sign-up below is not the deployment's first (auto-admin).
+    const existing = randomUUID();
+    await h.db.insert(user).values({
+      id: existing,
+      email: `${existing}@example.test`,
+      name: 'Existing account',
+      createdAt: new Date(0),
+    });
     try {
       if (!registration) {
         for (const explicit of [false, true]) {
@@ -125,6 +133,7 @@ test.each([true, false])(
       });
     } finally {
       await h.db.delete(user).where(eq(user.email, email));
+      await h.db.delete(user).where(eq(user.id, existing));
       await h.close();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }

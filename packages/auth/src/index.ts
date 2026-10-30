@@ -1,4 +1,4 @@
-import type { Database } from '@platform/db';
+import { promoteFirstUser, type Database } from '@platform/db';
 import * as schema from '@platform/db/schema/auth';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
@@ -37,6 +37,12 @@ export function createAuth(options: {
           before: async () => {
             if (!options.registration)
               throw new APIError('FORBIDDEN', { message: '账号注册已关闭' });
+          },
+          // Runs after the insert commits: the first account of an empty deployment becomes
+          // administrator; any later account (or any account in a deployment that already
+          // has users) stays a member.
+          after: async (created) => {
+            await promoteFirstUser(options.db, created.id);
           },
         },
       },

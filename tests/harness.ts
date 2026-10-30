@@ -76,8 +76,11 @@ export async function harness(
     if (!response.ok || !data.user)
       throw new Error(`Sign up failed: ${response.status} ${data.message}`);
     owners.push(data.user.id);
-    if (options.role === 'admin')
-      await db.update(user).set({ role: 'admin' }).where(eq(user.id, data.user.id));
+    // Pin the role: on an empty test database the first sign-up is auto-promoted to admin.
+    await db
+      .update(user)
+      .set({ role: options.role ?? 'member' })
+      .where(eq(user.id, data.user.id));
     const cookie = response.headers
       .getSetCookie()
       .map((value) => value.split(';')[0])

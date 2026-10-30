@@ -102,31 +102,44 @@ async function verifyManagement() {
   assert.match(await navigation.text(), /<div id="app">/);
   assert.equal((await request(`${origin}/assets/missing.js`)).status, 404);
   assert.equal((await request(`${origin}/api/v1/connections`)).status, 401);
-  const signup = await request(`${origin}/api/v1/auth/sign-up/email`, {
-    method: 'POST',
-    headers: { Origin: origin, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name: 'Disposable Compose acceptance',
-      email: `${project}@example.test`,
-      password: randomBytes(24).toString('hex'),
-    }),
-  });
-  assert.equal(signup.status, 200, `Signup failed: ${signup.status}`);
-  const cookie = signup.headers
-    .getSetCookie()
-    .map((value) => value.split(';')[0])
-    .join('; ');
-  assert.ok(cookie);
+  const signup = async (email, name) => {
+    const response = await request(`${origin}/api/v1/auth/sign-up/email`, {
+      method: 'POST',
+      headers: { Origin: origin, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password: randomBytes(24).toString('hex') }),
+    });
+    assert.equal(response.status, 200, `Signup failed: ${response.status}`);
+    const value = response.headers
+      .getSetCookie()
+      .map((entry) => entry.split(';')[0])
+      .join('; ');
+    assert.ok(value);
+    return value;
+  };
+  // Fresh volume: the first account becomes administrator automatically.
+  const cookie = await signup(`${project}@example.test`, 'Disposable Compose acceptance');
   const connections = await request(`${origin}/api/v1/connections`, {
     headers: { Cookie: cookie },
   });
   assert.equal(connections.status, 200);
   assert.deepEqual(await connections.json(), []);
-  const me = async () =>
-    (await request(`${origin}/api/v1/me`, { headers: { Cookie: cookie } })).json();
-  assert.equal((await me()).hostStdio, false, 'A new member must not get platform-host stdio');
-  await compose(['exec', '-T', 'server', 'pnpm', 'user:role', `${project}@example.test`, 'admin']);
-  assert.equal((await me()).hostStdio, true, 'An admin gets platform-host stdio when enabled');
+  const me = async (session) =>
+    (await request(`${origin}/api/v1/me`, { headers: { Cookie: session } })).json();
+  assert.deepEqual(
+    [(await me(cookie)).role, (await me(cookie)).hostStdio],
+    ['admin', true],
+    'The first account of an empty deployment is an admin and gets platform-host stdio',
+  );
+  // Every later account is a member until promoted with `pnpm user:role`.
+  const memberEmail = `${project}-member@example.test`;
+  const member = await signup(memberEmail, 'Disposable Compose member');
+  assert.deepEqual(
+    [(await me(member)).role, (await me(member)).hostStdio],
+    ['member', false],
+    'A second account is a member without platform-host stdio',
+  );
+  await compose(['exec', '-T', 'server', 'pnpm', 'user:role', memberEmail, 'admin']);
+  assert.equal((await me(member)).hostStdio, true, 'pnpm user:role promotes an existing account');
   console.log('PASS: single-port web, database health, authentication and management API');
   return cookie;
 }

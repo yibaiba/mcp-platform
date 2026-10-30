@@ -7,3 +7,4 @@ export function createDatabase(url: string) {
 }
 export type Database = ReturnType<typeof createDatabase>['db'];
 export * from './schema/index.js';
+export * from './firstAdmin.js';

@@ -6,7 +6,7 @@
 
 1. 将 `.env.docker.example` 复制为 `.env`，填写随机十六进制 `POSTGRES_PASSWORD`、`BETTER_AUTH_SECRET` 和 32 字节 Base64 `ENCRYPTION_KEY` 和独立的 `DEVICE_AUTH_ENCRYPTION_KEY`。镜像来自本仓库的 `ghcr.io/yibaiba/mcp-platform`，`PLATFORM_VERSION` 可使用已发布的 `latest` 或 `sha-<完整提交号>`。Compose 自动注入容器内部的 `DATABASE_URL`，无需手填。
 2. 将 `PUBLIC_URL` 和 `WEB_ORIGIN` 均设为实际访问地址，例如 `http://服务器IP:4300`，或 Nginx 提供的同一个 HTTPS 域名。
-3. 首次注册时临时启用 `ALLOW_REGISTRATION=true`，注册后关闭并重新创建应用容器。
+3. 首次注册时临时启用 `ALLOW_REGISTRATION=true`，注册后关闭并重新创建应用容器。第一个注册的账号自动成为管理员；之后调整角色用“用户管理”或 `docker compose exec server pnpm user:role <邮箱> admin`。
 
 ```sh
 docker compose -f docker-compose.yml pull
@@ -28,7 +28,7 @@ docker compose -f docker-compose.yml logs --tail=100 server
 
 1. 安装 Docker/Compose，准备容器可访问的 PostgreSQL 17 数据库。
 2. `cp .env.example .env`；设置外部 `DATABASE_URL`、随机 `BETTER_AUTH_SECRET` 和 32 字节 Base64 `ENCRYPTION_KEY` 和独立的 `DEVICE_AUTH_ENCRYPTION_KEY`。`PUBLIC_URL` 和 `WEB_ORIGIN` 都填写实际访问地址；直连使用 `http://服务器IP:4300`，Nginx 使用同一个 HTTPS 域名。数据库地址中的 `localhost` 指应用容器自身，用户名与密码中的特殊字符需 URL 编码。不要在仓库提交 `.env`。
-3. 首次临时启用 `ALLOW_REGISTRATION=true`，注册后关闭并重建 server 容器。
+3. 首次临时启用 `ALLOW_REGISTRATION=true`，注册后关闭并重建 server 容器。第一个注册的账号自动成为管理员（已有用户的库不变）；之后用“用户管理”或 `pnpm user:role` 调整角色。
 
 ```sh
 docker compose -f compose.yaml build

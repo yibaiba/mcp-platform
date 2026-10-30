@@ -22,7 +22,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu.js';
+import { Badge } from '../ui/badge.js';
 import { authClient } from '../../lib/auth-client.js';
+import { roleLabel, type Role } from '../../lib/me.js';
 import { setThemePreference, useThemePreference, type ThemePreference } from '../../lib/theme.js';
 
 const themes = [
@@ -34,18 +36,20 @@ const themes = [
 /** Bottom-left account menu: personal and system pages, guide, version and sign-out. */
 export function AccountMenu({
   user,
-  admin,
+  role,
   version,
   onGuide,
   onNavigate,
 }: {
   user: { name: string; email: string };
-  admin: boolean;
+  /** Undefined while /me loads; the badge appears once the role is known. */
+  role?: Role;
   version?: string;
   onGuide: () => void;
   onNavigate?: () => void;
 }) {
   const theme = useThemePreference();
+  const admin = role === 'admin';
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="account" aria-label="账号菜单">
@@ -53,12 +57,26 @@ export function AccountMenu({
           {user.name.slice(0, 1).toUpperCase()}
         </span>
         <span className="account-name">
-          <strong>{user.name}</strong>
+          <span className="account-title">
+            <strong>{user.name}</strong>
+            {role ? (
+              <Badge variant={admin ? 'secondary' : 'outline'} className="account-role">
+                {roleLabel[role]}
+              </Badge>
+            ) : null}
+          </span>
           <small>{user.email}</small>
         </span>
         <ChevronsUpDown size={14} aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" className="account-menu min-w-56">
+        {role ? (
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>
+              当前角色<span className="menu-meta">{roleLabel[role]}</span>
+            </DropdownMenuLabel>
+          </DropdownMenuGroup>
+        ) : null}
         <DropdownMenuItem render={<Link to="/account" onClick={onNavigate} />}>
           <UserRound /> 个人账号
         </DropdownMenuItem>
