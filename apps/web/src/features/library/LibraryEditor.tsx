@@ -1,3 +1,5 @@
+import { SelectControl } from '../../components/shared/SelectControl.js';
+import { SelectItem } from '../../components/ui/select.js';
 import { useEffect, useState } from 'react';
 import { libraryItem, type LibraryItem } from '@platform/contracts';
 import { api, json } from '../../lib/api.js';
@@ -101,13 +103,13 @@ export function LibraryEditor({
           </>
         )}
         <Field label="状态">
-          <select
+          <SelectControl
             value={String(draft.enabled)}
-            onChange={(e) => update({ enabled: e.target.value === 'true' })}
+            onValueChange={(value) => update({ enabled: value === 'true' })}
           >
-            <option value="true">启用</option>
-            <option value="false">停用</option>
-          </select>
+            <SelectItem value="true">启用</SelectItem>
+            <SelectItem value="false">停用</SelectItem>
+          </SelectControl>
         </Field>
       </Form>
       {draft.kind === 'prompt' ? (

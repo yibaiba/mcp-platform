@@ -116,10 +116,11 @@ try {
     release();
     await dialog.getByRole('heading', { name: 'Catalog service 27', exact: true }).waitFor();
     await dialog.getByRole('button', { name: '预览安装配置', exact: true }).waitFor();
-    await dialog.getByLabel('服务版本', { exact: true }).selectOption('1.0.0');
-    await dialog
-      .getByRole('option', { name: '最新版本（1.0.0）', exact: true })
-      .waitFor({ state: 'attached' });
+    await dialog.getByRole('combobox', { name: '服务版本', exact: true }).click();
+    await page.getByRole('option', { name: '1.0.0', exact: true }).click();
+    await dialog.getByRole('combobox', { name: '服务版本', exact: true }).click();
+    await page.getByRole('option', { name: '最新版本（1.0.0）', exact: true }).waitFor();
+    await page.keyboard.press('Escape');
     await dialog.getByLabel('连接名称', { exact: true }).fill('Draft installation');
     assert.ok(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth));
     await page.screenshot({ path: `.data/market-browser-acceptance/detail-${viewport.width}.png` });
@@ -128,7 +129,7 @@ try {
     await dialog.waitFor({ state: 'hidden' });
     await page.waitForFunction(() => document.activeElement?.textContent === '详情与安装');
     assert.equal(await trigger.evaluate((element) => element === document.activeElement), true);
-    assert.ok(Math.abs((await page.evaluate(() => window.scrollY)) - scroll) <= 1);
+    await page.waitForFunction((expected) => Math.abs(window.scrollY - expected) <= 1, scroll);
     const after = await trigger.boundingBox();
     assert.ok(after && Math.abs(after.y - before.y) <= 1);
     await trigger.click();

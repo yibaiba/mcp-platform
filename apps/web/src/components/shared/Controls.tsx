@@ -342,6 +342,7 @@ export function Form({
   feedbackVersion,
   disabled = false,
   onDirtyChange,
+  onChange,
 }: {
   children: ReactNode;
   submit: (data: FormData) => Promise<unknown>;
@@ -352,6 +353,7 @@ export function Form({
   feedbackVersion?: number;
   disabled?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
+  onChange?: () => void;
 }) {
   const query = useQueryClient();
   const [busy, setBusy] = useState(false);
@@ -361,8 +363,9 @@ export function Form({
   const [changes, setChanges] = useState(0);
   const changed = useCallback(() => {
     setFeedback(undefined);
+    onChange?.();
     if (onDirtyChange) setChanges((count) => count + 1);
-  }, [onDirtyChange]);
+  }, [onDirtyChange, onChange]);
   useEffect(() => {
     if (!onDirtyChange || !form.current) return;
     // Read after controls commit their values, including custom select/checkbox inputs.
@@ -392,7 +395,7 @@ export function Form({
     }
   }
   return (
-    <FormChanges.Provider value={onDirtyChange ? changed : undefined}>
+    <FormChanges.Provider value={changed}>
       <form
         ref={form}
         onSubmit={(e) => void onSubmit(e)}

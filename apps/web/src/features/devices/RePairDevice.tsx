@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api, type Device } from '../../lib/api.js';
 import { Action, Code, date } from '../../components/shared/Controls.js';
+import { Button } from '../../components/ui/button.js';
 export function RePairDevice({
   device,
   platformOrigin,
@@ -18,9 +19,9 @@ export function RePairDevice({
   return (
     <div className={startConfirming ? 'grid gap-3' : 'padded'}>
       {startConfirming ? null : (
-        <button className="button" onClick={() => setConfirming(true)}>
+        <Button variant="outline" onClick={() => setConfirming(true)}>
           重新配对
-        </button>
+        </Button>
       )}
       {confirming ? (
         <div className="result" role="group" aria-label={`重新配对 ${device.name}`}>
@@ -38,15 +39,15 @@ export function RePairDevice({
           >
             确认断线并生成重配码
           </Action>
-          <button
-            className="button"
+          <Button
+            variant="outline"
             onClick={() => {
               setConfirming(false);
               onCancel?.();
             }}
           >
             取消
-          </button>
+          </Button>
         </div>
       ) : null}
       {pairing ? (
@@ -59,9 +60,9 @@ export function RePairDevice({
           />
           <Code value={pairing.code} />
           <small>有效期至 {date(pairing.expiresAt)}，仅可使用一次。再次生成会使此码失效。</small>
-          <button className="button" onClick={() => setPairing(undefined)}>
+          <Button variant="outline" onClick={() => setPairing(undefined)}>
             隐藏重配码
-          </button>
+          </Button>
         </div>
       ) : null}
     </div>

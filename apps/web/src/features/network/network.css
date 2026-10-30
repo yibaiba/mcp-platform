@@ -14,7 +14,7 @@
   gap: 8px;
 }
 .network-editor input:not([type='checkbox']),
-.network-editor select {
+.network-editor [data-slot='select-trigger'] {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
@@ -31,9 +31,6 @@
 .network-editor p {
   overflow-wrap: anywhere;
 }
-.network-editor select + input {
-  margin-top: 8px;
-}
 @media (max-width: 640px) {
   .network-editor .form-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -47,11 +44,12 @@
   gap: 10px;
   min-height: 44px;
 }
-.network-editor .network-source-toggle input {
-  flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
-  margin: 0;
+.network-editor .network-source-toggle .check-row {
+  align-items: flex-start;
+  white-space: normal;
+}
+.network-editor .network-source-toggle [data-slot='checkbox'] {
+  margin-top: 2px;
 }
 .network-editor [data-slot='field-description'] {
   font-size: 13px;

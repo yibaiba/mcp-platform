@@ -87,7 +87,8 @@ try {
   await page.getByText('预览已更新', { exact: true }).waitFor();
   await page.getByLabel('参数值（JSON）').fill('{"topic":"changed"}');
   await page.getByRole('checkbox', { name: '必填', exact: true }).check();
-  await page.getByLabel('内容类型').selectOption('resource');
+  await page.getByRole('combobox', { name: '内容类型', exact: true }).click();
+  await page.getByRole('option', { name: 'Resource 资源', exact: true }).click();
   await page.getByRole('dialog', { name: '放弃未保存的修改？' }).waitFor();
   await page.getByRole('button', { name: '取消', exact: true }).click();
   assert.equal(
@@ -124,7 +125,8 @@ try {
   await page.getByRole('button', { name: '预览当前草稿', exact: true }).click();
   await page.getByText('Newer draft changed', { exact: false }).waitFor();
   await page.screenshot({ path: join(screenshots, 'library-desktop.png'), fullPage: true });
-  await page.getByLabel('状态', { exact: true }).selectOption('false');
+  await page.getByRole('combobox', { name: '状态', exact: true }).click();
+  await page.getByRole('option', { name: '停用', exact: true }).click();
   assert.equal(await page.getByText('预览已更新', { exact: true }).count(), 0);
   await page.getByRole('button', { name: '保存', exact: true }).click();
   await page.getByText('已停用 · 修订 2').waitFor();
@@ -139,7 +141,8 @@ try {
   // Let the drawer finish its close transition before typing into the page behind it.
   await page.getByRole('dialog').waitFor({ state: 'detached' });
   await page.getByLabel('名称', { exact: true }).fill('unsaved');
-  await page.getByLabel('内容类型').selectOption('resource');
+  await page.getByRole('combobox', { name: '内容类型', exact: true }).click();
+  await page.getByRole('option', { name: 'Resource 资源', exact: true }).click();
   await page.getByRole('button', { name: '放弃修改并继续', exact: true }).click();
   await page.getByLabel('名称', { exact: true }).fill('Browser resource');
   await page.getByLabel('资源 URI').fill('resource://browser');
@@ -158,7 +161,8 @@ try {
   await page.getByRole('button', { name: `${profile!.name} 更多操作` }).click();
   await page.getByRole('menuitem', { name: '智能发现', exact: true }).click();
   await page.getByRole('checkbox', { name: '启用明确节选并保存完整原文' }).check();
-  await page.getByLabel('节选策略', { exact: true }).selectOption('json');
+  await page.getByRole('combobox', { name: '节选策略', exact: true }).click();
+  await page.getByRole('option', { name: 'JSON 样本', exact: true }).click();
   const savedDiscovery = page.waitForResponse(
     (r) => r.request().method() === 'PUT' && r.url().endsWith(`/profiles/${profile!.id}`),
   );
@@ -175,6 +179,13 @@ try {
   await page.getByLabel('MCPB 文件', { exact: true }).setInputFiles(file);
   await page.getByRole('button', { name: '上传并解析' }).click();
   await page.getByLabel('key', { exact: true }).fill('browser-bundle-secret');
+  await page.getByRole('button', { name: '预览执行配置' }).click();
+  await page.getByRole('button', { name: '安装并连接' }).waitFor();
+  await page.getByRole('combobox', { name: '执行位置', exact: true }).click();
+  await page.getByRole('option', { name: '平台 Pi 桥接', exact: true }).click();
+  await page.getByRole('button', { name: '安装并连接' }).waitFor({ state: 'hidden' });
+  await page.getByRole('combobox', { name: '执行位置', exact: true }).click();
+  await page.getByRole('option', { name: '平台直连', exact: true }).click();
   await page.getByRole('button', { name: '预览执行配置' }).click();
   await page.getByRole('button', { name: '安装并连接' }).waitFor();
   assert.ok(
@@ -255,11 +266,12 @@ try {
     await opened.screenshot({ path: join(screenshots, `failure-${index}.png`), fullPage: true });
   throw error;
 } finally {
+  await context.close();
+  await browser.close();
   if (connector && connector.exitCode === null) {
     const stopped = new Promise<void>((done) => connector!.once('exit', () => done()));
     connector.kill('SIGINT');
     await stopped;
   }
-  await browser.close();
   await h.close();
 }

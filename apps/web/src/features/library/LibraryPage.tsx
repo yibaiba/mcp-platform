@@ -1,3 +1,5 @@
+import { SelectControl } from '../../components/shared/SelectControl.js';
+import { SelectItem } from '../../components/ui/select.js';
 import { PageHeader } from '../../components/shared/PageHeader.js';
 import { useState } from 'react';
 import { useBlocker } from '@tanstack/react-router';
@@ -54,20 +56,20 @@ export default function LibraryPage() {
       <PageHeader title="Agent" />
       <div className="library-kind">
         <Field label="内容类型">
-          <select
+          <SelectControl
             disabled={saving}
             value={kind}
-            onChange={(e) => {
-              const next = e.target.value as typeof kind;
+            onValueChange={(value) => {
+              const next = value as typeof kind;
               change(() => {
                 setKind(next);
                 reset();
               });
             }}
           >
-            <option value="prompt">Prompt 提示词</option>
-            <option value="resource">Resource 资源</option>
-          </select>
+            <SelectItem value="prompt">Prompt 提示词</SelectItem>
+            <SelectItem value="resource">Resource 资源</SelectItem>
+          </SelectControl>
         </Field>
       </div>
       <div className="library-grid">

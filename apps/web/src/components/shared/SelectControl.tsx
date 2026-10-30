@@ -7,6 +7,7 @@ type SelectControlProps = {
   value?: string;
   defaultValue?: string;
   required?: boolean;
+  disabled?: boolean;
   onValueChange?: (value: string) => void;
   children: ReactNode;
   'aria-describedby'?: string;

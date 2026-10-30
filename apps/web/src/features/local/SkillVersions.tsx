@@ -1,3 +1,5 @@
+import { SelectControl } from '../../components/shared/SelectControl.js';
+import { SelectItem } from '../../components/ui/select.js';
 import { useState } from 'react';
 import type { LocalResource } from '@platform/contracts';
 import type { ManagementApi } from './api.js';
@@ -32,18 +34,14 @@ export function SkillVersions({
           <>
             <label>
               内容版本
-              <select
-                aria-label="内容版本"
-                value={version}
-                onChange={(event) => setVersion(event.target.value)}
-              >
-                <option value="">选择版本</option>
+              <SelectControl aria-label="内容版本" value={version} onValueChange={setVersion}>
+                <SelectItem value="">选择版本</SelectItem>
                 {versions.map((item) => (
-                  <option key={item.id} value={item.id}>
+                  <SelectItem key={item.id} value={item.id}>
                     {item.label}
-                  </option>
+                  </SelectItem>
                 ))}
-              </select>
+              </SelectControl>
             </label>
             <button
               disabled={busy || !version}

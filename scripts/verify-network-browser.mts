@@ -75,7 +75,8 @@ try {
   await page
     .getByLabel('GitHub Git 克隆模板', { exact: true })
     .fill(source + '/git/{owner}/{repo}.git');
-  await page.getByLabel('GitHub API 独立令牌操作', { exact: true }).selectOption('replace');
+  await page.getByRole('combobox', { name: 'GitHub API 独立令牌操作', exact: true }).click();
+  await page.getByRole('option', { name: '更换', exact: true }).click();
   await page.getByLabel('GitHub API 独立令牌', { exact: true }).fill('browser-fixture-secret');
   await page.getByRole('button', { name: '保存网络设置', exact: true }).click();
   await page
@@ -111,12 +112,16 @@ try {
   await page.getByLabel('搜索连接', { exact: true }).fill('no match');
   await page.getByText('没有符合筛选条件的连接。', { exact: false }).waitFor();
   await page.getByRole('button', { name: '清除筛选', exact: true }).click();
-  await page.getByLabel('执行位置', { exact: true }).selectOption('device');
+  await page.getByRole('combobox', { name: '执行位置', exact: true }).click();
+  await page.getByRole('option', { name: '设备', exact: true }).click();
   await page.getByText('显示 0 / 1 个连接', { exact: true }).waitFor();
-  await page.getByLabel('执行位置', { exact: true }).selectOption('direct');
-  await page.getByLabel('连接状态', { exact: true }).selectOption('connected');
+  await page.getByRole('combobox', { name: '执行位置', exact: true }).click();
+  await page.getByRole('option', { name: '平台直连', exact: true }).click();
+  await page.getByRole('combobox', { name: '连接状态', exact: true }).click();
+  await page.getByRole('option', { name: '已连接', exact: true }).click();
   await page.getByText('显示 0 / 1 个连接', { exact: true }).waitFor();
-  await page.getByLabel('连接状态', { exact: true }).selectOption('');
+  await page.getByRole('combobox', { name: '连接状态', exact: true }).click();
+  await page.getByRole('option', { name: '全部状态', exact: true }).click();
   await page.getByText('显示 1 / 1 个连接', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Browser package fixture 更多操作' }).click();
   await page.getByRole('menuitem', { name: '编辑连接', exact: true }).click();
@@ -183,12 +188,13 @@ try {
     'PASS: admin/member UI, encrypted credential echo, independent connectivity results, package checks, release HTML isolation, platform/device settings and 375/390px layouts',
   );
 } finally {
+  await Promise.all(browser.contexts().map((context) => context.close()));
+  await browser.close();
   if (connector && connector.exitCode === null) {
     const stopped = new Promise<void>((done) => connector!.once('exit', () => done()));
     connector.kill('SIGINT');
     await stopped;
   }
-  await browser.close();
   await h.db.delete(networkConfiguration);
   await h.db.delete(updateChecks).where(eq(updateChecks.id, 'platform'));
   await h.close();

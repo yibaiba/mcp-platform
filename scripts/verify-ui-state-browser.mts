@@ -72,6 +72,7 @@ try {
   );
   console.log('PASS: library loading/empty/error/retry, route discard, mobile drawer navigation');
 } finally {
+  await context.close();
   await browser.close();
   await h.close();
 }

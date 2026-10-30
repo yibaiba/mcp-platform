@@ -1,3 +1,5 @@
+import { SelectControl } from '../../components/shared/SelectControl.js';
+import { SelectItem } from '../../components/ui/select.js';
 import { PageHeader } from '../../components/shared/PageHeader.js';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -121,14 +123,16 @@ function MarketDetail({ name }: { name: string }) {
       {detail.isPending ? <p role="status">正在加载服务详情…</p> : null}
       <Feedback error={detail.error ?? versions.error} />
       <Field label="服务版本">
-        <select value={version} onChange={(event) => setVersion(event.target.value)}>
-          <option value="latest">最新版本（{detail.data?.server.version ?? '加载中'}）</option>
+        <SelectControl value={version} onValueChange={setVersion}>
+          <SelectItem value="latest">
+            最新版本（{detail.data?.server.version ?? '加载中'}）
+          </SelectItem>
           {versions.data?.servers.map(({ server }) => (
-            <option key={server.version} value={server.version}>
+            <SelectItem key={server.version} value={server.version}>
               {server.version}
-            </option>
+            </SelectItem>
           ))}
-        </select>
+        </SelectControl>
       </Field>
       <p>{detail.data?.server.description}</p>
       {detail.data?.server.websiteUrl ? (
@@ -145,6 +149,7 @@ function MarketDetail({ name }: { name: string }) {
 function Installation({ detail }: { detail: Detail }) {
   const [choiceIndex, setChoiceIndex] = useState(0);
   const [adapter, setAdapter] = useState<MarketSelection['adapter']>('direct');
+  const [deviceId, setDeviceId] = useState<string>();
   const [preview, setPreview] = useState<{
     config: unknown;
     previewHash: string;
@@ -159,27 +164,28 @@ function Installation({ detail }: { detail: Detail }) {
     <>
       <Feedback error={devices.error} />
       <Field label="运行方式">
-        <select
-          value={choiceIndex}
-          onChange={(event) => {
-            setChoiceIndex(Number(event.target.value));
+        <SelectControl
+          value={String(choiceIndex)}
+          onValueChange={(value) => {
+            setChoiceIndex(Number(value));
             setPreview(undefined);
           }}
         >
           {detail.choices.map((choice, index) => (
-            <option key={index} value={index}>
+            <SelectItem key={index} value={String(index)}>
               {choice.label}
-            </option>
+            </SelectItem>
           ))}
-        </select>
+        </SelectControl>
       </Field>
       {choice.unsupported ? (
         <p role="status">{choice.unsupported}</p>
       ) : (
-        <div onChange={() => setPreview(undefined)}>
+        <div>
           <Form
             key={choiceIndex}
             label="预览安装配置"
+            onChange={() => setPreview(undefined)}
             submit={async (data) => {
               const values = Object.fromEntries(
                 choice.fields.flatMap((field) => {
@@ -217,27 +223,32 @@ function Installation({ detail }: { detail: Detail }) {
               />
             </Field>
             <Field label="执行位置">
-              <select
+              <SelectControl
                 value={adapter}
-                onChange={(event) => {
-                  setAdapter(event.target.value as MarketSelection['adapter']);
+                onValueChange={(value) => {
+                  setAdapter(value as MarketSelection['adapter']);
                   setPreview(undefined);
                 }}
               >
-                <option value="direct">平台 · Direct</option>
-                <option value="pi">平台 · Pi 桥接</option>
-                <option value="device">我的设备</option>
-              </select>
+                <SelectItem value="direct">平台 · Direct</SelectItem>
+                <SelectItem value="pi">平台 · Pi 桥接</SelectItem>
+                <SelectItem value="device">我的设备</SelectItem>
+              </SelectControl>
             </Field>
             {adapter === 'device' ? (
               <Field label="目标设备">
-                <select name="deviceId" required>
+                <SelectControl
+                  name="deviceId"
+                  required
+                  value={deviceId ?? devices.data?.[0]?.id ?? ''}
+                  onValueChange={setDeviceId}
+                >
                   {devices.data?.map((device) => (
-                    <option key={device.id} value={device.id}>
+                    <SelectItem key={device.id} value={device.id}>
                       {device.name}
-                    </option>
+                    </SelectItem>
                   ))}
-                </select>
+                </SelectControl>
               </Field>
             ) : null}
             {choice.distribution === 'package' ? (
@@ -255,18 +266,18 @@ function Installation({ detail }: { detail: Detail }) {
                 hint={`${field.description ?? ''}${field.isRepeated ? ' 每行一个值。' : ''}`}
               >
                 {field.choices ? (
-                  <select
+                  <SelectControl
                     name={field.key}
                     defaultValue={field.default ?? ''}
                     required={field.isRequired}
                   >
-                    <option value="">请选择</option>
+                    <SelectItem value="">请选择</SelectItem>
                     {field.choices.map((value) => (
-                      <option key={value} value={value}>
+                      <SelectItem key={value} value={value}>
                         {value}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </select>
+                  </SelectControl>
                 ) : field.isRepeated ? (
                   <Textarea
                     name={field.key}

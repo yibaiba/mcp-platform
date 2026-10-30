@@ -1,0 +1,96 @@
+/* Shared controls also run in the standalone page without Tailwind utilities. */
+.local-manager [data-slot='select-trigger'] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+}
+.local-manager [data-slot='select-value'] {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.local-manager [data-slot='select-trigger'] svg,
+body:has(.local-shell) [data-slot='select-content'] svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+body:has(.local-shell) [data-slot='select-positioner'] {
+  z-index: 60;
+  isolation: isolate;
+}
+body:has(.local-shell) [data-slot='select-content'] {
+  box-sizing: border-box;
+  position: relative;
+  width: var(--anchor-width);
+  max-width: calc(100vw - 16px);
+  max-height: var(--available-height);
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 20%);
+  font:
+    15px/1.6 system-ui,
+    sans-serif;
+}
+body:has(.local-shell) [data-slot='select-item'] {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 8px 36px 8px 12px;
+  overflow-wrap: anywhere;
+  cursor: default;
+}
+body:has(.local-shell) [data-slot='select-item'][data-highlighted] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+body:has(.local-shell) [data-slot='select-item-indicator'] {
+  position: absolute;
+  right: 12px;
+  display: flex;
+}
+body:has(.local-shell) [data-slot='select-scroll-up-button'],
+body:has(.local-shell) [data-slot='select-scroll-down-button'] {
+  justify-content: center;
+  padding: 4px;
+  background: var(--popover);
+}
+.local-manager .check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: normal;
+}
+.local-manager [data-slot='checkbox'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 18px;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  padding: 0;
+  border-radius: 4px;
+}
+.local-manager [data-slot='checkbox'][data-checked] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.local-manager [data-slot='checkbox-indicator'] {
+  display: flex;
+}
+.local-manager [data-slot='checkbox-indicator'] svg {
+  width: 14px;
+  height: 14px;
+}

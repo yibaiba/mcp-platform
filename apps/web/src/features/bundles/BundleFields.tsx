@@ -1,3 +1,5 @@
+import { SelectControl } from '../../components/shared/SelectControl.js';
+import { SelectItem } from '../../components/ui/select.js';
 import type { McpbManifest } from '@platform/contracts';
 import { Field } from '../../components/shared/Controls.js';
 import { Input } from '../../components/ui/input.js';
@@ -7,10 +9,10 @@ export function BundleFields({ manifest }: { manifest: McpbManifest }) {
       {Object.entries(manifest.user_config).map(([name, rule]) => (
         <Field key={name} label={rule.title ?? name} hint={rule.description}>
           {rule.type === 'boolean' ? (
-            <select name={`value:${name}`} defaultValue={String(rule.default ?? false)}>
-              <option value="true">是</option>
-              <option value="false">否</option>
-            </select>
+            <SelectControl name={`value:${name}`} defaultValue={String(rule.default ?? false)}>
+              <SelectItem value="true">是</SelectItem>
+              <SelectItem value="false">否</SelectItem>
+            </SelectControl>
           ) : (
             <Input
               name={`value:${name}`}

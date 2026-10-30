@@ -1,3 +1,5 @@
+import { SelectControl } from '../../components/shared/SelectControl.js';
+import { SelectItem } from '../../components/ui/select.js';
 import { useState } from 'react';
 import { api, json, type Profile, type Tool } from '../../lib/api.js';
 import { Button } from '../../components/ui/button.js';
@@ -70,13 +72,13 @@ export function DiscoveryEditor({
         }}
       >
         <Field label="发现方式">
-          <select
+          <SelectControl
             value={mode}
-            onChange={(event) => setMode(event.target.value as Profile['discoveryMode'])}
+            onValueChange={(value) => setMode(value as Profile['discoveryMode'])}
           >
-            <option value="direct">直接目录</option>
-            <option value="search">语义搜索</option>
-          </select>
+            <SelectItem value="direct">直接目录</SelectItem>
+            <SelectItem value="search">语义搜索</SelectItem>
+          </SelectControl>
         </Field>
         {mode === 'search' ? (
           <>
@@ -84,13 +86,13 @@ export function DiscoveryEditor({
               label="检索策略"
               hint="HNSW 是近似检索，可能返回更少结果；启用后请为各调用身份显式重建索引。"
             >
-              <select
+              <SelectControl
                 value={strategy}
-                onChange={(event) => setStrategy(event.target.value as typeof strategy)}
+                onValueChange={(value) => setStrategy(value as typeof strategy)}
               >
-                <option value="exact">精确余弦检索</option>
-                <option value="hnsw">HNSW 近似检索（最多 2000 维）</option>
-              </select>
+                <SelectItem value="exact">精确余弦检索</SelectItem>
+                <SelectItem value="hnsw">HNSW 近似检索（最多 2000 维）</SelectItem>
+              </SelectControl>
             </Field>
             <Field
               label="最低相似度"
@@ -200,18 +202,18 @@ export function DiscoveryEditor({
             label="节选策略"
             hint="自动识别失败时使用普通文本；指定策略不匹配时保留原文并说明。"
           >
-            <select
+            <SelectControl
               name="resultStrategy"
               defaultValue={profile.resultPresentation.strategy ?? 'head-tail'}
             >
-              <option value="head-tail">保留头尾（默认）</option>
-              <option value="auto">自动识别</option>
-              <option value="json">JSON 样本</option>
-              <option value="log">日志与错误上下文</option>
-              <option value="search">搜索文件分组</option>
-              <option value="diff">文件修改块</option>
-              <option value="text">普通文本</option>
-            </select>
+              <SelectItem value="head-tail">保留头尾（默认）</SelectItem>
+              <SelectItem value="auto">自动识别</SelectItem>
+              <SelectItem value="json">JSON 样本</SelectItem>
+              <SelectItem value="log">日志与错误上下文</SelectItem>
+              <SelectItem value="search">搜索文件分组</SelectItem>
+              <SelectItem value="diff">文件修改块</SelectItem>
+              <SelectItem value="text">普通文本</SelectItem>
+            </SelectControl>
           </Field>
           <Field label="触发阈值（字节）">
             <Input

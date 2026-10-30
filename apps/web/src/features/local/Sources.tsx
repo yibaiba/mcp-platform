@@ -1,3 +1,6 @@
+import { SelectControl } from '../../components/shared/SelectControl.js';
+import { SelectItem } from '../../components/ui/select.js';
+import { CheckChoice } from '../../components/shared/CheckChoice.js';
 import { useState } from 'react';
 import type { LocalRequest, LocalSource } from '@platform/contracts';
 import type { Inventory } from './api.js';
@@ -55,9 +58,10 @@ export function Sources({
       >
         <label>
           客户端
-          <select
+          <SelectControl
             value={client}
-            onChange={(e) => setClient(e.target.value as LocalSource['client'])}
+            aria-label="客户端"
+            onValueChange={(value) => setClient(value as LocalSource['client'])}
           >
             {[
               ['cursor', 'Cursor'],
@@ -65,31 +69,30 @@ export function Sources({
               ['codex', 'Codex'],
               ['pi', 'Pi'],
             ].map(([id, title]) => (
-              <option key={id} value={id}>
+              <SelectItem key={id} value={id}>
                 {title}
-              </option>
+              </SelectItem>
             ))}
-          </select>
+          </SelectControl>
         </label>
         <label>
           资源类型
-          <select value={kind} onChange={(e) => setKind(e.target.value as 'mcp' | 'skill')}>
-            <option value="mcp">MCP 配置文件</option>
-            <option value="skill">Skills 根目录</option>
-          </select>
+          <SelectControl
+            aria-label="资源类型"
+            value={kind}
+            onValueChange={(value) => setKind(value as 'mcp' | 'skill')}
+          >
+            <SelectItem value="mcp">MCP 配置文件</SelectItem>
+            <SelectItem value="skill">Skills 根目录</SelectItem>
+          </SelectControl>
         </label>
         <label>
           自定义来源（绝对路径）
           <input value={path} onChange={(e) => setPath(e.target.value)} required />
         </label>
-        <label className="local-select">
-          <input
-            type="checkbox"
-            checked={readOnly}
-            onChange={(event) => setReadOnly(event.target.checked)}
-          />
+        <CheckChoice checked={readOnly} onCheckedChange={setReadOnly}>
           系统或供应商管理（只读）
-        </label>
+        </CheckChoice>
         <button disabled={busy}>添加来源</button>
       </form>
       <ul>

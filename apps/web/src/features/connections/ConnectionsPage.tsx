@@ -1,3 +1,5 @@
+import { SelectControl } from '../../components/shared/SelectControl.js';
+import { SelectItem } from '../../components/ui/select.js';
 import { useEffect, useState } from 'react';
 import { useDraftProtection } from '../../components/shared/useDraftProtection.js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -194,34 +196,26 @@ export default function ConnectionsPage() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          <select
-            aria-label="连接状态"
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-          >
-            <option value="">全部状态</option>
-            <option value="connected">已连接</option>
-            <option value="disconnected">待连接</option>
-            <option value="stopped">已停止</option>
-            <option value="error">连接错误</option>
+          <SelectControl aria-label="连接状态" value={status} onValueChange={setStatus}>
+            <SelectItem value="">全部状态</SelectItem>
+            <SelectItem value="connected">已连接</SelectItem>
+            <SelectItem value="disconnected">待连接</SelectItem>
+            <SelectItem value="stopped">已停止</SelectItem>
+            <SelectItem value="error">连接错误</SelectItem>
             {Array.from(new Set(connections.data.map((connection) => connection.status)))
               .filter((value) => !['connected', 'disconnected', 'stopped', 'error'].includes(value))
               .map((value) => (
-                <option key={value} value={value}>
+                <SelectItem key={value} value={value}>
                   {value}
-                </option>
+                </SelectItem>
               ))}
-          </select>
-          <select
-            aria-label="执行位置"
-            value={location}
-            onChange={(event) => setLocation(event.target.value)}
-          >
-            <option value="">全部位置</option>
-            <option value="direct">平台直连</option>
-            <option value="pi">平台 Pi</option>
-            <option value="device">设备</option>
-          </select>
+          </SelectControl>
+          <SelectControl aria-label="执行位置" value={location} onValueChange={setLocation}>
+            <SelectItem value="">全部位置</SelectItem>
+            <SelectItem value="direct">平台直连</SelectItem>
+            <SelectItem value="pi">平台 Pi</SelectItem>
+            <SelectItem value="device">设备</SelectItem>
+          </SelectControl>
           <p role="status" className="filter-count">
             <span className="sr-only">显示 </span>
             {filtered?.length ?? 0} / {connections.data.length}

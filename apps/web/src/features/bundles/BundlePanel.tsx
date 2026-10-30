@@ -1,3 +1,5 @@
+import { SelectControl } from '../../components/shared/SelectControl.js';
+import { SelectItem } from '../../components/ui/select.js';
 import { BundleHistory } from './BundleHistory.js';
 import { useState } from 'react';
 import type { McpbManifest } from '@platform/contracts';
@@ -46,13 +48,14 @@ export function BundlePanel({
         </Field>
       </Form>
       {pkg ? (
-        <div key={pkg.id} onChange={() => setReview(undefined)}>
+        <div key={pkg.id}>
           <h3>
             {pkg.manifest.display_name ?? pkg.manifest.name} · {pkg.manifest.version}
           </h3>
           <p>{pkg.manifest.description}</p>
           <Form
             label="预览执行配置"
+            onChange={() => setReview(undefined)}
             submit={async (data) => {
               const adapter = value(data, 'adapter');
               const destination = {
@@ -79,35 +82,35 @@ export function BundlePanel({
             }}
           >
             <Field label="执行位置">
-              <select name="adapter">
-                <option value="direct">平台直连</option>
-                <option value="pi">平台 Pi 桥接</option>
-                <option value="device">设备连接器</option>
-              </select>
+              <SelectControl name="adapter" defaultValue="direct">
+                <SelectItem value="direct">平台直连</SelectItem>
+                <SelectItem value="pi">平台 Pi 桥接</SelectItem>
+                <SelectItem value="device">设备连接器</SelectItem>
+              </SelectControl>
             </Field>
             <Field label="目标设备（设备执行时必选）">
-              <select name="deviceId">
-                <option value="">请选择</option>
+              <SelectControl name="deviceId" defaultValue="">
+                <SelectItem value="">请选择</SelectItem>
                 {devices
                   .filter((d) => !d.revoked)
                   .map((d) => (
-                    <option key={d.id} value={d.id}>
+                    <SelectItem key={d.id} value={d.id}>
                       {d.name} · {d.online ? '在线' : '离线'}
-                    </option>
+                    </SelectItem>
                   ))}
-              </select>
+              </SelectControl>
             </Field>
             <Field label="安装方式" hint="替换会停止并重新连接目标服务；失败不自动回滚。">
-              <select name="connectionId">
-                <option value="">创建新连接</option>
+              <SelectControl name="connectionId" defaultValue="">
+                <SelectItem value="">创建新连接</SelectItem>
                 {connections
                   .filter((c) => c.source !== 'library')
                   .map((c) => (
-                    <option key={c.id} value={c.id}>
+                    <SelectItem key={c.id} value={c.id}>
                       替换：{c.name}
-                    </option>
+                    </SelectItem>
                   ))}
-              </select>
+              </SelectControl>
             </Field>
             <BundleFields manifest={pkg.manifest} />
           </Form>

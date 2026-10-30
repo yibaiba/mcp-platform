@@ -1,3 +1,5 @@
+import { SelectControl } from '../../components/shared/SelectControl.js';
+import { SelectItem } from '../../components/ui/select.js';
 import { useState } from 'react';
 function decode(value: string) {
   return new TextDecoder('utf-8', { fatal: true }).decode(
@@ -29,13 +31,15 @@ export function SkillEditor({
     <div className="local-skill">
       <label>
         文件树
-        <select value={path} onChange={(e) => setPath(e.target.value)}>
+        <SelectControl aria-label="文件树" value={path} onValueChange={setPath}>
           {Object.keys(files)
             .sort()
             .map((name) => (
-              <option key={name}>{name}</option>
+              <SelectItem key={name} value={name}>
+                {name}
+              </SelectItem>
             ))}
-        </select>
+        </SelectControl>
       </label>
       {binary ? (
         <p>二进制文件。冲突时请选择本机或平台版本，或导入替换文件。</p>

@@ -1,4 +1,5 @@
 @import './dialog.css';
+@import './controls.css';
 
 /* Local aliases of the shared design tokens (tokens.css), so dark and light both apply. */
 .local-shell,

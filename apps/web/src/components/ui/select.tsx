@@ -68,6 +68,7 @@ function SelectContent({
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Positioner
+        data-slot="select-positioner"
         side={side}
         sideOffset={sideOffset}
         align={align}
@@ -118,7 +119,10 @@ function SelectItem({ className, children, ...props }: SelectPrimitive.Item.Prop
       </SelectPrimitive.ItemText>
       <SelectPrimitive.ItemIndicator
         render={
-          <span className="pointer-events-none absolute right-2 flex size-4 items-center justify-center" />
+          <span
+            data-slot="select-item-indicator"
+            className="pointer-events-none absolute right-2 flex size-4 items-center justify-center"
+          />
         }
       >
         <CheckIcon className="pointer-events-none" />

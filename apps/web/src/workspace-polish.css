@@ -329,7 +329,7 @@ textarea:disabled {
   gap: 8px;
   margin-bottom: 16px;
 }
-.connection-filters select {
+.connection-filters [data-slot='select-trigger'] {
   width: auto;
   min-width: 120px;
 }
@@ -378,7 +378,7 @@ textarea:disabled {
     max-width: none;
     flex-basis: 100%;
   }
-  .connection-filters select {
+  .connection-filters [data-slot='select-trigger'] {
     flex: 1;
   }
 }

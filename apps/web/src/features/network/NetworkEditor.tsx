@@ -1,9 +1,12 @@
+import { SelectControl } from '../../components/shared/SelectControl.js';
+import { SelectItem } from '../../components/ui/select.js';
 import './network.css';
 import { useEffect, useState } from 'react';
 import { networkSave, type NetworkView, type NetworkSettings } from '@platform/contracts';
 import { Field, Feedback } from '../../components/shared/Controls.js';
 import { Input } from '../../components/ui/input.js';
 import { Button } from '../../components/ui/button.js';
+import { CheckChoice } from '../../components/shared/CheckChoice.js';
 const fields: [keyof Omit<NetworkSettings, 'replacePublicSources'>, string, string][] = [
   ['httpProxy', 'HTTP 代理', 'http://127.0.0.1:7890'],
   ['httpsProxy', 'HTTPS 请求代理', '留空使用 HTTP 代理'],
@@ -62,6 +65,10 @@ export function NetworkEditor({
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [results, setResults] = useState<Check[]>([]);
+  const clearFeedback = () => {
+    setNotice('');
+    setError(null);
+  };
   const act = async (action: () => Promise<void>) => {
     setBusy(true);
     setError(null);
@@ -95,10 +102,7 @@ export function NetworkEditor({
   return (
     <form
       className="form network-editor"
-      onChange={() => {
-        setNotice('');
-        setError(null);
-      }}
+      onChange={clearFeedback}
       onSubmit={(event) => {
         event.preventDefault();
         void act(async () => {
@@ -149,7 +153,10 @@ export function NetworkEditor({
                         busy={busy}
                         saved={current.secrets[secret.name]}
                         edit={edits[secret.name]}
-                        onChange={(edit) => setEdits({ ...edits, [secret.name]: edit })}
+                        onChange={(edit) => {
+                          clearFeedback();
+                          setEdits({ ...edits, [secret.name]: edit });
+                        }}
                       />
                     ) : null}
                     {['githubDownload', 'githubClone'].includes(key) && settings[key] ? (
@@ -163,17 +170,18 @@ export function NetworkEditor({
               })}
           </div>
           {section.keys.includes('npmRegistry') ? (
-            <label className="network-source-toggle">
-              <input
-                type="checkbox"
+            <div className="network-source-toggle">
+              <CheckChoice
                 disabled={busy}
                 checked={settings.replacePublicSources}
-                onChange={(event) =>
-                  setSettings({ ...settings, replacePublicSources: event.target.checked })
-                }
-              />
-              将明确声明的官方公共源替换为镜像（私有源保留）
-            </label>
+                onCheckedChange={(checked) => {
+                  clearFeedback();
+                  setSettings({ ...settings, replacePublicSources: checked });
+                }}
+              >
+                将明确声明的官方公共源替换为镜像（私有源保留）
+              </CheckChoice>
+            </div>
           ) : null}
         </section>
       ))}
@@ -236,15 +244,15 @@ function NetworkSecret({
         label={`${label}操作`}
         hint={saved ? '已保存，无法回读；可保留、更换或清除。' : '尚未设置'}
       >
-        <select
+        <SelectControl
           disabled={busy}
           value={edit?.action ?? 'keep'}
-          onChange={(event) => onChange({ action: event.target.value as SecretEdit['action'] })}
+          onValueChange={(action) => onChange({ action: action as SecretEdit['action'] })}
         >
-          <option value="keep">保留</option>
-          <option value="replace">更换</option>
-          <option value="clear">清除</option>
-        </select>
+          <SelectItem value="keep">保留</SelectItem>
+          <SelectItem value="replace">更换</SelectItem>
+          <SelectItem value="clear">清除</SelectItem>
+        </SelectControl>
       </Field>
       {edit?.action === 'replace' ? (
         <Field label={label}>

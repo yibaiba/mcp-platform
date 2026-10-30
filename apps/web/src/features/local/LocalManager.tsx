@@ -2,6 +2,7 @@ import { LocalBundles } from '../bundles/LocalBundles.js';
 import { LocalNetwork } from '../network/LocalNetwork.js';
 import { useCallback, useEffect, useState } from 'react';
 import { useLocalDraftProtection } from '../../components/shared/useDraftProtection.js';
+import { CheckChoice } from '../../components/shared/CheckChoice.js';
 import type { LocalRequest, LocalResource } from '@platform/contracts';
 import type { Inventory, ManagementApi } from './api.js';
 import { ResourceEditor } from './ResourceEditor.js';
@@ -227,23 +228,21 @@ export function LocalManager({ api }: { api: ManagementApi }) {
                         {resource.reloadRequired ? <span>客户端待重新加载</span> : null}
                         {resource.readOnly ? <span>只读</span> : null}
                       </div>
-                      <label className="local-select">
-                        <input
-                          type="checkbox"
-                          checked={resource.selected}
-                          disabled={busy || resource.readOnly || resource.deleted}
-                          onChange={(e) =>
-                            void act(() =>
-                              request({
-                                action: 'select',
-                                id: resource.id,
-                                selected: e.target.checked,
-                              }),
-                            )
-                          }
-                        />
+                      <CheckChoice
+                        checked={resource.selected}
+                        disabled={busy || resource.readOnly || resource.deleted}
+                        onCheckedChange={(checked) =>
+                          void act(() =>
+                            request({
+                              action: 'select',
+                              id: resource.id,
+                              selected: checked,
+                            }),
+                          )
+                        }
+                      >
                         纳入此设备与来源同步
-                      </label>
+                      </CheckChoice>
                       {resource.issues.map((issue) => (
                         <p className="local-error" key={issue}>
                           {issue}

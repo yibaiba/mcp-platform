@@ -1,3 +1,5 @@
+import { SelectControl } from '../../components/shared/SelectControl.js';
+import { SelectItem } from '../../components/ui/select.js';
 import { useState } from 'react';
 import { catalogOptions, type CatalogOptions } from '@platform/contracts';
 import {
@@ -43,16 +45,16 @@ export function CatalogEditor(props: {
   return (
     <div className="grid gap-4">
       <Field label="工具命名方式">
-        <select
+        <SelectControl
           value={config.toolNaming}
-          onChange={(event) =>
-            setConfig({ ...config, toolNaming: event.target.value as CatalogOptions['toolNaming'] })
+          onValueChange={(toolNaming) =>
+            setConfig({ ...config, toolNaming: toolNaming as CatalogOptions['toolNaming'] })
           }
         >
-          <option value="stable">稳定名称（默认）</option>
-          <option value="original">上游原名</option>
-          <option value="prefixed">连接前缀 + 原名</option>
-        </select>
+          <SelectItem value="stable">稳定名称（默认）</SelectItem>
+          <SelectItem value="original">上游原名</SelectItem>
+          <SelectItem value="prefixed">连接前缀 + 原名</SelectItem>
+        </SelectControl>
       </Field>
       {config.toolNaming === 'prefixed'
         ? [...connectionIds].map((id) => (

@@ -269,6 +269,7 @@ try {
   assert.equal(upstream.count(), 0, 'UI verification must not execute business tools');
   console.log(`PASS: editor safety ${group}`);
 } finally {
+  await context.close();
   await browser.close();
   if (group === 'drafts')
     await h.db.delete(networkConfiguration).where(eq(networkConfiguration.id, 'platform'));

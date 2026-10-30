@@ -104,6 +104,13 @@ try {
   local.on('pageerror', (error) => errors.push(String(error)));
   await local.goto(localURL);
   await local.getByRole('heading', { name: '本机 MCP 与 Skills' }).waitFor();
+  assert.equal(await local.locator('select').count(), 0);
+  await local.locator('.local-sources > summary').click();
+  await local.getByRole('combobox', { name: '客户端', exact: true }).click();
+  await local.getByRole('option', { name: 'Claude Code', exact: true }).click();
+  await local.getByRole('combobox', { name: '资源类型', exact: true }).click();
+  await local.getByRole('option', { name: 'Skills 根目录', exact: true }).click();
+  await local.locator('.local-sources > summary').click();
   await local.getByRole('button', { name: 'browser-mcp offline original' }).click();
   await local.getByRole('button', { name: '由连接器连接', exact: true }).click();
   await until(
@@ -128,14 +135,16 @@ try {
     'Offline edit was not saved',
   );
   assert.ok((await readFile(configPath, 'utf8')).includes('// keep this comment'));
-  await local.getByLabel('纳入此设备与来源同步').click();
+  await local.getByRole('checkbox', { name: '纳入此设备与来源同步', exact: true }).click();
   await until(
-    () => local.getByLabel('纳入此设备与来源同步').isChecked(),
+    () => local.getByRole('checkbox', { name: '纳入此设备与来源同步', exact: true }).isChecked(),
     (value) => value,
     'Selection was not saved',
   );
   await local.getByRole('tab', { name: 'Skills', exact: true }).click();
   await local.getByRole('button', { name: 'browser-skill Browser test skill' }).click();
+  await local.getByRole('combobox', { name: '文件树', exact: true }).click();
+  await local.getByRole('option', { name: 'SKILL.md', exact: true }).click();
   await local
     .getByLabel('SKILL.md', { exact: true })
     .fill('---\nname: browser-skill\ndescription: Browser test skill\n---\nEdited offline\n');
@@ -145,16 +154,17 @@ try {
     (value) => value.includes('Edited offline'),
     'Skill edit missing',
   );
-  await local.getByLabel('纳入此设备与来源同步').click();
+  await local.getByRole('checkbox', { name: '纳入此设备与来源同步', exact: true }).click();
   await until(
-    () => local.getByLabel('纳入此设备与来源同步').isChecked(),
+    () => local.getByRole('checkbox', { name: '纳入此设备与来源同步', exact: true }).isChecked(),
     (value) => value,
     'Selection was not saved',
   );
   await local.getByText('切换内容版本', { exact: true }).click();
   await local.getByRole('button', { name: '读取历史版本', exact: true }).click();
   const versions = local.getByLabel('内容版本', { exact: true });
-  await versions.selectOption({ index: 1 });
+  await versions.click();
+  await local.getByRole('option').nth(1).click();
   await local.getByRole('button', { name: '载入编辑器', exact: true }).click();
   await until(
     () => local.getByLabel('SKILL.md', { exact: true }).inputValue(),
@@ -436,6 +446,7 @@ try {
           .catch(() => undefined);
   throw error;
 } finally {
+  if (browser) await Promise.all(browser.contexts().map((context) => context.close()));
   await browser?.close();
   await vite?.close();
   await stop();

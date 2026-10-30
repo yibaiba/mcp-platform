@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import { Field, Feedback } from '../../components/shared/Controls.js';
+import { CheckChoice } from '../../components/shared/CheckChoice.js';
 type Argument = Extract<LibraryItem, { kind: 'prompt' }>['arguments'][number];
 export function PromptArguments({
   value,
@@ -81,14 +82,12 @@ export function PromptArguments({
                   onChange={(e) => changeRow(index, { description: e.target.value })}
                 />
               </Field>
-              <label className="check-row">
-                <input
-                  type="checkbox"
-                  checked={row.required ?? false}
-                  onChange={(e) => changeRow(index, { required: e.target.checked })}
-                />
+              <CheckChoice
+                checked={row.required ?? false}
+                onCheckedChange={(required) => changeRow(index, { required })}
+              >
                 必填
-              </label>
+              </CheckChoice>
               <Button
                 type="button"
                 variant="outline"
