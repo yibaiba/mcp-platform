@@ -136,7 +136,7 @@ export function ProfileAccess({
               </div>
             )}
             <Feedback error={issueError} />
-            <Disclosure title="已有密钥？查看配置模板">
+            <Disclosure title="已有密钥？查看客户端配置（不含密钥）">
               <p className="my-3 text-sm text-muted-foreground">
                 模板使用凭证占位符，请填入你保存的接入密钥。
               </p>

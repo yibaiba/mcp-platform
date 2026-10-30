@@ -84,7 +84,7 @@ export class ConfigExportService {
     const toolRef = (id: string) => {
       const row = toolRows.find((row) => row.id === id);
       if (!row)
-        throw new AppError('MANIFEST_EXPORT_REFERENCE', 'Profile 中存在未解析工具；请先修正授权');
+        throw new AppError('MANIFEST_EXPORT_REFERENCE', 'Agent 中存在未解析工具；请先修正授权');
       return {
         connection: sourceNames.get(row.connectionId)!,
         name: row.name,
@@ -94,7 +94,7 @@ export class ConfigExportService {
     const contentRef = (id: string) => {
       const row = contentRows.find((row) => row.id === id);
       if (!row)
-        throw new AppError('MANIFEST_EXPORT_REFERENCE', 'Profile 中存在未解析内容；请先修正授权');
+        throw new AppError('MANIFEST_EXPORT_REFERENCE', 'Agent 中存在未解析内容；请先修正授权');
       return {
         connection: sourceNames.get(row.connectionId)!,
         kind: row.kind,
@@ -169,7 +169,7 @@ export class ConfigExportService {
   private source(names: Map<string, string>, id: string) {
     const name = names.get(id);
     if (!name)
-      throw new AppError('MANIFEST_EXPORT_REFERENCE', 'Profile 中存在未解析连接；请先修正配置');
+      throw new AppError('MANIFEST_EXPORT_REFERENCE', 'Agent 中存在未解析连接；请先修正配置');
     return name;
   }
   private redactConfig(name: string, config: Omit<ConnectionInput, 'deviceId'>) {

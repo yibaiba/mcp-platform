@@ -91,7 +91,7 @@ export function ApprovalPanel({ profileId, taskId }: { profileId?: string; taskI
                         {
                           toolIds: '工具',
                           contentIds: 'Prompt / Resource / 模板',
-                          artifactIds: '产物',
+                          artifactIds: '文件',
                         }[kind]
                       }
                     </legend>

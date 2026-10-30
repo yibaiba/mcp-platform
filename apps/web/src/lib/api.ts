@@ -100,6 +100,8 @@ export type Tool = {
   id: string;
   name: string;
   connectionId: string;
+  /** The name MCP clients see in tools/list (`prefix__tool` by default). */
+  exposedName?: string;
   /** Present when the tool's connection or device is down; Agents do not see it in tools/list. */
   unavailable?: { code: string; message: string };
   definition: {

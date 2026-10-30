@@ -98,7 +98,7 @@ export class ShareService extends ShareAccess {
     )
       throw new AppError(
         'LIBRARY_SHARE_UNSUPPORTED',
-        '内容库通过当前账号的 Profile 授权，不提供跨账号共享',
+        '提示词与资源通过当前账号的 Agent 授权，不提供跨账号共享',
       );
     const value = grantInput.parse(input);
     const [recipient] = await this.db

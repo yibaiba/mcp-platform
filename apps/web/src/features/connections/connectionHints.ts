@@ -16,7 +16,7 @@ export function connectionLocation(
       ? device
         ? `${device.name}${connection.deviceOffline || !device.online ? '（离线）' : ''}`
         : '未知设备'
-      : '平台主机';
+      : '平台服务器';
   if (connection.transport === 'stdio') return `stdio · ${where}`;
   if (connection.adapter === 'device')
     return `${connection.url ?? 'HTTP'} · ${where}${connection.mode === 'managed' ? ' · 托管启动' : ''}`;
@@ -36,13 +36,13 @@ export function connectionNextStep(connection: Target, error?: string | null, co
     connection.status === 'waiting_authorization' ||
     /OAUTH_REQUIRED|需要授权|未授权账号/.test(text)
   )
-    return '打开“授权与账号”完成授权，再连接读取工具目录。';
+    return '打开“授权与账号”完成授权，再连接读取工具列表。';
   if (connection.deviceOffline || /DEVICE_OFFLINE|设备离线|device.*offline/i.test(text))
     return '这台电脑的连接器不在线：在那台电脑重新运行安装命令（「设备」页可复制），上线后再点「重试」。配置已保存。';
   if (/ENOENT|not found|找不到|No such file|executable file not found|spawn/i.test(text))
     return connection.adapter === 'device'
       ? '命令在那台电脑上找不到：确认程序已安装，或在“启动命令”里填写完整路径。'
-      : '命令在平台主机上找不到：确认程序已安装在 server 环境里，或填写完整路径。';
+      : '命令在平台服务器上找不到：确认程序已安装在 server 环境里，或填写完整路径。';
   if (/401|403|Unauthorized|Forbidden|invalid[_ ]token|凭据|credential/i.test(text))
     return '上游拒绝了凭据：检查请求头或环境变量里的 Token，或重新授权。';
   if (

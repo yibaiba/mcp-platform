@@ -112,11 +112,11 @@ try {
   await page.getByLabel('搜索连接', { exact: true }).fill('no match');
   await page.getByText('没有符合筛选条件的连接。', { exact: false }).waitFor();
   await page.getByRole('button', { name: '清除筛选', exact: true }).click();
-  await page.getByRole('combobox', { name: '执行位置', exact: true }).click();
+  await page.getByRole('combobox', { name: '运行位置', exact: true }).click();
   await page.getByRole('option', { name: '设备', exact: true }).click();
   await page.getByText('显示 0 / 1 个连接', { exact: true }).waitFor();
-  await page.getByRole('combobox', { name: '执行位置', exact: true }).click();
-  await page.getByRole('option', { name: '平台直连', exact: true }).click();
+  await page.getByRole('combobox', { name: '运行位置', exact: true }).click();
+  await page.getByRole('option', { name: '平台服务器', exact: true }).click();
   await page.getByRole('combobox', { name: '连接状态', exact: true }).click();
   await page.getByRole('option', { name: '已连接', exact: true }).click();
   await page.getByText('显示 0 / 1 个连接', { exact: true }).waitFor();

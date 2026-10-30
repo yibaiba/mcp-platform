@@ -151,7 +151,7 @@ export function DiscoveryEditor({
             </Field>
             <Field
               label="API 密钥引用"
-              hint="在配置模板页面保存个人秘密后填写名称；无认证的本地服务可留空。"
+              hint="在批量配置页面保存个人秘密后填写名称；无认证的本地服务可留空。"
             >
               <Input name="apiKeyRef" defaultValue={profile.embedding?.apiKeyRef} />
             </Field>
@@ -195,7 +195,7 @@ export function DiscoveryEditor({
           <p>
             成功结果的普通文本超过阈值时按各块长度分配预算，使用所选策略节选并标明省略。完整结果以
             JSON
-            产物保存，会增加磁盘占用；读取仍需原调用身份及当前工具权限。结构化内容、媒体、错误与
+            文件保存，会增加磁盘占用；读取仍需原调用身份及当前工具权限。结构化内容、媒体、错误与
             Apps 结果保持完整。
           </p>
           <Field
@@ -226,7 +226,7 @@ export function DiscoveryEditor({
           </Field>
           <Field
             label="保留原文字节总数"
-            hint="省略标记和原文读取说明额外显示。关闭后新调用恢复完整返回，已有原文仍遵循产物权限规则。"
+            hint="省略标记和原文读取说明额外显示。关闭后新调用恢复完整返回，已有原文仍遵循文件权限规则。"
           >
             <Input
               name="retainBytes"

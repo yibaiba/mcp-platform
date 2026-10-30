@@ -9,7 +9,7 @@ export const toolSearch = z.object({
 });
 export type ToolSearch = z.infer<typeof toolSearch>;
 export function executionLocation(connection: Connection, devices: ReadonlyMap<string, Device>) {
-  if (connection.adapter !== 'device') return '平台主机';
+  if (connection.adapter !== 'device') return '平台服务器';
   if (!connection.deviceId) return '尚未选择设备';
   return devices.get(connection.deviceId)?.name ?? connection.deviceId;
 }

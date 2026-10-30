@@ -11,6 +11,7 @@ import { ContentCatalog } from './ContentCatalog.js';
 import { ToolFilters } from './ToolFilters.js';
 import { ToolRunner } from './ToolRunner.js';
 import { executionLocation, filterTools, identityLabel, type ToolSearch } from './toolCatalog.js';
+import { useConnectionNames } from '../connections/useConnectionNames.js';
 export default function ToolsPage() {
   const filters = useSearch({ from: '/tools' });
   const navigate = useNavigate({ from: '/tools' });
@@ -38,12 +39,18 @@ export default function ToolsPage() {
   const connectionById = new Map(
     connections.data?.map((connection) => [connection.id, connection]),
   );
-  const connectionNames = new Map(
-    connections.data?.map((connection) => [
-      connection.id,
-      `${connection.name} · ${executionLocation(connection, deviceById)}`,
-    ]),
-  );
+  // Shared connections are named too, so no row falls back to a connection UUID.
+  const shared = useConnectionNames();
+  const connectionNames = new Map([
+    ...[...shared.names.keys()].map((id) => [id, shared.label(id)] as const),
+    ...(connections.data?.map(
+      (connection) =>
+        [
+          connection.id,
+          `${connection.name} · ${executionLocation(connection, deviceById)}`,
+        ] as const,
+    ) ?? []),
+  ]);
   const filtered = filterTools({
     tools: tools.data ?? [],
     connections: connections.data ?? [],
@@ -67,7 +74,9 @@ export default function ToolsPage() {
   return (
     <>
       <PageHeader title="工具" info="切换工具或测试身份会取消未完成的请求。" />
-      <Feedback error={tools.error ?? connections.error ?? devices.error ?? profiles.error} />
+      <Feedback
+        error={tools.error ?? connections.error ?? devices.error ?? profiles.error ?? shared.error}
+      />
       <ToolFilters
         values={filters}
         profiles={profiles.data ?? []}
@@ -77,7 +86,7 @@ export default function ToolsPage() {
       >
         <p role="status" className="filter-count">
           {tools.isPending ? (
-            <span className="sr-only">正在读取工具目录</span>
+            <span className="sr-only">正在读取工具列表</span>
           ) : tools.isError ? (
             '读取失败'
           ) : (
@@ -106,7 +115,7 @@ export default function ToolsPage() {
           </Link>
         </div>
       ) : null}
-      <div className="segmented" role="group" aria-label="目录类型">
+      <div className="segmented" role="group" aria-label="查看类型">
         <Button
           size="sm"
           variant={view === 'tools' ? 'secondary' : 'ghost'}
@@ -121,7 +130,7 @@ export default function ToolsPage() {
           aria-pressed={view === 'content'}
           onClick={() => setView('content')}
         >
-          Prompts 与 Resources
+          提示词与资源
         </Button>
       </div>
       {view === 'content' ? (
@@ -141,7 +150,15 @@ export default function ToolsPage() {
                   {tool.name}
                   {tool.unavailable ? <Status value="error" label="不可用" /> : null}
                 </strong>
-                <small>{connectionNames.get(tool.connectionId) ?? tool.connectionId}</small>
+                <small>
+                  {connectionNames.get(tool.connectionId) ?? '未知连接'}
+                  {tool.exposedName ? (
+                    <>
+                      {' · 客户端中：'}
+                      <code>{tool.exposedName}</code>
+                    </>
+                  ) : null}
+                </small>
                 {tool.definition.description ? (
                   <p title={tool.definition.description}>{tool.definition.description}</p>
                 ) : null}
@@ -184,7 +201,7 @@ export default function ToolsPage() {
                 key={`${profileId ?? 'account'}:${selected.id}`}
                 selected={selected}
                 profileId={profileId}
-                location={connectionNames.get(selected.connectionId) ?? selected.connectionId}
+                location={connectionNames.get(selected.connectionId) ?? '未知连接'}
                 identity={
                   !connection
                     ? '连接信息未读取'

@@ -41,11 +41,11 @@ export default function TasksPage() {
     <>
       <PageHeader
         title="运行记录"
-        info="按所选 Agent 配置使用工具和 Skills；只有执行推理任务才需要模型。"
+        info="按所选 Agent 的权限使用工具和 Skills；只有执行推理任务才需要模型。"
       />
       <ErrorState title="任务配置加载失败" error={me.error} onRetry={() => me.refetch()} />
       <ErrorState
-        title="Agent 配置加载失败"
+        title="Agent 列表加载失败"
         error={profiles.error}
         onRetry={() => profiles.refetch()}
       />
@@ -54,8 +54,7 @@ export default function TasksPage() {
         <Card className="panel padded">
           <h2>内置 Agent 任务尚未启用</h2>
           <p>
-            MCP 连接和 Pi 桥接可直接使用，无需配置模型。仅执行此页的 Agent
-            任务需要启用推理并配置模型。
+            连接和 Pi 桥接可直接使用，无需配置模型。仅执行此页的 Agent 任务需要启用推理并配置模型。
           </p>
         </Card>
       ) : me.isSuccess && me.data.piEnabled ? (
@@ -70,7 +69,7 @@ export default function TasksPage() {
               })
             }
           >
-            <Field label="Agent 配置">
+            <Field label="Agent">
               <SelectControl name="profileId" required>
                 <SelectItem value="">选择配置</SelectItem>
                 {profiles.data?.map((p) => (

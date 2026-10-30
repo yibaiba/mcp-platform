@@ -173,7 +173,7 @@ export function ConnectionSettings({
               hint={
                 connection.adapter === 'device'
                   ? '命令在所选设备上运行；该设备必须已安装程序。'
-                  : '命令在平台主机上运行。'
+                  : '命令在平台服务器上运行。'
               }
             >
               <Input name="command" defaultValue={connection.command} required />

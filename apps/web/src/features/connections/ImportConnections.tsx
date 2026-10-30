@@ -5,7 +5,7 @@ import { BundlePanel } from '../bundles/BundlePanel.js';
 import { OpenApiPanel } from './OpenApiPanel.js';
 import { ImportPanel } from './ImportPanel.js';
 const methods = [
-  ['mcpb', 'MCPB 扩展包'],
+  ['mcpb', '扩展包（.mcpb）'],
   ['openapi', 'OpenAPI 文档'],
   ['json', 'MCP 配置 JSON'],
 ] as const;

@@ -94,6 +94,7 @@ pnpm test:pi                # 真实 Pi SDK 桥接；不调用模型，硬超时
 - [接口、权限与协议](docs/api.md)
 - [内置 Pi 配置](docs/pi.md)
 - [测试说明](docs/testing.md)
+- [术语表](docs/glossary.md)：界面用词与旧叫法、接口字段的对应
 - [Agent 工作空间、权限与交接](docs/workspaces.md)
 - [身份、生命周期、OpenAPI、交互与 Apps](docs/capabilities.md)
 - [客户端配置格式与核对来源](docs/client-configurations.md)

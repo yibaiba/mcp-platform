@@ -52,8 +52,11 @@ async function connection() {
   });
 }
 async function openProfile(name: string) {
-  await page.getByRole('button', { name: `${name} 更多操作`, exact: true }).click();
-  await page.getByRole('menuitem', { name: '编辑权限', exact: true }).click();
+  await page
+    .locator('.profile-row')
+    .filter({ hasText: name })
+    .getByRole('button', { name: '编辑权限', exact: true })
+    .click();
 }
 async function profiles() {
   const connected = await connection();
@@ -116,19 +119,19 @@ async function profiles() {
     assert.equal(writes, 0);
     await page.unroute(`**/api/v1/${path}`);
     await error.getByRole('button', { name: '重试', exact: true }).click();
-    await page.getByLabel('配置名称', { exact: true }).waitFor();
+    await page.getByLabel('Agent 名称', { exact: true }).waitFor();
     for (const name of ['toolId', 'contentId', 'skillVersionId', 'artifactId']) {
       assert.equal(await page.locator(`input[name="${name}"]:checked`).count(), 1);
     }
   }
-  await page.getByLabel('配置名称', { exact: true }).fill('Retained draft');
+  await page.getByLabel('Agent 名称', { exact: true }).fill('Retained draft');
   await page.route('**/api/v1/skills', (route) => route.fulfill(failure('refresh failed')));
   await new Promise((done) => setTimeout(done, 5100));
   await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')));
   const error = page.getByRole('dialog').getByRole('alert').filter({ hasText: 'refresh failed' });
   await error.waitFor();
   assert.equal(await page.getByRole('button', { name: '保存', exact: true }).isEnabled(), false);
-  assert.equal(await page.getByLabel('配置名称', { exact: true }).inputValue(), 'Retained draft');
+  assert.equal(await page.getByLabel('Agent 名称', { exact: true }).inputValue(), 'Retained draft');
   await page.unroute('**/api/v1/skills');
   await error.getByRole('button', { name: '重试', exact: true }).click();
   const response = page.waitForResponse(

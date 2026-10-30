@@ -99,7 +99,7 @@ export function ConnectorCatalog({
   connections: readonly Connection[];
 }) {
   return (
-    <div className="grid gap-5" aria-label="内置连接器">
+    <div className="grid gap-5" aria-label="内置服务">
       {groups.map((group) => (
         <section key={group.name} aria-label={group.name}>
           <h3 className="mb-1 text-xs font-medium text-muted-foreground">{group.name}</h3>

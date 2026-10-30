@@ -87,7 +87,7 @@ export function LocalManager({ api }: { api: ManagementApi }) {
             ...(!api.remote
               ? [
                   ['network', '网络与安装源'],
-                  ['bundles', 'MCPB 扩展包'],
+                  ['bundles', '扩展包（.mcpb）'],
                 ]
               : []),
           ].map(([id, label]) => (

@@ -188,7 +188,7 @@ export function createApp(deps: {
       )
         throw new AppError(
           'AGENT_CREDENTIAL_REQUIRED',
-          '业务执行需要 Profile Agent 凭据和 REST 调用接口',
+          '业务执行需要 Agent 凭据和 REST 调用接口',
           403,
         );
       const read =

@@ -63,7 +63,7 @@ export function TaskDetail({ id }: { id: string }) {
             ))}
             <h3>上游交互来源</h3>
             <Code value={task.data.interactions} />
-            <h3>产物</h3>
+            <h3>文件</h3>
             <Code value={task.data.artifacts} />
             <h3>持久阶段事件</h3>
             <Code value={task.data.events} />

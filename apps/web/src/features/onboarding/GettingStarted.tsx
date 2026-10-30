@@ -11,6 +11,7 @@ import {
 } from '../../components/ui/dialog.js';
 import { Hint } from '../../components/ui/tooltip.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
+import { glossary } from './glossary.js';
 
 export const setupSteps = [
   {
@@ -94,7 +95,7 @@ export function GettingStarted({
         <div className="space-y-1 border-t pt-3 text-muted-foreground">
           <Disclosure title="怎么确认可用？">
             <p>
-              到工具目录选择对应 Agent
+              到工具页选择对应 Agent
               身份，再选工具查看参数。点击“执行”会执行真实操作，请先确认参数。
             </p>
             <Link
@@ -102,7 +103,7 @@ export function GettingStarted({
               onClick={() => setOpen(false)}
               className="inline-flex min-h-8 items-center gap-1 text-primary hover:underline"
             >
-              去工具目录 <ArrowUpRight size={14} aria-hidden="true" />
+              去工具页 <ArrowUpRight size={14} aria-hidden="true" />
             </Link>
           </Disclosure>
           <Disclosure title="设备和模型需要配置吗？">
@@ -113,6 +114,19 @@ export function GettingStarted({
           </Disclosure>
           <Disclosure title="想接同一服务的多个账号？">
             <p>在添加连接时再次选择同一服务并分别命名，再为不同 Agent 选择对应连接的工具。</p>
+          </Disclosure>
+          <Disclosure title="术语表：界面里的词是什么意思？">
+            <dl className="glossary-list">
+              {glossary.map((entry) => (
+                <div key={entry.term}>
+                  <dt>{entry.term}</dt>
+                  <dd>
+                    {entry.meaning}
+                    <small>旧称：{entry.was}</small>
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </Disclosure>
         </div>
       </DialogContent>

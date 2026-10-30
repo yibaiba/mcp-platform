@@ -114,7 +114,7 @@ export function validateDeclaration(input: ManifestApply) {
       ...Object.keys(profile.connectionIdentities),
     );
     if (refs.some((name) => !names.has(name)))
-      throw new AppError('MANIFEST_REFERENCE', 'Profile 引用了声明中不存在的连接');
+      throw new AppError('MANIFEST_REFERENCE', 'Agent 引用了声明中不存在的连接');
   }
   for (const share of Object.values(input.declaration.shares))
     if (

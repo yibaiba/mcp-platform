@@ -55,7 +55,7 @@ export default function ConfigurationPage() {
           <h2>预览和应用</h2>
           <Field
             label="JSON 配置声明"
-            hint="连接、Profile 使用逻辑名称；秘密使用 secretRef。prune 只清理该声明管理且已移除的对象。"
+            hint="连接、Agent 使用逻辑名称；秘密使用 secretRef。prune 只清理该声明管理且已移除的对象。"
           >
             <Textarea
               rows={20}
@@ -144,7 +144,7 @@ export default function ConfigurationPage() {
       <Card className="panel padded">
         <h2>声明状态</h2>
         {!manifests.data?.length ? (
-          <Empty>尚未应用配置模板。</Empty>
+          <Empty>尚未应用批量配置。</Empty>
         ) : (
           manifests.data.map((manifest) => (
             <section key={manifest.name} className="connection-row">

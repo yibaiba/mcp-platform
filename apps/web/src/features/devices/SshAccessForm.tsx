@@ -107,7 +107,7 @@ export function SshAccessForm({
       {bindings.map((binding, index) => (
         <fieldset key={index} className="form-grid">
           <legend>映射 {index + 1}</legend>
-          <Field label={`映射 ${index + 1} 的 MCP 连接`}>
+          <Field label={`映射 ${index + 1} 的连接`}>
             <SelectControl
               required
               value={binding.connectionId}

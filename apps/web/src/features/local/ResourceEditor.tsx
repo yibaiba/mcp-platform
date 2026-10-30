@@ -58,7 +58,7 @@ export function ResourceEditor({
           来源已变化，当前编辑内容保留。<button onClick={reload}>重新载入来源</button>
         </p>
       ) : null}
-      <p className="local-note">配置写入后需要客户端重新加载。Agent 授权请在 Agent 配置页管理。</p>
+      <p className="local-note">配置写入后需要客户端重新加载。Agent 授权请在 Agent 页管理。</p>
       {resource.kind === 'skill' ? (
         <>
           <SkillEditor files={files ?? {}} onChange={setFiles} readOnly={latest.readOnly} />

@@ -104,7 +104,7 @@ export class ManifestReconciler {
     const { entry, manifest } = input;
     const row = await this.deps.profiles.owned(manifest.ownerId, entry.objectId!);
     if (entry.revision !== row.revision)
-      throw new AppError('MANIFEST_CONFLICT', `Profile ${entry.name} 已被人工编辑`, 409);
+      throw new AppError('MANIFEST_CONFLICT', `Agent ${entry.name} 已被人工编辑`, 409);
     const value = await resolveProfile({
       ownerId: manifest.ownerId,
       declaration: manifest.declaration.profiles[entry.name]!,
@@ -129,7 +129,7 @@ export class ManifestReconciler {
       .where(and(eq(profiles.id, row.id), eq(profiles.revision, saved.revision)))
       .returning({ id: profiles.id });
     if (!ready.length)
-      throw new AppError('MANIFEST_CONFLICT', `Profile ${entry.name} 已被人工编辑`, 409);
+      throw new AppError('MANIFEST_CONFLICT', `Agent ${entry.name} 已被人工编辑`, 409);
     if (row.deploymentState !== 'ready' || row.revision !== saved.revision)
       await this.deps.changed(row.id);
     return { ...next, status: 'ready' as const, reason: undefined };

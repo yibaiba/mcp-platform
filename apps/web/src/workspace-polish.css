@@ -439,6 +439,74 @@ textarea:disabled {
   grid-column: 2;
   color: var(--subtle-foreground);
 }
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+@media (max-width: 640px) {
+  .profile-row {
+    flex-wrap: wrap;
+    padding-left: 0;
+  }
+  .profile-open {
+    flex-basis: 100%;
+  }
+  .profile-actions {
+    flex: 1;
+    justify-content: flex-start;
+    padding-left: 16px;
+  }
+}
+
+/* Agent 详情: tools grouped by connection, with the names clients see */
+.agent-tool-group + .agent-tool-group {
+  margin-top: 16px;
+}
+.agent-tool-group h3 {
+  margin: 0 0 6px;
+  font-size: var(--text-body, 0.875rem);
+  font-weight: 600;
+}
+.agent-tool-group h3 small {
+  color: var(--muted-foreground);
+  font-weight: 400;
+}
+.agent-tool-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.agent-tool-table th,
+.agent-tool-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.agent-tool-table th {
+  color: var(--muted-foreground);
+  font-weight: 500;
+  font-size: var(--text-caption, 0.75rem);
+}
+.agent-tool-table code {
+  font-size: 0.8125rem;
+}
+.agent-grants {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 16px 0 0;
+  font-size: 0.875rem;
+}
+.agent-grants dt {
+  color: var(--muted-foreground);
+}
+.agent-grants dd {
+  margin: 0;
+}
 .key-steps {
   display: grid;
   gap: 24px;
@@ -626,4 +694,22 @@ textarea:disabled {
 }
 .attention.stacked p {
   margin: 0;
+}
+
+/* In-app glossary (使用指南 → 术语表) */
+.glossary-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.glossary-list dt {
+  color: var(--foreground);
+  font-weight: 600;
+}
+.glossary-list dd {
+  display: grid;
+  margin: 0;
+}
+.glossary-list small {
+  color: var(--muted-foreground);
 }

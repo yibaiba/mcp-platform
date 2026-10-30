@@ -26,7 +26,7 @@ export function ToolFilters({
       <NamedFilter
         compact
         label="测试身份"
-        all="管理账号"
+        all="我自己"
         value={values.profileId}
         options={profiles}
         onChange={(profileId) => onChange({ profileId, toolId: undefined })}
@@ -41,11 +41,11 @@ export function ToolFilters({
       />
       <NamedFilter
         compact
-        label="执行位置"
+        label="运行位置"
         all="全部位置"
         value={values.deviceId}
         options={[
-          { id: 'platform', name: '平台主机' },
+          { id: 'platform', name: '平台服务器' },
           ...devices.map((device) => ({
             id: device.id,
             name: `${device.name}${device.revoked ? '（已撤销）' : device.online ? '' : '（离线）'}`,

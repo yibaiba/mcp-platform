@@ -42,7 +42,7 @@ export function ImportPanel({
           <Textarea name="config" rows={6} required onChange={() => setReview(undefined)} />
         </Field>
         <Field
-          label="本地服务的执行设备"
+          label="本地服务的运行在哪台设备"
           hint="stdio 命令在所选设备执行；也可在 JSON 中填写 deviceId"
         >
           <SelectControl name="deviceId" defaultValue="" onValueChange={() => setReview(undefined)}>

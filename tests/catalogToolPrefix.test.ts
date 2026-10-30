@@ -7,7 +7,11 @@ import {
   suggestToolPrefix,
 } from '../packages/contracts/src/index.js';
 import { catalogOptions } from '../packages/contracts/src/catalogOptions.js';
-import { readableToolNames, TOOL_NAME_MAX } from '../apps/server/src/modules/catalog/toolNames.js';
+import {
+  type ConnectionLabel,
+  readableToolNames,
+  TOOL_NAME_MAX,
+} from '../apps/server/src/modules/catalog/toolNames.js';
 import { toolId } from '../apps/server/src/modules/mcp/catalogRepository.js';
 import { projectTools } from '../apps/server/src/modules/catalog/projection.js';
 import { harness } from './harness.js';
@@ -45,7 +49,7 @@ test("a user-set English prefix replaces only that connection's prefix; absent k
   expect(upgraded).toEqual(before);
   const named = readableToolNames(
     tools,
-    new Map([
+    new Map<string, ConnectionLabel>([
       [a, { name: '团队知识库', prefix: 'team_kb' }],
       [b, 'Docs'],
     ]),

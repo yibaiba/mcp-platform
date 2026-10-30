@@ -19,7 +19,7 @@ export function callDuration(call: Call) {
     : '尚未结束';
 }
 export function callLocation(call: Call, names: CallNames) {
-  return call.deviceId ? (names.devices.get(call.deviceId) ?? call.deviceId) : '平台主机';
+  return call.deviceId ? (names.devices.get(call.deviceId) ?? call.deviceId) : '平台服务器';
 }
 export const callPhase = (phase?: string | null) =>
   ({

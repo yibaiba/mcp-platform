@@ -41,11 +41,7 @@ export function RequestableSettings({
       ).map(([kind, rows]) => (
         <fieldset key={kind}>
           <legend>
-            {kind === 'toolIds'
-              ? '工具'
-              : kind === 'contentIds'
-                ? 'Prompts / Resources / 模板'
-                : '产物'}
+            {kind === 'toolIds' ? '工具' : kind === 'contentIds' ? '提示词、资源与模板' : '文件'}
           </legend>
           {rows.map((row) => (
             <CheckChoice

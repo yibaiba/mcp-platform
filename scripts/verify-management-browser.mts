@@ -191,13 +191,15 @@ try {
     .getByRole('button', { name: '添加连接', exact: true })
     .click();
   await memberPage.getByRole('tab', { name: '自定义', exact: true }).click();
-  await memberPage.getByRole('combobox', { name: '传输协议', exact: true }).click();
-  await memberPage.getByRole('option', { name: 'Streamable HTTP', exact: true }).waitFor();
-  assert.equal(await memberPage.getByRole('option', { name: 'stdio（本地进程）' }).count(), 0);
+  await memberPage.getByRole('combobox', { name: '连接方式', exact: true }).click();
+  await memberPage
+    .getByRole('option', { name: '远程地址（Streamable HTTP）', exact: true })
+    .waitFor();
+  assert.equal(await memberPage.getByRole('option', { name: '本地命令（stdio）' }).count(), 0);
   await memberPage.keyboard.press('Escape');
-  await memberPage.getByRole('combobox', { name: '执行适配器', exact: true }).click();
-  await memberPage.getByRole('option', { name: '设备连接器', exact: true }).click();
-  await memberPage.getByRole('combobox', { name: '运行方式', exact: true }).click();
+  await memberPage.getByRole('combobox', { name: '运行位置', exact: true }).click();
+  await memberPage.getByRole('option', { name: '我的设备（设备连接器）', exact: true }).click();
+  await memberPage.getByRole('combobox', { name: '连接方式', exact: true }).click();
   await memberPage.getByRole('option', { name: '运行本地命令（stdio）', exact: true }).waitFor();
   await memberPage.keyboard.press('Escape');
   await memberPage.getByRole('link', { name: '添加设备', exact: true }).waitFor();
@@ -211,11 +213,11 @@ try {
   await page.getByLabel('key', { exact: true }).fill('browser-bundle-secret');
   await page.getByRole('button', { name: '预览执行配置' }).click();
   await page.getByRole('button', { name: '安装并连接' }).waitFor();
-  await page.getByRole('combobox', { name: '执行位置', exact: true }).click();
+  await page.getByRole('combobox', { name: '运行位置', exact: true }).click();
   await page.getByRole('option', { name: '平台 Pi 桥接', exact: true }).click();
   await page.getByRole('button', { name: '安装并连接' }).waitFor({ state: 'hidden' });
-  await page.getByRole('combobox', { name: '执行位置', exact: true }).click();
-  await page.getByRole('option', { name: '平台直连', exact: true }).click();
+  await page.getByRole('combobox', { name: '运行位置', exact: true }).click();
+  await page.getByRole('option', { name: '平台服务器', exact: true }).click();
   await page.getByRole('button', { name: '预览执行配置' }).click();
   await page.getByRole('button', { name: '安装并连接' }).waitFor();
   assert.ok(
@@ -266,7 +268,7 @@ try {
   const local = await context.newPage();
   await local.setViewportSize({ width: 375, height: 844 });
   await local.goto(localUrl);
-  await local.getByRole('tab', { name: 'MCPB 扩展包' }).click();
+  await local.getByRole('tab', { name: '扩展包（.mcpb）' }).click();
   await local.getByLabel('MCPB 文件', { exact: true }).setInputFiles(file);
   await local.getByRole('button', { name: '解析本机 MCPB' }).click();
   await local.getByLabel('key', { exact: true }).fill('local-only-secret');
@@ -283,7 +285,7 @@ try {
   await local.getByText('bundle-stdio', { exact: false }).waitFor();
   assert.ok(!(await local.locator('pre').allTextContents()).join('').includes('local-only-secret'));
   await local.reload();
-  await local.getByRole('tab', { name: 'MCPB 扩展包' }).click();
+  await local.getByRole('tab', { name: '扩展包（.mcpb）' }).click();
   await local.getByRole('button', { name: '移除本机配置', exact: true }).click();
   await local.getByRole('button', { name: '连接验证', exact: true }).waitFor({ state: 'detached' });
   assert.ok(await local.evaluate(() => document.documentElement.scrollWidth <= innerWidth));

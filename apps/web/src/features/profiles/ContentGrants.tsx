@@ -21,7 +21,7 @@ export function ContentGrants({
   const granted = new Set(selected);
   return (
     <fieldset>
-      <legend>允许访问的 Prompts 与 Resources</legend>
+      <legend>允许访问的提示词与资源</legend>
       {entries.map((entry) => (
         <CheckChoice
           key={entry.id}
