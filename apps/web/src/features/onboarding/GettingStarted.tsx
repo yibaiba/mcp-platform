@@ -29,7 +29,7 @@ export const setupSteps = [
     hash: 'create-profile',
     action: '配置 Agent',
     description:
-      '填写 Agent 名称，勾选允许使用的工具，再保存配置。连接服务只代表账号接入，仍需把工具明确分配给 Agent。',
+      '连接成功后点击“给 Agent 授权”，选择已有 Agent 或新建，再勾选允许使用的工具。保存后直接进入客户端接入。',
   },
   {
     title: '复制配置到客户端',
@@ -38,7 +38,7 @@ export const setupSteps = [
     hash: 'agent-configurations',
     action: '获取接入配置',
     description:
-      '在已创建的 Agent 上点击“生成接入密钥”，再点“复制完整客户端配置”，选择你的客户端并粘贴到它的 MCP 设置中。密钥只在生成时展示。',
+      '点击 Agent 旁的“接入”，生成接入密钥后选择客户端并复制配置，再粘贴到客户端的 MCP 设置。密钥只显示一次；请在客户端刷新工具列表确认接通。',
   },
 ] as const;
 

@@ -216,6 +216,7 @@ async function drafts() {
   const open = async () => {
     await page.getByRole('button', { name: 'Safety connection 更多操作', exact: true }).click();
     await page.getByRole('menuitem', { name: '编辑连接', exact: true }).click();
+    await page.getByRole('button', { name: '高级设置', exact: true }).click();
   };
   await open();
   const editor = page.getByRole('dialog', { name: '编辑连接', exact: true });

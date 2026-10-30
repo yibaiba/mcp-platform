@@ -7,14 +7,23 @@ export function Disclosure({
   children,
   className,
   defaultOpen,
+  open,
+  onOpenChange,
 }: {
   title: string;
   children: ReactNode;
   className?: string;
   defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   return (
-    <Collapsible className={className} defaultOpen={defaultOpen}>
+    <Collapsible
+      className={className}
+      defaultOpen={defaultOpen}
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <CollapsibleTrigger
         render={
           <Button

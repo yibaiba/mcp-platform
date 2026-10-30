@@ -45,7 +45,7 @@ export function SetupChecklist() {
     return (
       <section className="setup setup-done" aria-label="上手流程">
         <Check size={16} aria-hidden="true" />
-        <span className="grow">已完成 3/3</span>
+        <span className="grow">平台配置已完成 3/3，请在客户端确认工具列表</span>
         <Button
           variant="ghost"
           size="icon-sm"

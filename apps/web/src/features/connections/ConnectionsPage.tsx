@@ -3,7 +3,7 @@ import { SelectItem } from '../../components/ui/select.js';
 import { useEffect, useState } from 'react';
 import { useDraftProtection } from '../../components/shared/useDraftProtection.js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
+import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import type { ConnectorPreset, ConnectorAuthentication } from '@platform/contracts';
 import { ArrowLeft, Inbox, Network, Plus, Search } from 'lucide-react';
 import { PageHeader } from '../../components/shared/PageHeader.js';
@@ -83,6 +83,8 @@ function SharedWithMe({ devices }: { devices: Device[] }) {
 }
 
 export default function ConnectionsPage() {
+  const hash = useLocation({ select: (location) => location.hash });
+  const navigate = useNavigate({ from: '/connections' });
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [location, setLocation] = useState('');
@@ -108,8 +110,12 @@ export default function ConnectionsPage() {
   };
   useEffect(() => {
     // Onboarding links to #connector-catalog; open the add drawer instead of scrolling.
-    if (window.location.hash === '#connector-catalog') openAdd('catalog');
-  }, []);
+    if (hash !== 'connector-catalog') return;
+    setPreset(undefined);
+    setAddTab('catalog');
+    setShow(true);
+    void navigate({ hash: '', replace: true });
+  }, [hash, navigate]);
   async function connectCreated(created: { id: string }, authentication: ConnectorAuthentication) {
     setShow(false);
     const say = (message: string, error: Error | null = null) =>

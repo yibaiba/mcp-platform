@@ -12,14 +12,17 @@ import {
   type ContentEntry,
   type Connection,
 } from '../../lib/api.js';
-import { ContentGrants, appInfo } from './ContentGrants.js';
+import { ContentGrants } from './ContentGrants.js';
+import { ToolGrants } from './ToolGrants.js';
 
 export function ProfilePermissionsEditor({
   editing,
   onSaved,
+  connectionId,
 }: {
   editing?: Profile;
-  onSaved: () => void;
+  onSaved: (profile: Profile) => void;
+  connectionId?: string;
 }) {
   const tools = useQuery({ queryKey: ['tools'], queryFn: () => api<Tool[]>('/tools') });
   const catalog = useQuery({
@@ -69,7 +72,7 @@ export function ProfilePermissionsEditor({
           disabled={!ready}
           label={editing ? '保存' : '创建'}
           submit={async (data) => {
-            await api(editing ? `/profiles/${editing.id}` : '/profiles', {
+            const saved = await api<Profile>(editing ? `/profiles/${editing.id}` : '/profiles', {
               method: editing ? 'PUT' : 'POST',
               body: json({
                 revision: editing?.revision,
@@ -81,46 +84,31 @@ export function ProfilePermissionsEditor({
                 artifactIds: data.getAll('artifactId'),
               }),
             });
-            onSaved();
+            onSaved(saved);
           }}
         >
           <Field label="配置名称">
             <Input
               name="name"
               required
-              defaultValue={editing?.name}
+              defaultValue={
+                editing?.name ??
+                (connectionId && connectionNames.has(connectionId)
+                  ? `${connectionNames.get(connectionId)} Agent`
+                  : '')
+              }
               placeholder="例如：Claude Code"
             />
           </Field>
           <Field label="Agent 说明" hint="按授权服务的稳定顺序追加上游服务说明，并标记来源。">
             <Textarea name="instructions" defaultValue={editing?.instructions ?? ''} />
           </Field>
-          <fieldset>
-            <legend>允许访问的工具</legend>
-            {tools.data?.map((tool) => (
-              <CheckChoice
-                key={tool.id}
-                name="toolId"
-                value={tool.id}
-                defaultChecked={editing?.toolIds.includes(tool.id)}
-              >
-                <span>
-                  <strong>{tool.name}</strong>
-                  <small>{connectionNames.get(tool.connectionId)}</small>
-                  {appInfo(tool) ? (
-                    <small>
-                      {appInfo(tool)?.resourceUri ? `App UI：${appInfo(tool)?.resourceUri} · ` : ''}
-                      {appInfo(tool)?.visibility?.includes('app') &&
-                      !appInfo(tool)?.visibility?.includes('model')
-                        ? '仅 App 可用，不提供给模型'
-                        : '可供模型调用'}
-                    </small>
-                  ) : null}
-                </span>
-              </CheckChoice>
-            ))}
-            {!tools.data?.length ? <small>先连接 MCP 并发现工具。</small> : null}
-          </fieldset>
+          <ToolGrants
+            tools={tools.data ?? []}
+            selected={editing?.toolIds ?? []}
+            connectionNames={connectionNames}
+            connectionId={connectionId}
+          />
           <ContentGrants
             entries={catalog.data ?? []}
             selected={editing?.contentIds ?? []}

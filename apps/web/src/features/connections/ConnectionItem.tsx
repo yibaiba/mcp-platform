@@ -2,15 +2,7 @@ import { useState } from 'react';
 import { connectorPresets } from '@platform/contracts';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import {
-  AlertCircle,
-  Info,
-  KeyRound,
-  LoaderCircle,
-  MoreHorizontal,
-  RefreshCw,
-  Settings2,
-} from 'lucide-react';
+import { Info, KeyRound, LoaderCircle, MoreHorizontal, RefreshCw, Settings2 } from 'lucide-react';
 import { api, type Connection, type Device } from '../../lib/api.js';
 import { InlineStatus, Status } from '../../components/shared/Controls.js';
 import { Hint } from '../../components/ui/tooltip.js';
@@ -34,6 +26,7 @@ import { ConfirmDialog } from '../../components/shared/ConfirmDialog.js';
 import { ConnectorIcon } from './ConnectorIcon.js';
 import { executionLocation } from '../tools/toolCatalog.js';
 import { ConnectionRecovery } from './ConnectionRecovery.js';
+import { ConnectionStatusMessage } from './ConnectionStatusMessage.js';
 
 type Operation = { label: string; action: () => Promise<unknown>; inspect?: boolean };
 export type ConnectionInspection = { title: string; result: unknown };
@@ -113,7 +106,10 @@ export function ConnectionItem({
         <div className="min-w-0 flex-1 basis-40">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-medium">{connection.name}</h3>
-            <Status value={connection.status} />
+            <Status
+              value={connection.status}
+              label={connection.status === 'waiting_authorization' ? '等待账号授权' : undefined}
+            />
             <Hint content={`${executionLocation(connection, devices)} · ${identity}`}>
               <span
                 tabIndex={0}
@@ -133,12 +129,20 @@ export function ConnectionItem({
           aria-busy={Boolean(busy)}
         >
           {connected ? (
-            <Button
-              variant="outline"
-              render={<Link to="/tools" search={{ connectionId: connection.id }} />}
-            >
-              查看工具
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                render={<Link to="/profiles" search={{ connectionId: connection.id }} />}
+              >
+                给 Agent 授权
+              </Button>
+              <Button
+                variant="ghost"
+                render={<Link to="/tools" search={{ connectionId: connection.id }} />}
+              >
+                查看工具
+              </Button>
+            </>
           ) : error ? null : (
             <Button
               variant="outline"
@@ -228,26 +232,14 @@ export function ConnectionItem({
           </DropdownMenu>
         </div>
       </div>
-      {error ? (
-        <div
-          role="alert"
-          className="row-error mt-3 flex items-start gap-2 text-xs text-destructive"
-        >
-          <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-          <div className="min-w-0 flex-1 break-words">
-            <p className="m-0 font-medium">{failure ? `${failure.label}未完成` : '连接失败'}</p>
-            <p className="m-0 text-muted-foreground">{error}</p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={Boolean(busy)}
-            onClick={() => perform('discover', '更新目录')}
-          >
-            重试
-          </Button>
-        </div>
-      ) : null}
+      <ConnectionStatusMessage
+        connection={connection}
+        error={error}
+        failureLabel={failure?.label}
+        busy={Boolean(busy)}
+        onEdit={() => onEdit(connection)}
+        onRetry={() => perform('discover', '更新目录')}
+      />
       {notice && !notice.error ? (
         <p className="mt-2 text-xs">
           <InlineStatus onDone={onNoticeDone}>{notice.message}</InlineStatus>

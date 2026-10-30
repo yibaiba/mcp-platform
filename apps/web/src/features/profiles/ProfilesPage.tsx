@@ -5,7 +5,7 @@ import { WorkspacePage } from './WorkspacePage.js';
 import { Card } from '../../components/ui/card.js';
 import { Button } from '../../components/ui/button.js';
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { Link, useLocation, useNavigate, useSearch } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { Bot, ChevronRight, MoreHorizontal, Plus } from 'lucide-react';
 import {
@@ -31,21 +31,15 @@ import {
 } from '../../components/ui/sheet.js';
 import { api, type Tool, type Profile, type Connection, type ContentEntry } from '../../lib/api.js';
 import { ProfilePermissionsEditor } from './ProfilePermissionsEditor.js';
-import { ClientExportBody, type Export } from './ClientExport.js';
+import { ClientExportBody } from './ClientExport.js';
+import { ProfileAccess, type AccessKey, type IssuedAccess } from './ProfileAccess.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
-import {
-  Action,
-  Code,
-  Empty,
-  Feedback,
-  Field,
-  ListSkeleton,
-} from '../../components/shared/Controls.js';
+import { Code, Empty, Feedback, ListSkeleton } from '../../components/shared/Controls.js';
 
 type Drawer =
   | { kind: 'create' }
   | { kind: 'edit'; profile: Profile }
-  | { kind: 'access'; profile: Profile }
+  | { kind: 'access'; profile: Profile; permissionsSaved?: boolean }
   | { kind: 'catalog'; profile: Profile }
   | { kind: 'discovery'; profile: Profile };
 
@@ -62,21 +56,25 @@ export default function ProfilesPage() {
   });
   const keys = useQuery({
     queryKey: ['keys'],
-    queryFn: () => api<{ id: string; profileId: string; revoked: boolean }[]>('/profiles/keys/all'),
+    queryFn: () => api<AccessKey[]>('/profiles/keys/all'),
   });
-  const { workspace } = useSearch({ from: '/profiles' });
+  const { workspace, connectionId } = useSearch({ from: '/profiles' });
+  const hash = useLocation({ select: (location) => location.hash });
   const navigate = useNavigate({ from: '/profiles' });
   const [drawer, setDrawer] = useState<Drawer>();
-  const [key, setKey] = useState<{ exports?: Export[] }>();
+  const [key, setKey] = useState<IssuedAccess>();
   const editing = drawer?.kind === 'edit' ? drawer.profile : undefined;
   const close = () => setDrawer(undefined);
   useEffect(() => {
     // Onboarding links to #create-profile; open the drawer instead of scrolling to a form.
-    if (window.location.hash === '#create-profile') setDrawer({ kind: 'create' });
-  }, []);
+    if (hash !== 'create-profile') return;
+    setDrawer({ kind: 'create' });
+    void navigate({ hash: '', replace: true, search: (previous) => previous });
+  }, [hash, navigate]);
   if (workspace)
     return <WorkspacePage profileId={workspace} onBack={() => void navigate({ search: {} })} />;
   const drawerProfile = drawer && 'profile' in drawer ? drawer.profile : undefined;
+  const source = connections.data?.find((connection) => connection.id === connectionId);
   return (
     <>
       <PageHeader
@@ -91,6 +89,19 @@ export default function ProfilesPage() {
       <Feedback
         error={profiles.error ?? tools.error ?? keys.error ?? connections.error ?? catalog.error}
       />
+      {connectionId ? (
+        <section className="mb-4 rounded-lg border bg-muted/30 p-4" aria-label="连接授权引导">
+          <h2 className="text-sm font-medium">为「{source?.name ?? '所选连接'}」分配权限</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            选择下方已有 Agent 分配权限，或新建 Agent。保存后可直接获取客户端接入配置。
+          </p>
+          {connections.isSuccess && !source ? (
+            <p role="alert" className="mt-2 text-sm text-destructive">
+              来源连接已不可用，请确认连接是否仍存在或仍获共享授权。
+            </p>
+          ) : null}
+        </section>
+      ) : null}
       <Card id="agent-configurations" className="panel scroll-mt-6">
         {profiles.isPending ? <ListSkeleton /> : null}
         {profiles.data?.length ? (
@@ -107,13 +118,22 @@ export default function ProfilesPage() {
                   <strong>{profile.name}</strong>
                   <small>
                     {profile.toolIds.length} 工具 · {profile.skillVersionIds.length} Skills ·{' '}
-                    {activeKeys ? `${activeKeys} 个密钥` : '未生成密钥'}
+                    {keys.isPending
+                      ? '密钥加载中'
+                      : keys.isError
+                        ? '密钥读取失败'
+                        : activeKeys
+                          ? `${activeKeys} 个密钥`
+                          : '未生成密钥'}
                     {profile.deploymentState !== 'ready' ? ' · 配置模板待处理' : ''}
                   </small>
                   <ChevronRight size={16} aria-hidden="true" className="profile-chevron" />
                 </button>
-                <Button variant="outline" onClick={() => setDrawer({ kind: 'access', profile })}>
-                  接入
+                <Button
+                  variant="outline"
+                  onClick={() => setDrawer({ kind: connectionId ? 'edit' : 'access', profile })}
+                >
+                  {connectionId ? '分配权限' : '接入'}
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger
@@ -191,48 +211,20 @@ export default function ProfilesPage() {
             </SheetDescription>
           </SheetHeader>
           {drawer?.kind === 'create' || drawer?.kind === 'edit' ? (
-            <ProfilePermissionsEditor editing={editing} onSaved={close} />
+            <ProfilePermissionsEditor
+              key={editing?.id ?? 'new'}
+              editing={editing}
+              connectionId={connectionId}
+              onSaved={(profile) => setDrawer({ kind: 'access', profile, permissionsSaved: true })}
+            />
           ) : null}
           {drawer?.kind === 'access' ? (
-            <div className="grid gap-5">
-              <Field label="MCP 地址">
-                <Code value={`${window.location.origin}/mcp/${drawer.profile.id}`} />
-              </Field>
-              <ClientExportBody profileId={drawer.profile.id} />
-              <section className="grid gap-2" aria-label="接入密钥">
-                <h3>接入密钥</h3>
-                {keys.data
-                  ?.filter((k) => k.profileId === drawer.profile.id && !k.revoked)
-                  .map((k) => (
-                    <div className="row" key={k.id}>
-                      <code className="grow">{k.id.slice(0, 8)}…</code>
-                      <Action
-                        danger
-                        confirmation={{
-                          title: `撤销密钥 ${k.id.slice(0, 8)}…？`,
-                          description: '使用它的客户端会立即失效。',
-                          confirmLabel: '撤销',
-                        }}
-                        action={() => api(`/profiles/keys/${k.id}`, { method: 'DELETE' })}
-                      >
-                        撤销密钥
-                      </Action>
-                    </div>
-                  ))}
-                <Action
-                  variant="default"
-                  action={async () =>
-                    setKey(
-                      await api<{ exports?: Export[] }>(`/profiles/${drawer.profile.id}/keys`, {
-                        method: 'POST',
-                      }),
-                    )
-                  }
-                >
-                  生成接入密钥
-                </Action>
-              </section>
-            </div>
+            <ProfileAccess
+              profile={drawer.profile}
+              connectionId={connectionId}
+              permissionsSaved={drawer.permissionsSaved}
+              onIssued={setKey}
+            />
           ) : null}
           {drawer?.kind === 'catalog' && drawerProfile ? (
             <CatalogEditor
@@ -263,7 +255,7 @@ export default function ProfilesPage() {
         <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>接入密钥已生成</DialogTitle>
-            <DialogDescription>密钥只显示这一次。</DialogDescription>
+            <DialogDescription>密钥只显示这一次。复制后请在客户端确认工具列表。</DialogDescription>
           </DialogHeader>
           {key ? (
             <ol className="key-steps">
@@ -273,7 +265,23 @@ export default function ProfilesPage() {
               </li>
               <li>
                 <h3>粘贴到客户端的 MCP 设置后关闭</h3>
-                <Button onClick={() => setKey(undefined)}>我已复制</Button>
+                <Button onClick={() => setKey(undefined)}>关闭密钥窗口</Button>
+              </li>
+              <li>
+                <Link
+                  to="/tools"
+                  search={{ profileId: key.profileId, connectionId }}
+                  onClick={() => {
+                    setKey(undefined);
+                    close();
+                  }}
+                  className="inline-flex min-h-11 items-center text-primary hover:underline"
+                >
+                  以此 Agent 测试工具
+                </Link>
+                <p className="text-sm text-muted-foreground">
+                  测试只在你选择工具并点击执行后开始。
+                </p>
               </li>
               <li>
                 <Disclosure title="查看原始返回">

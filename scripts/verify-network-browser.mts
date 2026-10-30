@@ -125,6 +125,7 @@ try {
   await page.getByText('显示 1 / 1 个连接', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Browser package fixture 更多操作' }).click();
   await page.getByRole('menuitem', { name: '编辑连接', exact: true }).click();
+  await page.getByRole('button', { name: '包版本与更新', exact: true }).click();
   await page.getByRole('button', { name: '手动检查更新', exact: true }).click();
   await page.getByText('1.1.0 · 有更新可用').waitFor();
   await page.screenshot({ path: join(screenshots, 'package-mobile.png'), fullPage: true });

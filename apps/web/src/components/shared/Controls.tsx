@@ -238,11 +238,11 @@ const statusLabels: Record<string, string> = {
   exported: '外部任务包已就绪',
 };
 export const statusText = (value: string) => statusLabels[value] ?? value;
-export function Status({ value }: { value: string }) {
+export function Status({ value, label }: { value: string; label?: string }) {
   return (
     <Badge variant="outline" className={`status status-${value}`}>
       <i aria-hidden="true" />
-      {statusText(value)}
+      {label ?? statusText(value)}
     </Badge>
   );
 }
@@ -343,6 +343,7 @@ export function Form({
   disabled = false,
   onDirtyChange,
   onChange,
+  onInvalid,
 }: {
   children: ReactNode;
   submit: (data: FormData) => Promise<unknown>;
@@ -354,6 +355,7 @@ export function Form({
   disabled?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
   onChange?: () => void;
+  onInvalid?: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   const query = useQueryClient();
   const [busy, setBusy] = useState(false);
@@ -400,6 +402,7 @@ export function Form({
         ref={form}
         onSubmit={(e) => void onSubmit(e)}
         onChange={changed}
+        onInvalidCapture={onInvalid}
         className="form"
         noValidate={noValidate}
       >
