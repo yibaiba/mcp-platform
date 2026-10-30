@@ -4,7 +4,7 @@ import { artifactToolset } from '../artifacts/artifactTools.js';
 import { availablePermissionTools } from '../permissions/tools.js';
 import type { Services } from '../../services.js';
 import { z } from 'zod';
-import { clientPresets, exportClient } from './clientExport.js';
+import { clientAuthModes, clientPresets, clientServerName, exportClient } from './clientExport.js';
 import { Hono } from 'hono';
 import { owner, paramId, type ApiEnv } from '../../shared/http.js';
 import type { ProfileService } from './profileService.js';
@@ -94,28 +94,55 @@ export function profileRoutes(deps: {
     ),
   );
   app.get('/:id/export', async (c) => {
-    await deps.profiles.owned(owner(c), paramId(c));
+    const profile = await deps.profiles.owned(owner(c), paramId(c));
     const preset = z
       .enum(clientPresets)
       .default('generic-mcp-servers')
       .parse(c.req.query('client'));
-    return c.json(exportClient({ preset, url: `${deps.publicUrl}/mcp/${paramId(c)}` }));
+    const auth = z.enum(clientAuthModes).default('key').parse(c.req.query('auth'));
+    return c.json(
+      exportClient({
+        preset,
+        auth,
+        name: clientServerName(profile),
+        url: `${deps.publicUrl}/mcp/${paramId(c)}`,
+      }),
+    );
   });
+  const revokeKey = async (ownerId: string, id: string) => {
+    await deps.profiles.revoke(ownerId, id);
+    await deps.profiles.discovery.invalidateCredential(id);
+    await deps.access.changed();
+    for (const profile of await deps.profiles.list(ownerId))
+      await deps.requests.reconcile(profile.id);
+    await deps.gateway.revoke(id);
+  };
   app.post('/:id/keys', async (c) => {
+    // `replace: true` revokes this Agent's other keys so regenerating never piles up live keys.
+    const input = z
+      .object({ replace: z.boolean().default(false) })
+      .strict()
+      .parse((await c.req.text()) ? await c.req.json() : {});
+    const profile = await deps.profiles.owned(owner(c), paramId(c));
     const key = await deps.profiles.issue(owner(c), paramId(c));
+    const previous = input.replace
+      ? (await deps.profiles.keys(owner(c)))
+          .filter((row) => row.profileId === profile.id && !row.revoked && row.id !== key.id)
+          .map((row) => row.id)
+      : [];
+    for (const id of previous) await revokeKey(owner(c), id);
+    const name = clientServerName(profile);
+    const url = `${deps.publicUrl}/mcp/${paramId(c)}`;
     return c.json(
       {
         ...key,
+        revoked: previous,
         exports: clientPresets.map((preset) =>
-          exportClient({ preset, url: `${deps.publicUrl}/mcp/${paramId(c)}`, token: key.token }),
+          exportClient({ preset, url, name, token: key.token }),
         ),
         config: {
           mcpServers: {
-            platform: {
-              type: 'http',
-              url: `${deps.publicUrl}/mcp/${paramId(c)}`,
-              headers: { Authorization: `Bearer ${key.token}` },
-            },
+            [name]: { type: 'http', url, headers: { Authorization: `Bearer ${key.token}` } },
           },
         },
       },
@@ -124,12 +151,7 @@ export function profileRoutes(deps: {
   });
   app.get('/keys/all', async (c) => c.json(await deps.profiles.keys(owner(c))));
   app.delete('/keys/:id', async (c) => {
-    await deps.profiles.revoke(owner(c), paramId(c));
-    await deps.profiles.discovery.invalidateCredential(paramId(c));
-    await deps.access.changed();
-    for (const profile of await deps.profiles.list(owner(c)))
-      await deps.requests.reconcile(profile.id);
-    await deps.gateway.revoke(paramId(c));
+    await revokeKey(owner(c), paramId(c));
     return c.json({ revoked: true });
   });
   app.get('/:id', async (c) => c.json(await deps.profiles.owned(owner(c), paramId(c))));

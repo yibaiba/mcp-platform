@@ -1,26 +1,60 @@
 import { Card } from '../../components/ui/card.js';
 import { useQuery } from '@tanstack/react-query';
-import { api, json, type Profile } from '../../lib/api.js';
-import { Action, Code, Feedback } from '../../components/shared/Controls.js';
+import { api, json } from '../../lib/api.js';
+import { Action, Code, Feedback, ListSkeleton } from '../../components/shared/Controls.js';
+import { Disclosure } from '../../components/shared/Disclosure.js';
+
+type ConsentDetails = {
+  clientName: string;
+  redirectUri: string;
+  profile: { id: string; name: string };
+  tools: { name: string; description?: string; unavailable: boolean }[];
+};
 export default function ConsentPage() {
-  const input = Object.fromEntries(new URLSearchParams(window.location.search));
-  const profiles = useQuery({ queryKey: ['profiles'], queryFn: () => api<Profile[]>('/profiles') });
-  const id = input.resource?.split('/mcp/')[1];
-  const profile = profiles.data?.find((p) => p.id === id);
+  const search = window.location.search;
+  const input = Object.fromEntries(new URLSearchParams(search));
+  const details = useQuery({
+    queryKey: ['oauth-consent', search],
+    queryFn: () => api<ConsentDetails>(`/oauth/consent${search}`),
+  });
+  const data = details.data;
   return (
     <Card className="panel padded">
-      <h1>允许 Agent 接入</h1>
-      <Feedback error={profiles.error} />
-      <p>授权后，该客户端可以调用配置「{profile?.name ?? id}」当前及后续获准访问的工具。</p>
-      <Code
-        value={{
-          clientId: input.client_id,
-          redirectUri: input.redirect_uri,
-          resource: input.resource,
-          scope: input.scope ?? 'mcp',
-        }}
-      />
-      <p>{profile?.toolIds.length ?? 0} 个获准工具。可随时在授权页面撤销。</p>
+      <h1>允许「{data?.clientName ?? '客户端'}」接入 Agent</h1>
+      <Feedback error={details.error} />
+      {details.isPending ? <ListSkeleton rows={3} /> : null}
+      {data ? (
+        <>
+          <p>
+            授权后，「{data.clientName}」可以调用 Agent「{data.profile.name}
+            」当前及以后获准的工具。随时可在「授权」页面撤销。
+          </p>
+          <h2 className="text-sm">现在可用的 {data.tools.length} 个工具</h2>
+          {data.tools.length ? (
+            <ul className="consent-tools">
+              {data.tools.map((tool) => (
+                <li key={tool.name}>
+                  <code>{tool.name}</code>
+                  {tool.unavailable ? <small>（暂不可用）</small> : null}
+                  {tool.description ? <small> · {tool.description}</small> : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">这个 Agent 还没有获准的工具。</p>
+          )}
+        </>
+      ) : null}
+      <Disclosure title="技术详情">
+        <Code
+          value={{
+            clientId: input.client_id,
+            redirectUri: input.redirect_uri,
+            resource: input.resource,
+            scope: input.scope ?? 'mcp',
+          }}
+        />
+      </Disclosure>
       <Action
         action={async () => {
           const result = await api<{ redirect: string }>('/oauth/consent', {
