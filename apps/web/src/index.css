@@ -37,6 +37,22 @@
   /* 圆角 */
   --radius-sm: 6px;
   --radius-md: 8px;
+  /* 层次：阴影、高光、背景光晕 */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
+  --shadow-md: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px -12px rgb(0 0 0 / 0.6);
+  --shadow-lg: 0 24px 64px -16px rgb(0 0 0 / 0.7);
+  --glow-primary: color-mix(in oklch, var(--primary) 9%, transparent);
+  --glow-info: color-mix(in oklch, var(--info) 7%, transparent);
+  --focus-glow: 0 0 0 3px color-mix(in oklch, var(--ring) 28%, transparent);
+  --shimmer: color-mix(in oklch, var(--foreground) 7%, transparent);
+  /* 动效：时长 150–250ms，统一缓动 */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 250ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --motion-distance: 6px;
+  --stagger-step: 30ms;
   /* 布局 */
   --sidebar-width: 224px;
   --topbar-height: 56px;
@@ -532,14 +548,14 @@ code {
 .empty h3 {
   color: var(--foreground);
 }
-.empty a {
+.empty a:not([data-slot='button']) {
   display: flex;
   align-items: center;
   gap: 4px;
   color: var(--primary);
   font-size: var(--text-caption);
 }
-.empty a svg {
+.empty a:not([data-slot='button']) svg {
   margin: 0;
   color: inherit;
 }

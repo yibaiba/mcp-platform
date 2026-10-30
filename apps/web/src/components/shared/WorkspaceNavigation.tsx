@@ -1,11 +1,25 @@
 import { Link, useRouterState } from '@tanstack/react-router';
 import { sectionFor, sections } from './navigation.js';
+import { useSlidingIndicator } from './useSlidingIndicator.js';
 
 export function WorkspaceNavigation({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const current = sectionFor(pathname);
+  const indicator = useSlidingIndicator<HTMLElement>('a.active', current?.to);
   return (
-    <nav aria-label="主导航" className="workspace-navigation">
+    <nav
+      aria-label="主导航"
+      className="workspace-navigation"
+      ref={indicator.ref}
+      data-indicator={indicator.style ? '' : undefined}
+    >
+      <span
+        aria-hidden="true"
+        className="nav-indicator"
+        data-ready={indicator.ready ? '' : undefined}
+        style={indicator.style}
+        hidden={!indicator.style}
+      />
       {sections.map((section) => {
         const Icon = section.icon;
         const active = current?.to === section.to;

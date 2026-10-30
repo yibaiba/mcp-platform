@@ -1,6 +1,6 @@
 import type { VersionStatus } from '../../features/updates/AboutPage.js';
 import { Button } from '../ui/button.js';
-import { Link, Outlet } from '@tanstack/react-router';
+import { Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { Network, Menu } from 'lucide-react';
 import { useState } from 'react';
@@ -18,6 +18,7 @@ import { GettingStarted } from '../../features/onboarding/GettingStarted.js';
 export function Shell() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { data: session, isPending, error } = authClient.useSession();
   const info = useQuery({
     queryKey: ['me'],
@@ -104,7 +105,9 @@ export function Shell() {
               <main className="page">
                 <PageTabs admin={admin} piEnabled={piEnabled} />
                 <Feedback error={info.error} />
-                <Outlet />
+                <div key={pathname} className="page-transition">
+                  <Outlet />
+                </div>
               </main>
             </div>
           </div>
