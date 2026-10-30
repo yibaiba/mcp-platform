@@ -4,9 +4,9 @@ import { RePairDevice } from './RePairDevice.js';
 import { Card } from '../../components/ui/card.js';
 import { Button } from '../../components/ui/button.js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { ArrowLeft, Monitor, MoreHorizontal, Plus } from 'lucide-react';
-import { api, type Device } from '../../lib/api.js';
+import { api, type Connection, type Device } from '../../lib/api.js';
 import { DevicePairing } from './DevicePairing.js';
 import { DeviceToolsDialog } from './DeviceToolsDialog.js';
 import { ConfirmDialog } from '../../components/shared/ConfirmDialog.js';
@@ -64,6 +64,10 @@ export default function DevicesPage() {
   const platform = useQuery({
     queryKey: ['me'],
     queryFn: () => api<{ platformOrigin: string }>('/me'),
+  });
+  const connections = useQuery({
+    queryKey: ['connections'],
+    queryFn: () => api<Connection[]>('/connections'),
   });
   const devices = useQuery({
     queryKey: ['devices'],
@@ -139,6 +143,9 @@ export default function DevicesPage() {
                     <span tabIndex={0}>{relativeTime(device.lastSeen)}</span>
                   </Hint>
                 </small>
+                <DeviceConnections
+                  connections={(connections.data ?? []).filter((row) => row.deviceId === device.id)}
+                />
                 {deviceStatus(device) === 'offline' ? (
                   <p role="status" className="mt-1 text-xs text-warning">
                     这台设备上的连接暂不可用。在那台电脑重新运行安装命令（更多操作 →
@@ -261,5 +268,25 @@ export default function DevicesPage() {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/** The connections that run on this device, so adding a tool shows its result in place. */
+function DeviceConnections({ connections }: { connections: Connection[] }) {
+  if (!connections.length) return null;
+  return (
+    <ul className="device-connections" aria-label="这台设备上的连接">
+      {connections.map((connection) => (
+        <li key={connection.id}>
+          <Link to="/connections" hash={`connection-${connection.id}`}>
+            {connection.name}
+          </Link>
+          <Status
+            value={connection.deviceOffline ? 'offline' : connection.status}
+            label={connection.deviceOffline ? '设备离线' : undefined}
+          />
+        </li>
+      ))}
+    </ul>
   );
 }

@@ -2,6 +2,7 @@ import { AlertCircle } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import { Button } from '../../components/ui/button.js';
 import type { Connection } from '../../lib/api.js';
+import { connectionNextStep } from './connectionHints.js';
 
 export function ConnectionStatusMessage({
   connection,
@@ -59,11 +60,7 @@ export function ConnectionStatusMessage({
                   : '连接失败'}
             </p>
             <p className="m-0 text-muted-foreground">{error}</p>
-            <p className="mt-1 text-muted-foreground">
-              {connection.status === 'waiting_authorization'
-                ? '打开“授权与账号”完成授权，再连接读取工具目录。'
-                : '检查服务地址、网络和凭据；修改配置后可手动重试连接。'}
-            </p>
+            <p className="mt-1 text-muted-foreground">{connectionNextStep(connection, error)}</p>
           </div>
           <div className="flex shrink-0 flex-col gap-2">
             <Button variant="outline" size="sm" disabled={busy} onClick={onEdit}>
@@ -81,7 +78,7 @@ export function ConnectionStatusMessage({
             ? '等待完成账号授权，尚未读取工具目录。'
             : connection.status === 'stopped'
               ? '连接已停止；可手动连接，读取工具目录。'
-              : '连接配置已保存，连接成功后可为 Agent 分配工具权限。'}
+              : '连接配置已保存，尚未连接；点「连接」读取工具目录。'}
         </p>
       ) : null}
     </>

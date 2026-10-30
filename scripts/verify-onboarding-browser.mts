@@ -182,7 +182,7 @@ async function settings() {
   assert.equal(await editor.getByLabel('启动方式', { exact: true }).isVisible(), false);
   assert.equal(await editor.getByRole('button', { name: '手动检查更新', exact: true }).count(), 0);
   await page.screenshot({ path: resolve(screenshots, `settings-${width}.png`), fullPage: true });
-  await editor.getByRole('button', { name: '保存设置', exact: true }).click();
+  await editor.getByRole('button', { name: '保存并连接', exact: true }).click();
   await editor.waitFor({ state: 'detached' });
   const saved = (await h.services.connections.context(account.ownerId, source.id)).config;
   for (const field of [
@@ -198,13 +198,18 @@ async function settings() {
       `Collapsed advanced values must preserve ${field}`,
     );
   assert.equal(saved.name, 'Renamed service');
+  assert.equal(saved.url, upstream.url, 'An untouched address field must keep the stored URL');
+  await page
+    .getByRole('status')
+    .filter({ hasText: /已保存并连接，读取到 \d+ 个工具/ })
+    .waitFor();
   await page.getByRole('button', { name: 'Renamed service 更多操作', exact: true }).click();
   await page.getByRole('menuitem', { name: '编辑连接', exact: true }).click();
   await editor.getByRole('button', { name: '高级设置', exact: true }).click();
   const timeout = editor.getByLabel('连接初始化超时（秒）', { exact: true });
   await timeout.fill('0');
   await editor.getByRole('button', { name: '高级设置', exact: true }).click();
-  await editor.getByRole('button', { name: '保存设置', exact: true }).click();
+  await editor.getByRole('button', { name: '保存并连接', exact: true }).click();
   await timeout.waitFor({ state: 'visible' });
   await page.waitForFunction(
     () => document.activeElement?.getAttribute('name') === 'connectTimeout',

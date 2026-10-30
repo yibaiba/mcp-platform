@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { catalogOptions } from './catalogOptions.js';
 import { DEFAULT_REQUEST_TIMEOUT_MS, requestOptions } from './requestOptions.js';
 export * from './requestOptions.js';
+export * from './connectionFields.js';
 export {
   clientPresets,
   clientAuthModes,
