@@ -1,5 +1,5 @@
 import './network.css';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { networkSave, type NetworkView, type NetworkSettings } from '@platform/contracts';
 import { Field, Feedback } from '../../components/shared/Controls.js';
 import { Input } from '../../components/ui/input.js';
@@ -45,11 +45,13 @@ export function NetworkEditor({
   save,
   check,
   local = false,
+  onDirtyChange,
 }: {
   initial: NetworkView;
   save: (value: unknown) => Promise<NetworkView>;
   check: () => Promise<Check[]>;
   local?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [current, setCurrent] = useState(initial);
   const [settings, setSettings] = useState(initial.settings);
@@ -75,6 +77,7 @@ export function NetworkEditor({
   const dirty =
     JSON.stringify(settings) !== JSON.stringify(current.settings) ||
     Object.values(edits).some((edit) => edit.action !== 'keep');
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
   const preview = (template: string) =>
     template
       .replaceAll(

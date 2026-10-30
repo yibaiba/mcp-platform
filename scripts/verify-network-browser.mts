@@ -152,6 +152,24 @@ try {
   await local.goto(localUrl);
   await local.getByRole('tab', { name: '网络与安装源' }).click();
   await local.getByLabel('npm 公共镜像', { exact: true }).fill(source);
+  const discard = local.getByRole('dialog', { name: '放弃未保存的修改？', exact: true });
+  await local.getByRole('tab', { name: 'MCP', exact: true }).click();
+  await discard.getByRole('button', { name: '取消', exact: true }).click();
+  assert.equal(await local.getByLabel('npm 公共镜像', { exact: true }).inputValue(), source);
+  const beforeUnload = local.waitForEvent('dialog');
+  const reload = local.reload().catch((error: Error) => {
+    assert.match(error.message, /ERR_ABORTED|Timeout .* exceeded/);
+  });
+  const prompt = await beforeUnload;
+  assert.equal(prompt.type(), 'beforeunload');
+  await prompt.dismiss();
+  await reload;
+  assert.equal(await local.getByLabel('npm 公共镜像', { exact: true }).inputValue(), source);
+  await local.getByRole('tab', { name: 'Skills', exact: true }).click();
+  await discard.getByRole('button', { name: '放弃修改并继续', exact: true }).click();
+  await local.getByRole('tab', { name: '网络与安装源' }).click();
+  assert.equal(await local.getByLabel('npm 公共镜像', { exact: true }).inputValue(), '');
+  await local.getByLabel('npm 公共镜像', { exact: true }).fill(source);
   await local.getByRole('button', { name: '保存网络设置', exact: true }).click();
   await local
     .getByRole('status')
@@ -159,6 +177,8 @@ try {
     .waitFor();
   assert.ok(await local.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await local.screenshot({ path: join(screenshots, 'local-network-mobile.png'), fullPage: true });
+  await local.getByRole('tab', { name: 'MCP', exact: true }).click();
+  assert.equal(await discard.count(), 0);
   console.log(
     'PASS: admin/member UI, encrypted credential echo, independent connectivity results, package checks, release HTML isolation, platform/device settings and 375/390px layouts',
   );

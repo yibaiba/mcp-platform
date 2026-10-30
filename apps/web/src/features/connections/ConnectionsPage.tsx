@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDraftProtection } from '../../components/shared/useDraftProtection.js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import type { ConnectorPreset, ConnectorAuthentication } from '@platform/contracts';
@@ -84,6 +85,12 @@ export default function ConnectionsPage() {
   const [status, setStatus] = useState('');
   const [location, setLocation] = useState('');
   const [editing, setEditing] = useState<Connection>();
+  const [editingDirty, setEditingDirty] = useState(false);
+  const protection = useDraftProtection(editingDirty);
+  const closeEditor = () => {
+    setEditing(undefined);
+    setEditingDirty(false);
+  };
   const [sharing, setSharing] = useState<Connection>();
   const [show, setShow] = useState(false);
   const [addTab, setAddTab] = useState<AddTab>('catalog');
@@ -330,7 +337,7 @@ export default function ConnectionsPage() {
       <Sheet
         open={Boolean(editing)}
         onOpenChange={(open) => {
-          if (!open) setEditing(undefined);
+          if (!open) protection.requestDiscard(closeEditor);
         }}
       >
         <SheetContent>
@@ -339,10 +346,16 @@ export default function ConnectionsPage() {
             <SheetDescription>保存后结束现有会话，后续调用按新配置执行。</SheetDescription>
           </SheetHeader>
           {editing ? (
-            <ConnectionSettings connection={editing} onSaved={() => setEditing(undefined)} />
+            <ConnectionSettings
+              key={editing.id}
+              connection={editing}
+              onDirtyChange={setEditingDirty}
+              onSaved={closeEditor}
+            />
           ) : null}
         </SheetContent>
       </Sheet>
+      {protection.confirmation}
       <Sheet
         open={Boolean(sharing)}
         onOpenChange={(open) => {

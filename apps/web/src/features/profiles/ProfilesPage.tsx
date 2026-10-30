@@ -3,10 +3,7 @@ import { DiscoveryEditor } from './DiscoveryEditor.js';
 import { CatalogEditor } from './CatalogEditor.js';
 import { WorkspacePage } from './WorkspacePage.js';
 import { Card } from '../../components/ui/card.js';
-import { CheckChoice } from '../../components/shared/CheckChoice.js';
 import { Button } from '../../components/ui/button.js';
-import { Textarea } from '../../components/ui/textarea.js';
-import { Input } from '../../components/ui/input.js';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -32,16 +29,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '../../components/ui/sheet.js';
-import {
-  api,
-  json,
-  type Tool,
-  type Profile,
-  type Skill,
-  type Connection,
-  type ContentEntry,
-} from '../../lib/api.js';
-import { ContentGrants, appInfo } from './ContentGrants.js';
+import { api, type Tool, type Profile, type Connection, type ContentEntry } from '../../lib/api.js';
+import { ProfilePermissionsEditor } from './ProfilePermissionsEditor.js';
 import { ClientExportBody, type Export } from './ClientExport.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
 import {
@@ -50,9 +39,7 @@ import {
   Empty,
   Feedback,
   Field,
-  Form,
   ListSkeleton,
-  value,
 } from '../../components/shared/Controls.js';
 
 type Drawer =
@@ -73,11 +60,6 @@ export default function ProfilesPage() {
     queryKey: ['connections'],
     queryFn: () => api<Connection[]>('/connections'),
   });
-  const skills = useQuery({ queryKey: ['skills'], queryFn: () => api<Skill[]>('/skills') });
-  const artifacts = useQuery({
-    queryKey: ['artifacts'],
-    queryFn: () => api<{ id: string; name: string }[]>('/artifacts'),
-  });
   const keys = useQuery({
     queryKey: ['keys'],
     queryFn: () => api<{ id: string; profileId: string; revoked: boolean }[]>('/profiles/keys/all'),
@@ -92,9 +74,6 @@ export default function ProfilesPage() {
     // Onboarding links to #create-profile; open the drawer instead of scrolling to a form.
     if (window.location.hash === '#create-profile') setDrawer({ kind: 'create' });
   }, []);
-  const connectionNames = new Map(
-    connections.data?.map((connection) => [connection.id, connection.name]),
-  );
   if (workspace)
     return <WorkspacePage profileId={workspace} onBack={() => void navigate({ search: {} })} />;
   const drawerProfile = drawer && 'profile' in drawer ? drawer.profile : undefined;
@@ -110,15 +89,7 @@ export default function ProfilesPage() {
         }
       />
       <Feedback
-        error={
-          profiles.error ??
-          tools.error ??
-          skills.error ??
-          keys.error ??
-          connections.error ??
-          artifacts.error ??
-          catalog.error
-        }
+        error={profiles.error ?? tools.error ?? keys.error ?? connections.error ?? catalog.error}
       />
       <Card id="agent-configurations" className="panel scroll-mt-6">
         {profiles.isPending ? <ListSkeleton /> : null}
@@ -220,101 +191,7 @@ export default function ProfilesPage() {
             </SheetDescription>
           </SheetHeader>
           {drawer?.kind === 'create' || drawer?.kind === 'edit' ? (
-            <Form
-              key={editing?.id ?? 'new'}
-              label={editing ? '保存' : '创建'}
-              submit={async (data) => {
-                await api(editing ? `/profiles/${editing.id}` : '/profiles', {
-                  method: editing ? 'PUT' : 'POST',
-                  body: json({
-                    revision: editing?.revision,
-                    name: value(data, 'name'),
-                    instructions: value(data, 'instructions'),
-                    toolIds: data.getAll('toolId'),
-                    contentIds: data.getAll('contentId'),
-                    skillVersionIds: data.getAll('skillVersionId'),
-                    artifactIds: data.getAll('artifactId'),
-                  }),
-                });
-                close();
-              }}
-            >
-              <Field label="配置名称">
-                <Input
-                  name="name"
-                  required
-                  defaultValue={editing?.name}
-                  placeholder="例如：Claude Code"
-                />
-              </Field>
-              <Field label="Agent 说明" hint="按授权服务的稳定顺序追加上游服务说明，并标记来源。">
-                <Textarea name="instructions" defaultValue={editing?.instructions ?? ''} />
-              </Field>
-              <fieldset>
-                <legend>允许访问的工具</legend>
-                {tools.data?.map((tool) => (
-                  <CheckChoice
-                    key={tool.id}
-                    name="toolId"
-                    value={tool.id}
-                    defaultChecked={editing?.toolIds.includes(tool.id)}
-                  >
-                    <span>
-                      <strong>{tool.name}</strong>
-                      <small>{connectionNames.get(tool.connectionId)}</small>
-                      {appInfo(tool) ? (
-                        <small>
-                          {appInfo(tool)?.resourceUri
-                            ? `App UI：${appInfo(tool)?.resourceUri} · `
-                            : ''}
-                          {appInfo(tool)?.visibility?.includes('app') &&
-                          !appInfo(tool)?.visibility?.includes('model')
-                            ? '仅 App 可用，不提供给模型'
-                            : '可供模型调用'}
-                        </small>
-                      ) : null}
-                    </span>
-                  </CheckChoice>
-                ))}
-                {!tools.data?.length ? <small>先连接 MCP 并发现工具。</small> : null}
-              </fieldset>
-              <ContentGrants
-                entries={catalog.data ?? []}
-                selected={editing?.contentIds ?? []}
-                connectionNames={connectionNames}
-                tools={tools.data ?? []}
-              />
-              <fieldset>
-                <legend>Skill 版本</legend>
-                {skills.data?.map((skill) => (
-                  <CheckChoice
-                    key={skill.id}
-                    name="skillVersionId"
-                    value={skill.id}
-                    defaultChecked={editing?.skillVersionIds.includes(skill.id)}
-                  >
-                    <span>
-                      {skill.name} <code>{skill.digest.slice(0, 10)}</code>
-                    </span>
-                  </CheckChoice>
-                ))}
-                {!skills.data?.length ? <small>还没有 Skill。</small> : null}
-              </fieldset>
-              <fieldset>
-                <legend>允许下载的产物</legend>
-                {artifacts.data?.map((artifact) => (
-                  <CheckChoice
-                    key={artifact.id}
-                    name="artifactId"
-                    value={artifact.id}
-                    defaultChecked={editing?.artifactIds?.includes(artifact.id)}
-                  >
-                    <span>{artifact.name}</span>
-                  </CheckChoice>
-                ))}
-                {!artifacts.data?.length ? <small>还没有产物。</small> : null}
-              </fieldset>
-            </Form>
+            <ProfilePermissionsEditor editing={editing} onSaved={close} />
           ) : null}
           {drawer?.kind === 'access' ? (
             <div className="grid gap-5">

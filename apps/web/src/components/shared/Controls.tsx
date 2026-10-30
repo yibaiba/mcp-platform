@@ -1,5 +1,6 @@
 import {
   useId,
+  useCallback,
   cloneElement,
   isValidElement,
   useEffect,
@@ -13,6 +14,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { CircleCheck, LoaderCircle, ShieldAlert, type LucideIcon } from 'lucide-react';
 import { ConfirmDialog, type Confirmation } from './ConfirmDialog.js';
+import { FormChanges } from './formChanges.js';
 import { Skeleton } from '../ui/skeleton.js';
 import { isForbidden } from '../../lib/api.js';
 import { Button } from '../ui/button.js';
@@ -338,6 +340,8 @@ export function Form({
   successLabel,
   noValidate = false,
   feedbackVersion,
+  disabled = false,
+  onDirtyChange,
 }: {
   children: ReactNode;
   submit: (data: FormData) => Promise<unknown>;
@@ -346,14 +350,31 @@ export function Form({
   successLabel?: string;
   noValidate?: boolean;
   feedbackVersion?: number;
+  disabled?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const query = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<FormFeedback>();
+  const form = useRef<HTMLFormElement>(null);
+  const initialValues = useRef<string>(undefined);
+  const [changes, setChanges] = useState(0);
+  const changed = useCallback(() => {
+    setFeedback(undefined);
+    if (onDirtyChange) setChanges((count) => count + 1);
+  }, [onDirtyChange]);
+  useEffect(() => {
+    if (!onDirtyChange || !form.current) return;
+    // Read after controls commit their values, including custom select/checkbox inputs.
+    const values = JSON.stringify(Array.from(new FormData(form.current)));
+    initialValues.current ??= values;
+    onDirtyChange(values !== initialValues.current);
+  }, [changes, onDirtyChange]);
   // Async handlers retain the submitted version; edits invalidate their later feedback.
   const outcome = feedback?.version === feedbackVersion ? feedback?.outcome : undefined;
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (disabled || busy) return;
     const data = new FormData(event.currentTarget);
     setBusy(true);
     setFeedback(undefined);
@@ -371,28 +392,31 @@ export function Form({
     }
   }
   return (
-    <form
-      onSubmit={(e) => void onSubmit(e)}
-      onChange={() => setFeedback(undefined)}
-      className="form"
-      noValidate={noValidate}
-    >
-      <fieldset disabled={busy} className="form-fields">
-        {children}
-      </fieldset>
-      <Feedback error={outcome instanceof Error ? outcome : null} />
-      <div className="form-footer">
-        <Button type="submit" disabled={busy} aria-busy={busy}>
-          {busy ? <Spinner /> : null}
-          {label}
-        </Button>
-        {outcome === 'success' ? (
-          <InlineStatus onDone={() => setFeedback(undefined)}>
-            {successLabel ?? successText(label)}
-          </InlineStatus>
-        ) : null}
-      </div>
-    </form>
+    <FormChanges.Provider value={onDirtyChange ? changed : undefined}>
+      <form
+        ref={form}
+        onSubmit={(e) => void onSubmit(e)}
+        onChange={changed}
+        className="form"
+        noValidate={noValidate}
+      >
+        <fieldset disabled={busy || disabled} className="form-fields">
+          {children}
+        </fieldset>
+        <Feedback error={outcome instanceof Error ? outcome : null} />
+        <div className="form-footer">
+          <Button type="submit" disabled={busy || disabled} aria-busy={busy}>
+            {busy ? <Spinner /> : null}
+            {label}
+          </Button>
+          {outcome === 'success' ? (
+            <InlineStatus onDone={() => setFeedback(undefined)}>
+              {successLabel ?? successText(label)}
+            </InlineStatus>
+          ) : null}
+        </div>
+      </form>
+    </FormChanges.Provider>
   );
 }
 export const value = (data: FormData, key: string) => String(data.get(key) ?? '');

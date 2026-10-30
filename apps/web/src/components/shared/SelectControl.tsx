@@ -1,4 +1,5 @@
-import { Children, isValidElement, type ReactNode } from 'react';
+import { Children, isValidElement, useContext, type ReactNode } from 'react';
+import { FormChanges } from './formChanges.js';
 import { Select, SelectContent, SelectTrigger, SelectValue } from '../ui/select.js';
 type SelectControlProps = {
   id?: string;
@@ -21,6 +22,7 @@ export function SelectControl({
   className,
   ...props
 }: SelectControlProps) {
+  const changed = useContext(FormChanges);
   const items = Children.toArray(children)
     .filter(isValidElement<{ value: string; children: ReactNode }>)
     .map((item) => ({ value: item.props.value, label: item.props.children }));
@@ -30,6 +32,7 @@ export function SelectControl({
       {...props}
       onValueChange={(value) => {
         if (value !== null) onValueChange?.(value);
+        changed?.();
       }}
     >
       <SelectTrigger

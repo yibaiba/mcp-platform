@@ -1,6 +1,7 @@
 import { LocalBundles } from '../bundles/LocalBundles.js';
 import { LocalNetwork } from '../network/LocalNetwork.js';
 import { useCallback, useEffect, useState } from 'react';
+import { useLocalDraftProtection } from '../../components/shared/useDraftProtection.js';
 import type { LocalRequest, LocalResource } from '@platform/contracts';
 import type { Inventory, ManagementApi } from './api.js';
 import { ResourceEditor } from './ResourceEditor.js';
@@ -28,6 +29,15 @@ export function LocalManager({ api }: { api: ManagementApi }) {
   const [loadError, setLoadError] = useState('');
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState('mcp');
+  const [networkDirty, setNetworkDirty] = useState(false);
+  const protection = useLocalDraftProtection(networkDirty);
+  const changeTab = (next: string) => {
+    if (next === tab) return;
+    protection.requestDiscard(() => {
+      setNetworkDirty(false);
+      setTab(next);
+    });
+  };
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<LocalResource>();
   const refresh = useCallback(async () => {
@@ -80,7 +90,7 @@ export function LocalManager({ api }: { api: ManagementApi }) {
                 ]
               : []),
           ].map(([id, label]) => (
-            <button role="tab" aria-selected={tab === id} key={id} onClick={() => setTab(id!)}>
+            <button role="tab" aria-selected={tab === id} key={id} onClick={() => changeTab(id!)}>
               {label}
             </button>
           ))}
@@ -122,7 +132,7 @@ export function LocalManager({ api }: { api: ManagementApi }) {
           {tab === 'bundles' && !api.remote ? (
             <LocalBundles api={api} />
           ) : tab === 'network' && !api.remote ? (
-            <LocalNetwork api={api} />
+            <LocalNetwork api={api} onDirtyChange={setNetworkDirty} />
           ) : tab === 'history' ? (
             <div className="local-history">
               {[...Object.values(state.operations), ...(state.platformOperations ?? [])]
@@ -267,6 +277,7 @@ export function LocalManager({ api }: { api: ManagementApi }) {
           )}
         </>
       )}
+      {protection.confirmation}
     </section>
   );
 }

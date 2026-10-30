@@ -10,15 +10,18 @@ import { CheckChoice } from '../../components/shared/CheckChoice.js';
 export function ConnectionSettings({
   connection,
   onSaved,
+  onDirtyChange,
 }: {
   connection: Connection;
   onSaved: () => void;
+  onDirtyChange: (dirty: boolean) => void;
 }) {
   return (
     <>
       <PackageUpdate id={connection.id} />
       <Form
         label="保存设置"
+        onDirtyChange={onDirtyChange}
         submit={async (data) => {
           const extra = JSON.parse(value(data, 'patch') || '{}') as Record<string, unknown>;
           await api(`/connections/${connection.id}`, {

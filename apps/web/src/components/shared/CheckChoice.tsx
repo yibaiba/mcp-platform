@@ -1,4 +1,5 @@
-import { useId, type ReactNode } from 'react';
+import { useContext, useId, type ReactNode } from 'react';
+import { FormChanges } from './formChanges.js';
 import { Checkbox } from '../ui/checkbox.js';
 import { Label } from '../ui/label.js';
 export function CheckChoice({
@@ -19,6 +20,7 @@ export function CheckChoice({
   children: ReactNode;
 }) {
   const id = useId();
+  const changed = useContext(FormChanges);
   return (
     <div className="check-row">
       <Checkbox
@@ -28,7 +30,10 @@ export function CheckChoice({
         value={value}
         defaultChecked={defaultChecked}
         checked={checked}
-        onCheckedChange={onCheckedChange}
+        onCheckedChange={(next) => {
+          onCheckedChange?.(next);
+          changed?.();
+        }}
         disabled={disabled}
       />
       <Label id={`${id}-label`} htmlFor={id} className="cursor-pointer font-normal">

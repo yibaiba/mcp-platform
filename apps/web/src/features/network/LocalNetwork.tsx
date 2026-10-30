@@ -3,7 +3,13 @@ import type { NetworkView } from '@platform/contracts';
 import type { ManagementApi } from '../local/api.js';
 import { NetworkEditor } from './NetworkEditor.js';
 import { Feedback } from '../../components/shared/Controls.js';
-export function LocalNetwork({ api }: { api: ManagementApi }) {
+export function LocalNetwork({
+  api,
+  onDirtyChange,
+}: {
+  api: ManagementApi;
+  onDirtyChange: (dirty: boolean) => void;
+}) {
   const [view, setView] = useState<NetworkView>();
   const [error, setError] = useState<Error | null>(null);
   useEffect(() => {
@@ -28,6 +34,7 @@ export function LocalNetwork({ api }: { api: ManagementApi }) {
         <NetworkEditor
           local
           initial={view}
+          onDirtyChange={onDirtyChange}
           save={async (content) =>
             (await api.request({ action: 'network.save', content })) as NetworkView
           }

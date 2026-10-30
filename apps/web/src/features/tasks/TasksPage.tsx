@@ -13,9 +13,10 @@ import {
   Action,
   Code,
   Empty,
-  Feedback,
+  ErrorState,
   Field,
   Form,
+  ListSkeleton,
   Status,
   date,
   value,
@@ -42,8 +43,14 @@ export default function TasksPage() {
         title="运行记录"
         info="按所选 Agent 配置使用工具和 Skills；只有执行推理任务才需要模型。"
       />
-      <Feedback error={me.error ?? profiles.error ?? tasks.error} />
-      {!me.data?.piEnabled ? (
+      <ErrorState title="任务配置加载失败" error={me.error} onRetry={() => me.refetch()} />
+      <ErrorState
+        title="Agent 配置加载失败"
+        error={profiles.error}
+        onRetry={() => profiles.refetch()}
+      />
+      {me.isPending ? <ListSkeleton rows={2} /> : null}
+      {me.isSuccess && !me.data.piEnabled ? (
         <Card className="panel padded">
           <h2>内置 Agent 任务尚未启用</h2>
           <p>
@@ -51,10 +58,11 @@ export default function TasksPage() {
             任务需要启用推理并配置模型。
           </p>
         </Card>
-      ) : (
+      ) : me.isSuccess && me.data.piEnabled ? (
         <Card className="panel padded">
           <Form
             label="执行任务"
+            disabled={!profiles.isSuccess}
             submit={async (data) =>
               api('/tasks', {
                 method: 'POST',
@@ -77,7 +85,7 @@ export default function TasksPage() {
             </Field>
           </Form>
         </Card>
-      )}
+      ) : null}
       <InteractionPanel />
       {new URLSearchParams(window.location.search).get('task') ? (
         <TaskDetail id={new URLSearchParams(window.location.search).get('task')!} />
@@ -88,6 +96,8 @@ export default function TasksPage() {
         <div className="panel-heading">
           <h2>任务记录</h2>
         </div>
+        <ErrorState title="任务记录加载失败" error={tasks.error} onRetry={() => tasks.refetch()} />
+        {tasks.isPending ? <ListSkeleton rows={3} /> : null}
         {tasks.data?.length ? (
           tasks.data.map((task) => (
             <div key={task.id} className="connection-row">
@@ -108,9 +118,9 @@ export default function TasksPage() {
               {task.error ? <div className="error">{task.error}</div> : null}
             </div>
           ))
-        ) : (
+        ) : tasks.isSuccess ? (
           <Empty>还没有任务记录。</Empty>
-        )}
+        ) : null}
       </Card>
     </>
   );

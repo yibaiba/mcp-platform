@@ -1,10 +1,14 @@
 import { PageHeader } from '../../components/shared/PageHeader.js';
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useDraftProtection } from '../../components/shared/useDraftProtection.js';
 import type { NetworkView } from '@platform/contracts';
 import { api, isForbidden, json } from '../../lib/api.js';
 import { Forbidden, QueryError, ListSkeleton } from '../../components/shared/Controls.js';
 import { NetworkEditor } from './NetworkEditor.js';
 export default function NetworkPage() {
+  const [dirty, setDirty] = useState(false);
+  const protection = useDraftProtection(dirty);
   const query = useQuery({
     queryKey: ['network-settings'],
     queryFn: () => api<NetworkView>('/admin/network-settings'),
@@ -18,6 +22,7 @@ export default function NetworkPage() {
         <section className="panel network-panel p-5 sm:p-6">
           <NetworkEditor
             initial={query.data}
+            onDirtyChange={setDirty}
             save={(value) => api('/admin/network-settings', { method: 'PUT', body: json(value) })}
             check={() => api('/admin/network-settings/check', { method: 'POST' })}
           />
@@ -25,6 +30,7 @@ export default function NetworkPage() {
       ) : query.isPending ? (
         <ListSkeleton rows={4} />
       ) : null}
+      {protection.confirmation}
     </>
   );
 }
