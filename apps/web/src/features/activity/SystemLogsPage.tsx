@@ -56,7 +56,7 @@ export default function SystemLogsPage() {
     });
     return () => source.close();
   }, [streaming]);
-  if (isForbidden(logs.error)) return <Forbidden />;
+  if (isForbidden(logs.error)) return <Forbidden title="运行记录" />;
   return (
     <>
       <PageHeader

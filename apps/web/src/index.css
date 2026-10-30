@@ -1,99 +1,11 @@
 @import 'tailwindcss';
+@import './tokens.css';
 @layer base {
   * {
     border-color: var(--border);
   }
 }
 @custom-variant dark (&:is(.dark *));
-:root {
-  color-scheme: dark;
-  /* 中性 */
-  --background: #101316;
-  --surface: #14181b;
-  --card: #181c20;
-  --popover: #20262b;
-  --muted: #22282e;
-  --border: #30373e;
-  --input: #30373e;
-  --foreground: #eef1f4;
-  --muted-foreground: #a2adb8;
-  --subtle-foreground: #7f8b97;
-  --card-foreground: var(--foreground);
-  --popover-foreground: var(--foreground);
-  --secondary: #2b3239;
-  --secondary-foreground: #edf1f5;
-  --code-foreground: #c6d5c0;
-  /* 主色 */
-  --primary: #b4f27b;
-  --primary-foreground: #162411;
-  --accent: #263622;
-  --accent-foreground: #d4f4bd;
-  --ring: #b4f27b;
-  /* 语义色 */
-  --success: #5fd39a;
-  --warning: #e9c884;
-  --destructive: #ff9b9b;
-  --info: #8ab4ff;
-  /* 圆角 */
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  /* 层次：阴影、高光、背景光晕 */
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
-  --shadow-md: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px -12px rgb(0 0 0 / 0.6);
-  --shadow-lg: 0 24px 64px -16px rgb(0 0 0 / 0.7);
-  --overlay: rgb(0 0 0 / 0.6);
-  --empty-art-glow: 0.22;
-  --glow-primary: color-mix(in oklch, var(--primary) 9%, transparent);
-  --glow-info: color-mix(in oklch, var(--info) 7%, transparent);
-  --focus-glow: 0 0 0 3px color-mix(in oklch, var(--ring) 28%, transparent);
-  --shimmer: color-mix(in oklch, var(--foreground) 7%, transparent);
-  /* 动效：时长 150–250ms，统一缓动 */
-  --duration-fast: 150ms;
-  --duration-base: 200ms;
-  --duration-slow: 250ms;
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --motion-distance: 6px;
-  --stagger-step: 30ms;
-  /* 布局 */
-  --sidebar-width: 224px;
-  --topbar-height: 56px;
-}
-/* 浅色主题：只覆盖颜色与层次变量；主色加深保证文字与按钮文字 ≥ 4.5:1 */
-:root[data-theme='light'] {
-  color-scheme: light;
-  --background: #f5f7f9;
-  --surface: #fbfcfd;
-  --card: #ffffff;
-  --popover: #ffffff;
-  --muted: #eef1f4;
-  --border: #dce1e6;
-  --input: #cfd5dc;
-  --foreground: #14181c;
-  --muted-foreground: #56616c;
-  --subtle-foreground: #646f7a;
-  --secondary: #e9edf1;
-  --secondary-foreground: #1b2026;
-  --code-foreground: #335a1a;
-  --primary: #3b6b0c;
-  --primary-foreground: #ffffff;
-  --accent: #e6f2d9;
-  --accent-foreground: #2c520a;
-  --ring: #3b6b0c;
-  --success: #13764a;
-  --warning: #875400;
-  --destructive: #c42b2b;
-  --info: #1d5fbf;
-  --shadow-sm: 0 1px 2px rgb(16 24 32 / 0.06);
-  --shadow-md: 0 1px 2px rgb(16 24 32 / 0.04), 0 8px 24px -14px rgb(16 24 32 / 0.18);
-  --shadow-lg: 0 24px 56px -18px rgb(16 24 32 / 0.25);
-  --overlay: rgb(20 24 28 / 0.32);
-  --empty-art-glow: 0.14;
-  --glow-primary: color-mix(in oklch, var(--primary) 6%, transparent);
-  --glow-info: color-mix(in oklch, var(--info) 5%, transparent);
-  --focus-glow: 0 0 0 3px color-mix(in oklch, var(--ring) 22%, transparent);
-  --shimmer: color-mix(in oklch, var(--foreground) 5%, transparent);
-}
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
@@ -104,6 +16,10 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-solid: var(--primary-solid);
+  --color-primary-solid-hover: var(--primary-solid-hover);
+  --color-primary-solid-foreground: var(--primary-solid-foreground);
+  --color-primary-solid-border: var(--primary-solid-border);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -445,9 +361,9 @@ code {
   gap: 8px;
   font-weight: 600;
   white-space: nowrap;
-  color: var(--primary-foreground) !important;
-  background: var(--primary) !important;
-  border: 1px solid var(--primary) !important;
+  color: var(--primary-solid-foreground) !important;
+  background: var(--primary-solid) !important;
+  border: 1px solid var(--primary-solid-border) !important;
   border-radius: var(--radius-sm);
   padding: 8px 16px;
   font-size: var(--text-caption);

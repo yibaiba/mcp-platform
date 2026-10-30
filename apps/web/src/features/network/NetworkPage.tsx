@@ -9,7 +9,7 @@ export default function NetworkPage() {
     queryKey: ['network-settings'],
     queryFn: () => api<NetworkView>('/admin/network-settings'),
   });
-  if (isForbidden(query.error)) return <Forbidden />;
+  if (isForbidden(query.error)) return <Forbidden title="网络与安装源" />;
   return (
     <>
       <PageHeader title="网络与安装源" />

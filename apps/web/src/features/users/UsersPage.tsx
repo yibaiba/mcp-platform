@@ -99,7 +99,7 @@ export default function UsersPage() {
   const [pending, setPending] = useState<Pending>();
   const [actionError, setActionError] = useState<Error | null>(null);
   const [done, setDone] = useState('');
-  if (isForbidden(users.error)) return <Forbidden />;
+  if (isForbidden(users.error)) return <Forbidden title="用户管理" />;
   const run = (target: Pending) => {
     setPending(undefined);
     setActionError(null);

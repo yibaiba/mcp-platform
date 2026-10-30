@@ -15,6 +15,7 @@ const account = await h.signup();
 let connector;
 let vite;
 let browser;
+let platform;
 const screenshots = resolve('.data/local-browser-acceptance');
 await mkdir(screenshots, { recursive: true });
 const configPath = join(h.directory, '.cursor', 'mcp.json');
@@ -78,6 +79,14 @@ async function until(read, predicate, message) {
   throw new Error(message);
 }
 const errors = [];
+// Device actions live in each device row's ⋯ menu.
+async function deviceMenuAction(name) {
+  await platform
+    .getByRole('button', { name: /更多操作$/ })
+    .first()
+    .click();
+  await platform.getByRole('menuitem', { name, exact: true }).click();
+}
 try {
   const localURL = await start(['manage']);
   browser = await chromium.launch({ channel: 'chrome', headless: true, chromiumSandbox: true });
@@ -195,10 +204,10 @@ try {
       url: webOrigin,
     })),
   );
-  const platform = await context.newPage();
+  platform = await context.newPage();
   platform.on('pageerror', (error) => errors.push(String(error)));
   await platform.goto(`${webOrigin}/devices`);
-  await platform.getByRole('button', { name: '管理本机 MCP / Skills', exact: true }).click();
+  await deviceMenuAction('管理本机 MCP / Skills');
   await platform.getByRole('button', { name: 'browser-mcp offline browser edit' }).click();
   const remoteEditor = platform.getByLabel('所选 MCP 条目（JSON）');
   assert.ok(!(await remoteEditor.inputValue()).includes('browser-private-credential'));
@@ -278,12 +287,13 @@ try {
   );
   const beforeRePair = await h.services.local.repository.list(account.ownerId, device.deviceId);
   await platform.setViewportSize({ width: 1280, height: 900 });
-  await platform.reload();
-  await platform.getByRole('button', { name: '重新配对', exact: true }).click();
-  await platform.getByText('生成重配码会立即断开此设备', { exact: false }).waitFor();
+  // Re-pair is a device-list action, so leave the per-device manager view.
+  await platform.goto(`${webOrigin}/devices`);
+  await deviceMenuAction('重新配对');
+  await platform.getByText('生成重配码会立即断开此设备', { exact: false }).first().waitFor();
   await platform.getByRole('button', { name: '取消', exact: true }).click();
   assert.equal(h.services.broker.online(device.deviceId), true);
-  await platform.getByRole('button', { name: '重新配对', exact: true }).click();
+  await deviceMenuAction('重新配对');
   const rePairResponse = platform.waitForResponse(
     (response) =>
       response.url().endsWith(`/devices/${device.deviceId}/re-pairings`) &&
@@ -354,7 +364,8 @@ try {
     mode: 'existing',
     url: mcp.url,
   });
-  await platform.reload();
+  // SSH access is its own tab on the devices page.
+  await platform.goto(`${webOrigin}/devices?tab=ssh`);
   await platform.getByRole('button', { name: '新增 SSH 接入', exact: true }).click();
   await platform.getByLabel('接入名称', { exact: true }).fill('Browser SSH');
   await platform.getByLabel('SSH 主机', { exact: true }).fill('browser-ssh.example.test');

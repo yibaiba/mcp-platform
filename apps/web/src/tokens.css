@@ -1,0 +1,150 @@
+/*
+ * Design tokens shared by the platform app (index.css) and the standalone local page (local.tsx).
+ * Dark (:root default): Supabase-style green-tinted graphite with Raycast glass layers.
+ * Light ([data-theme='light']): Tailscale-style warm paper, warm-black buttons, brick accent.
+ * Hex values live only in these variable blocks. No hue in 260°–320° (no purple).
+ */
+:root {
+  color-scheme: dark;
+  /* 中性：带一点绿相的深石墨 */
+  --background: #111412;
+  --surface: #131714;
+  --card: #181c19;
+  --popover: #1d221e;
+  --muted: #222823;
+  --border: #29302b;
+  --input: #2f3731;
+  --control-border: #3d4740;
+  --foreground: #edf2ee;
+  --muted-foreground: #a4afa7;
+  --subtle-foreground: #909b94;
+  --card-foreground: var(--foreground);
+  --popover-foreground: var(--foreground);
+  --secondary: #252b27;
+  --secondary-foreground: #edf2ee;
+  --code-foreground: #c6d5c0;
+  /* 品牌：青柠强调字/图标 + 深绿实心主按钮 + 绿松色渐变终点 */
+  --primary: #b4f27b;
+  --primary-foreground: #162411;
+  --primary-solid: #2b5418;
+  --primary-solid-hover: #33621d;
+  --primary-solid-foreground: #e8fad6;
+  --primary-solid-border: #4d8a2a;
+  --brand-2: #3ecf8e;
+  --accent: #1f2e1c;
+  --accent-foreground: #d4f4bd;
+  --ring: #b4f27b;
+  /* 语义色 */
+  --success: #5fd39a;
+  --warning: #e9c884;
+  --destructive: #ff9b9b;
+  --info: #8ab4ff;
+  /* 圆角：6 控件 / 8 按钮与菜单 / 12 面板与卡片 / 999 胶囊 */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  /* 玻璃层：半透明面板 + 细亮边 + 内高光（透明度按最坏底色算对比度） */
+  --glass: rgb(24 28 25 / 0.92);
+  --glass-strong: rgb(29 34 30 / 0.92);
+  --glass-blur: 16px;
+  --glass-border: rgb(255 255 255 / 0.08);
+  --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 0.06);
+  --panel-border: rgb(255 255 255 / 0.07);
+  --tile-from: #1c221d;
+  --tile-to: #161a17;
+  /* 层次：阴影、背景光晕 */
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
+  --shadow-md: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px -12px rgb(0 0 0 / 0.6);
+  --shadow-lg: 0 30px 50px -12px rgb(0 0 0 / 0.55);
+  --overlay: rgb(5 7 6 / 0.6);
+  --empty-art-glow: 0.22;
+  --glow-primary: color-mix(in oklch, var(--primary) 10%, transparent);
+  --glow-info: color-mix(in oklch, var(--brand-2) 7%, transparent);
+  --focus-glow: 0 0 0 3px color-mix(in oklch, var(--ring) 28%, transparent);
+  --shimmer: color-mix(in oklch, var(--foreground) 7%, transparent);
+  /* 动效：时长 150–250ms，统一缓动 */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 250ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --motion-distance: 6px;
+  --stagger-step: 30ms;
+  /* 布局 */
+  --sidebar-width: 232px;
+  --topbar-height: 56px;
+}
+/* 浅色：暖米白纸感，暖黑主按钮，砖红点缀，几乎无阴影 */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --background: #f9f7f4;
+  --surface: #f3f0eb;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --muted: #f1eee9;
+  --border: #e9e5df;
+  --input: #ddd7d0;
+  --control-border: #c8c0b7;
+  --foreground: #1f1e1d;
+  --muted-foreground: #5d5853;
+  --subtle-foreground: #6b655f;
+  --secondary: #f1eee9;
+  --secondary-foreground: #1f1e1d;
+  --code-foreground: #6b3a1f;
+  --primary: #b3392f;
+  --primary-foreground: #ffffff;
+  --primary-solid: #1f1e1e;
+  --primary-solid-hover: #34322f;
+  --primary-solid-foreground: #faf8f5;
+  --primary-solid-border: #1f1e1e;
+  --brand-2: #c2562d;
+  --accent: #f7e8e4;
+  --accent-foreground: #8a2a22;
+  --ring: #b3392f;
+  --success: #1b7748;
+  --warning: #875200;
+  --destructive: #a51d1d;
+  --info: #1f5e9c;
+  --glass: rgb(251 250 248 / 0.92);
+  --glass-strong: rgb(255 255 255 / 0.97);
+  --glass-border: rgb(31 30 29 / 0.08);
+  --glass-highlight: inset 0 1px 0 rgb(255 255 255 / 0.7);
+  --panel-border: var(--border);
+  --tile-from: #ffffff;
+  --tile-to: #fcfbf9;
+  --shadow-sm: none;
+  --shadow-md: 0 1px 2px rgb(31 30 29 / 0.04);
+  --shadow-lg: 0 18px 40px -18px rgb(31 30 29 / 0.22);
+  --overlay: rgb(31 30 29 / 0.28);
+  --empty-art-glow: 0.12;
+  --glow-primary: color-mix(in oklch, var(--primary) 4%, transparent);
+  --glow-info: color-mix(in oklch, var(--brand-2) 3%, transparent);
+  --focus-glow: 0 0 0 3px color-mix(in oklch, var(--ring) 20%, transparent);
+  --shimmer: color-mix(in oklch, var(--foreground) 5%, transparent);
+}
+/* 不支持 backdrop-filter 或用户要求减少透明度时，玻璃退回实底 */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root,
+  :root[data-theme='light'] {
+    --glass: var(--surface);
+    --glass-strong: var(--popover);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root,
+  :root[data-theme='light'] {
+    --glass: var(--surface);
+    --glass-strong: var(--popover);
+    --glass-blur: 0px;
+  }
+}
+
+/* Brief colour cross-fade while switching theme; theme.ts skips it under reduced motion. */
+html.theme-switching,
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow !important;
+  transition-duration: var(--duration-slow) !important;
+  transition-timing-function: var(--ease-in-out) !important;
+}

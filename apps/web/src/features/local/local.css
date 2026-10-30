@@ -1,12 +1,16 @@
+/* Local aliases of the shared design tokens (tokens.css), so dark and light both apply. */
+.local-shell,
+.local-manager {
+  --local-bg: var(--background);
+  --local-panel: var(--card);
+  --local-text: var(--foreground);
+  --local-muted: var(--muted-foreground);
+  --local-border: var(--control-border);
+  --local-accent: var(--primary);
+  --local-error: var(--destructive);
+  --local-pressed: var(--secondary);
+}
 .local-shell {
-  color-scheme: dark;
-  --local-bg: #101316;
-  --local-panel: #181c20;
-  --local-text: #eef1f4;
-  --local-muted: #a2adb8;
-  --local-border: #3e4852;
-  --local-accent: #b4f27b;
-  --local-error: #ffb2b2;
   background: var(--local-bg);
   color: var(--local-text);
   min-height: 100vh;
@@ -20,14 +24,17 @@
 }
 body:has(.local-shell) {
   margin: 0;
-  background: #101316;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, var(--glow-primary), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, var(--glow-info), transparent 60%), var(--background);
+  background-attachment: fixed;
 }
 .local-shell *,
 .local-manager * {
   box-sizing: border-box;
 }
 .local-eyebrow {
-  color: #b4f27b;
+  color: var(--local-accent);
   letter-spacing: 0.14em;
   font-size: 12px;
 }
@@ -36,13 +43,6 @@ body:has(.local-shell) {
   margin: 8px 0;
 }
 .local-manager {
-  --local-bg: #101316;
-  --local-panel: #181c20;
-  --local-text: #eef1f4;
-  --local-muted: #a2adb8;
-  --local-border: #3e4852;
-  --local-accent: #b4f27b;
-  --local-error: #ffb2b2;
   color: var(--local-text);
   font-size: 15px;
   line-height: 1.6;
@@ -62,7 +62,7 @@ body:has(.local-shell) {
   border-color: var(--local-accent);
 }
 .local-manager button:active {
-  background: #2b3239;
+  background: var(--local-pressed);
 }
 .local-manager button:disabled {
   opacity: 0.5;
@@ -133,9 +133,10 @@ body:has(.local-shell) {
 .local-sources,
 .local-history article {
   padding: 20px;
-  border: 1px solid var(--local-border);
-  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg);
   background: var(--local-panel);
+  box-shadow: var(--glass-highlight), var(--shadow-md);
   margin-bottom: 12px;
   min-width: 0;
 }
@@ -268,5 +269,53 @@ body:has(.local-shell) {
   .local-sources li {
     align-items: start;
     flex-direction: column;
+  }
+}
+
+/* Theme switch in the local page header (the page has no account menu). */
+.local-shell > header {
+  position: relative;
+}
+.local-theme {
+  box-shadow: var(--glass-highlight);
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--local-border);
+  border-radius: 999px;
+  background: var(--local-panel);
+}
+.local-theme button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--local-muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.local-theme button:hover {
+  color: var(--local-text);
+}
+.local-theme button[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+.local-theme button:focus-visible {
+  outline: 2px solid var(--local-accent);
+  outline-offset: 2px;
+}
+@media (max-width: 800px) {
+  .local-theme {
+    position: static;
+    margin-bottom: 16px;
   }
 }

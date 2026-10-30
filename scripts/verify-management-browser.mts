@@ -136,6 +136,8 @@ try {
   await page.getByRole('menuitem', { name: '退出登录', exact: true }).waitFor();
   await page.keyboard.press('Escape');
   await page.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).click();
+  // Let the drawer finish its close transition before typing into the page behind it.
+  await page.getByRole('dialog').waitFor({ state: 'detached' });
   await page.getByLabel('名称', { exact: true }).fill('unsaved');
   await page.getByLabel('内容类型').selectOption('resource');
   await page.getByRole('button', { name: '放弃修改并继续', exact: true }).click();
