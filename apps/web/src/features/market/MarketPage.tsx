@@ -8,6 +8,14 @@ import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '../../components/ui/sheet.js';
+import {
   Action,
   Code,
   Empty,
@@ -39,7 +47,12 @@ export default function MarketPage() {
     },
   });
   return (
-    <>
+    <Sheet
+      open={Boolean(selected)}
+      onOpenChange={(open) => {
+        if (!open) setSelected(undefined);
+      }}
+    >
       <PageHeader title="连接" />
       <Card className="panel padded">
         <Form
@@ -55,9 +68,9 @@ export default function MarketPage() {
         </Form>
       </Card>
       <Feedback error={listing.error} />
-      {selected ? (
-        <MarketDetail key={selected} name={selected} close={() => setSelected(undefined)} />
-      ) : null}
+      <SheetContent>
+        {selected ? <MarketDetail key={selected} name={selected} /> : null}
+      </SheetContent>
       <Card className="panel padded">
         <h2>搜索结果</h2>
         {listing.isPending ? <p role="status">正在请求官方目录…</p> : null}
@@ -71,7 +84,9 @@ export default function MarketPage() {
                 {server.name} · {server.version}
               </small>
               <p>{server.description}</p>
-              <Button onClick={() => setSelected(server.name)}>详情与安装</Button>
+              <SheetTrigger render={<Button />} onClick={() => setSelected(server.name)}>
+                详情与安装
+              </SheetTrigger>
             </div>
           ))
         )}
@@ -84,10 +99,10 @@ export default function MarketPage() {
           </Button>
         ) : null}
       </Card>
-    </>
+    </Sheet>
   );
 }
-function MarketDetail({ name, close }: { name: string; close: () => void }) {
+function MarketDetail({ name }: { name: string }) {
   const [version, setVersion] = useState('latest');
   const detail = useQuery({
     queryKey: ['market-detail', name, version],
@@ -98,13 +113,12 @@ function MarketDetail({ name, close }: { name: string; close: () => void }) {
     queryFn: () => api<Page>(`/market/versions?${new URLSearchParams({ name })}`),
   });
   return (
-    <Card className="panel padded">
-      <div className="row">
-        <h2 className="grow">{detail.data?.server.title ?? name}</h2>
-        <Button variant="outline" onClick={close}>
-          关闭详情
-        </Button>
-      </div>
+    <>
+      <SheetHeader>
+        <SheetTitle>{detail.data?.server.title ?? name}</SheetTitle>
+        <SheetDescription>选择服务版本和运行方式，预览配置后安装。</SheetDescription>
+      </SheetHeader>
+      {detail.isPending ? <p role="status">正在加载服务详情…</p> : null}
       <Feedback error={detail.error ?? versions.error} />
       <Field label="服务版本">
         <select value={version} onChange={(event) => setVersion(event.target.value)}>
@@ -125,7 +139,7 @@ function MarketDetail({ name, close }: { name: string; close: () => void }) {
       {detail.data ? (
         <Installation key={`${name}:${detail.data.server.version}`} detail={detail.data} />
       ) : null}
-    </Card>
+    </>
   );
 }
 function Installation({ detail }: { detail: Detail }) {
