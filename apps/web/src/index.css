@@ -106,9 +106,12 @@ button,
 a {
   -webkit-tap-highlight-color: transparent;
 }
-a {
-  color: inherit;
-  text-decoration: none;
+/* Layered so button utilities on links (render={<Link />}) win over it. */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 button {
   cursor: pointer;
@@ -399,36 +402,6 @@ code {
 }
 .primary-link:hover {
   filter: brightness(0.95);
-}
-.stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-.stat {
-  padding: 16px 24px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--card);
-}
-.stat > div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--muted-foreground);
-  font-size: var(--text-caption);
-}
-.stat > div svg {
-  color: var(--subtle-foreground);
-}
-.stat > strong {
-  font-size: var(--text-number);
-  font-weight: 500;
-  display: block;
-  line-height: 32px;
-  margin: 8px 0;
-  font-variant-numeric: tabular-nums;
 }
 .overview-grid {
   display: grid;
@@ -846,15 +819,6 @@ legend {
   }
   .page-heading {
     flex-wrap: wrap;
-  }
-  .stats {
-    gap: 8px;
-  }
-  .stat {
-    padding: 12px;
-  }
-  .stat > div svg {
-    display: none;
   }
   .tool-layout,
   .form-grid {

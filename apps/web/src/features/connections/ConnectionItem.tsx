@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import {
   AlertCircle,
+  Info,
   KeyRound,
   LoaderCircle,
   MoreHorizontal,
@@ -11,7 +12,8 @@ import {
   Settings2,
 } from 'lucide-react';
 import { api, type Connection, type Device } from '../../lib/api.js';
-import { Status } from '../../components/shared/Controls.js';
+import { InlineStatus, Status } from '../../components/shared/Controls.js';
+import { Hint } from '../../components/ui/tooltip.js';
 import { Button } from '../../components/ui/button.js';
 import {
   DropdownMenu,
@@ -35,6 +37,8 @@ import { ConnectionRecovery } from './ConnectionRecovery.js';
 
 type Operation = { label: string; action: () => Promise<unknown>; inspect?: boolean };
 export type ConnectionInspection = { title: string; result: unknown };
+/** Result of adding or authorizing a connection, shown on its own row. */
+export type ConnectionNotice = { connectionId: string; message: string; error?: Error | null };
 
 export function ConnectionItem({
   connection,
@@ -42,7 +46,11 @@ export function ConnectionItem({
   onEdit,
   onShare,
   onInspect,
+  notice,
+  onNoticeDone,
 }: {
+  notice?: ConnectionNotice;
+  onNoticeDone?: () => void;
   connection: Connection;
   devices: ReadonlyMap<string, Device>;
   onEdit: (connection: Connection) => void;
@@ -68,12 +76,7 @@ export function ConnectionItem({
       const result = await operation.action();
       if (operation.inspect)
         onInspect({ title: `${connection.name} · ${operation.label}`, result });
-      else
-        setMessage(
-          operation.label === '更新目录'
-            ? '目录已更新，可查看工具或分配给 Agent。'
-            : `${operation.label}已完成。`,
-        );
+      else setMessage(operation.label === '更新目录' ? '目录已更新' : `${operation.label}已完成`);
     } catch (error) {
       setFailure({
         label: operation.label,
@@ -90,12 +93,20 @@ export function ConnectionItem({
       inspect,
       action: () => api(`${root}/${operation}`, { method: 'POST' }),
     });
-  const error = failure?.message ?? connection.error;
+  const error = failure?.message ?? notice?.error?.message ?? connection.error;
+  const needsAuthorization =
+    supportsAuthorization &&
+    (connection.status === 'waiting_authorization' || connection.status === 'error');
+  const identity = publicService
+    ? '无需账号授权'
+    : connection.identityMode === 'independent'
+      ? '按调用凭证隔离'
+      : '连接账号';
   return (
     <section
       id={`connection-${connection.id}`}
       aria-label={connection.name}
-      className="scroll-mt-6 border-b px-5 py-5 last:border-b-0 target:bg-muted/40"
+      className="scroll-mt-6 border-b px-4 py-3 last:border-b-0 target:bg-muted/40"
     >
       <div className="flex flex-wrap items-center gap-3">
         <ConnectorIcon presetId={connection.presetId} />
@@ -103,17 +114,18 @@ export function ConnectionItem({
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-medium">{connection.name}</h3>
             <Status value={connection.status} />
+            <Hint content={`${executionLocation(connection, devices)} · ${identity}`}>
+              <span
+                tabIndex={0}
+                className="inline-flex text-subtle-foreground"
+                aria-label={`执行位置：${executionLocation(connection, devices)}，${identity}`}
+              >
+                <Info size={14} aria-hidden="true" />
+              </span>
+            </Hint>
           </div>
           <p className="mt-1 truncate text-xs text-muted-foreground" title={connection.url}>
             {connection.url ?? `${connection.transport.toUpperCase()} · 本地进程`}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {executionLocation(connection, devices)} ·{' '}
-            {publicService
-              ? '无需账号授权'
-              : connection.identityMode === 'independent'
-                ? '按调用凭证隔离'
-                : '连接账号'}
           </p>
         </div>
         <div
@@ -127,8 +139,12 @@ export function ConnectionItem({
             >
               查看工具
             </Button>
-          ) : (
-            <Button disabled={Boolean(busy)} onClick={() => perform('discover', '更新目录')}>
+          ) : error ? null : (
+            <Button
+              variant="outline"
+              disabled={Boolean(busy)}
+              onClick={() => perform('discover', '更新目录')}
+            >
               {busy ? (
                 <LoaderCircle
                   className="animate-spin motion-reduce:animate-none"
@@ -140,7 +156,7 @@ export function ConnectionItem({
               {busy || '连接'}
             </Button>
           )}
-          {supportsAuthorization ? (
+          {needsAuthorization ? (
             <Button
               variant="ghost"
               disabled={Boolean(busy)}
@@ -170,6 +186,11 @@ export function ConnectionItem({
               <DropdownMenuItem onClick={() => perform('discover', '更新目录')}>
                 刷新工具目录
               </DropdownMenuItem>
+              {supportsAuthorization && !needsAuthorization ? (
+                <DropdownMenuItem onClick={() => setAuthorizationOpen(true)}>
+                  <KeyRound /> 授权与账号
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem onClick={() => onShare(connection)}>共享连接</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => perform('check', '健康检查', true)}>
@@ -210,35 +231,40 @@ export function ConnectionItem({
       {error ? (
         <div
           role="alert"
-          className="mt-4 flex gap-2 rounded-md border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive"
+          className="row-error mt-3 flex items-start gap-2 text-xs text-destructive"
         >
-          <AlertCircle size={16} className="shrink-0" aria-hidden="true" />
-          <div className="min-w-0 space-y-1 break-words">
-            <p className="font-medium">{failure ? `${failure.label}未完成` : '连接需要处理'}</p>
-            <p>{error}</p>
-            <p className="text-muted-foreground">
-              检查服务地址与运行状态；需要登录的服务请打开“授权与账号”。
-            </p>
+          <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <div className="min-w-0 flex-1 break-words">
+            <p className="m-0 font-medium">{failure ? `${failure.label}未完成` : '连接失败'}</p>
+            <p className="m-0 text-muted-foreground">{error}</p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={Boolean(busy)}
+            onClick={() => perform('discover', '更新目录')}
+          >
+            重试
+          </Button>
         </div>
       ) : null}
-      <ConnectionRecovery connection={connection} />
-      {busy || message ? (
-        <p role="status" className="mt-3 text-xs text-muted-foreground">
-          {busy ? `正在${busy}…` : message}
+      {notice && !notice.error ? (
+        <p className="mt-2 text-xs">
+          <InlineStatus onDone={onNoticeDone}>{notice.message}</InlineStatus>
+        </p>
+      ) : notice?.error ? (
+        <p role="status" className="mt-2 text-xs text-muted-foreground">
+          {notice.message}
         </p>
       ) : null}
-      {connected ? (
-        <p className="mt-3 text-xs text-muted-foreground">
-          下一步：
-          <Link
-            to="/profiles"
-            hash="create-profile"
-            className="text-primary underline-offset-4 hover:underline"
-          >
-            为 Agent 选择可用工具
-          </Link>
-          ，再复制客户端接入配置。
+      <ConnectionRecovery connection={connection} />
+      {busy ? (
+        <p role="status" className="mt-2 text-xs text-muted-foreground">
+          正在{busy}…
+        </p>
+      ) : message ? (
+        <p className="mt-2 text-xs">
+          <InlineStatus onDone={() => setMessage('')}>{message}</InlineStatus>
         </p>
       ) : null}
       <ConfirmDialog
@@ -258,7 +284,7 @@ export function ConnectionItem({
           <DialogHeader>
             <DialogTitle>{connection.name} · 授权与账号</DialogTitle>
             <DialogDescription>
-              OAuth 服务会跳转到供应商确认，完成后自动返回。Token 和 API Key 在“编辑连接”中配置。
+              OAuth 会跳转到供应商确认后返回；Token 和 API Key 在「编辑连接」中配置。
             </DialogDescription>
           </DialogHeader>
           <AuthorizationBindings

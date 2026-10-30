@@ -8,7 +8,6 @@ import {
   type ContentEntry,
   type Connection,
 } from '../../lib/api.js';
-import { Card } from '../../components/ui/card.js';
 import { Input } from '../../components/ui/input.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import { Button } from '../../components/ui/button.js';
@@ -42,9 +41,7 @@ export function CatalogEditor(props: {
       },
     }));
   return (
-    <Card className="panel padded">
-      <h2>目录展示 · {profile.name}</h2>
-      <p>修改对外名称、描述和可选参数。授权和 Skill 依赖保持关联原工具。</p>
+    <div className="grid gap-4">
       <Field label="工具命名方式">
         <select
           value={config.toolNaming}
@@ -195,6 +192,6 @@ export function CatalogEditor(props: {
           取消
         </Button>
       </div>
-    </Card>
+    </div>
   );
 }

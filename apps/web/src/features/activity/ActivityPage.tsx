@@ -1,7 +1,23 @@
 import { PageHeader } from '../../components/shared/PageHeader.js';
 import { useState } from 'react';
 import { Button } from '../../components/ui/button.js';
-import { Action, Status, ListSkeleton } from '../../components/shared/Controls.js';
+import { Action, ListSkeleton, statusText } from '../../components/shared/Controls.js';
+import { History, MoreHorizontal } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../components/ui/dropdown-menu.js';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog.js';
+import { Link } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Card } from '../../components/ui/card.js';
@@ -23,7 +39,10 @@ import { CallDetail } from './CallDetail.js';
 export default function ActivityPage() {
   const filters = useSearch({ from: '/activity' });
   const navigate = useNavigate({ from: '/activity' });
+  // Cursors of the pages before the current one; length + 1 is the page number.
+  const [history, setHistory] = useState<(string | null)[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
+  const [cleaning, setCleaning] = useState(false);
   const [preview, setPreview] = useState<{ count: number; token: string } | null>(null);
   const search = new URLSearchParams(
     Object.entries(filters).filter(([key, value]) => key !== 'callId' && Boolean(value)) as [
@@ -68,12 +87,53 @@ export default function ActivityPage() {
   });
   const update = (patch: ActivitySearch) => {
     setCursor(null);
+    setHistory([]);
     setPreview(null);
     void navigate({ search: (previous) => ({ ...previous, callId: undefined, ...patch }) });
   };
+  const total = stats.data?.reduce((sum, row) => sum + row.count, 0) ?? 0;
+  const timed = stats.data?.filter((row) => row.meanDurationMs !== null) ?? [];
+  const mean = timed.length
+    ? Math.round(
+        timed.reduce((sum, row) => sum + row.meanDurationMs! * row.count, 0) /
+          Math.max(
+            1,
+            timed.reduce((sum, row) => sum + row.count, 0),
+          ),
+      )
+    : null;
+  const previewCleanup = async () =>
+    setPreview(
+      await api('/activity/calls/cleanup/preview', {
+        method: 'POST',
+        body: JSON.stringify(Object.fromEntries(new URLSearchParams(search))),
+      }),
+    );
   return (
     <>
-      <PageHeader title="运行记录" />
+      <PageHeader
+        title="运行记录"
+        actions={
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button variant="ghost" size="icon" />}
+              aria-label="运行记录更多操作"
+            >
+              <MoreHorizontal aria-hidden="true" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44">
+              <DropdownMenuItem
+                onClick={() => {
+                  setPreview(null);
+                  setCleaning(true);
+                }}
+              >
+                清理当前范围的记录…
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        }
+      />
       <Feedback
         error={calls.error ?? tools.error ?? connections.error ?? profiles.error ?? devices.error}
       />
@@ -86,61 +146,21 @@ export default function ActivityPage() {
           devices: devices.data ?? [],
         }}
         onChange={update}
-      />
+      >
+        <p className="filter-count" aria-label="调用统计">
+          {stats.data
+            ? [
+                `共 ${total}`,
+                ...stats.data.map((row) => `${statusText(row.status)} ${row.count}`),
+                mean === null ? '' : `平均 ${mean} ms`,
+              ]
+                .filter(Boolean)
+                .join(' · ')
+            : null}
+        </p>
+      </ActivityFilters>
       <Feedback error={stats.error} />
-      <div className="overview-grid">
-        {stats.data?.map((row) => (
-          <Card className="p-4" key={row.status}>
-            <Status value={row.status} />
-            <strong>{row.count} 次</strong>
-            <small>
-              平均耗时 {row.meanDurationMs === null ? '—' : `${Math.round(row.meanDurationMs)} ms`}
-            </small>
-          </Card>
-        ))}
-      </div>
-      <div className="my-4 flex flex-wrap items-center gap-3">
-        <Action
-          action={async () =>
-            setPreview(
-              await api('/activity/calls/cleanup/preview', {
-                method: 'POST',
-                body: JSON.stringify(Object.fromEntries(new URLSearchParams(search))),
-              }),
-            )
-          }
-        >
-          预览清理当前范围
-        </Action>
-        {preview ? (
-          <>
-            <span>将清理 {preview.count} 条已结束记录，运行和等待回答的调用保留。</span>
-            <Action
-              danger
-              confirmation={{
-                title: `清理 ${preview.count} 条已结束记录？`,
-                description: '运行中和等待中的调用会保留。',
-                confirmLabel: '清理',
-              }}
-              action={async () => {
-                await api('/activity/calls/cleanup', {
-                  method: 'POST',
-                  body: JSON.stringify({ token: preview.token }),
-                });
-                setPreview(null);
-                setCursor(null);
-              }}
-            >
-              执行清理
-            </Action>
-          </>
-        ) : null}
-      </div>
       <Card className="panel">
-        <div className="panel-heading">
-          <h2>调用记录 · 每页 50 条</h2>
-          <span className="label">每 5 秒刷新</span>
-        </div>
         {calls.isPending ? <ListSkeleton /> : null}
         {calls.data?.items.length ? (
           <Table>
@@ -148,9 +168,11 @@ export default function ActivityPage() {
               <TableRow>
                 <TableHead>状态</TableHead>
                 <TableHead>工具 / 执行位置</TableHead>
-                <TableHead>开始时间</TableHead>
+                <TableHead>开始</TableHead>
                 <TableHead>耗时</TableHead>
-                <TableHead>诊断 / 操作</TableHead>
+                <TableHead>
+                  <span className="sr-only">诊断 / 操作</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -165,7 +187,15 @@ export default function ActivityPage() {
             </TableBody>
           </Table>
         ) : calls.isSuccess ? (
-          <Empty>没有匹配的调用。可调整筛选条件，或前往工具目录执行一次调用。</Empty>
+          <Empty
+            icon={History}
+            title="没有匹配的调用"
+            action={
+              <Button variant="outline" render={<Link to="/tools" />}>
+                去测试工具
+              </Button>
+            }
+          />
         ) : null}
       </Card>
       {filters.callId ? (
@@ -175,18 +205,73 @@ export default function ActivityPage() {
           onClose={() => update({ callId: undefined })}
         />
       ) : null}
-      <div className="my-4 flex flex-wrap items-center gap-3">
-        <Button variant="outline" disabled={!cursor} onClick={() => setCursor(null)}>
-          返回第一页
-        </Button>
-        <Button
-          variant="outline"
-          disabled={!calls.data?.nextCursor}
-          onClick={() => setCursor(calls.data!.nextCursor)}
-        >
-          下一页
-        </Button>
-      </div>
+      {history.length || calls.data?.nextCursor ? (
+        <nav className="pagination" aria-label="分页">
+          <Button
+            variant="outline"
+            disabled={!history.length}
+            onClick={() => {
+              setCursor(history.at(-1) ?? null);
+              setHistory(history.slice(0, -1));
+            }}
+          >
+            上一页
+          </Button>
+          <span aria-current="page">第 {history.length + 1} 页</span>
+          <Button
+            variant="outline"
+            disabled={!calls.data?.nextCursor}
+            onClick={() => {
+              setHistory([...history, cursor]);
+              setCursor(calls.data!.nextCursor);
+            }}
+          >
+            下一页
+          </Button>
+        </nav>
+      ) : null}
+      <Dialog
+        open={cleaning}
+        onOpenChange={(open) => {
+          setCleaning(open);
+          if (!open) setPreview(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>清理调用记录</DialogTitle>
+            <DialogDescription>
+              按当前筛选范围清理已结束的记录；运行中和等待回答的调用会保留。
+            </DialogDescription>
+          </DialogHeader>
+          {preview ? <p>将清理 {preview.count} 条已结束记录。</p> : null}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCleaning(false)}>
+              取消
+            </Button>
+            {preview ? (
+              <Action
+                danger
+                confirmed
+                action={async () => {
+                  await api('/activity/calls/cleanup', {
+                    method: 'POST',
+                    body: JSON.stringify({ token: preview.token }),
+                  });
+                  setPreview(null);
+                  setCursor(null);
+                  setHistory([]);
+                  setCleaning(false);
+                }}
+              >
+                清理 {preview.count} 条
+              </Action>
+            ) : (
+              <Action action={previewCleanup}>预览清理范围</Action>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

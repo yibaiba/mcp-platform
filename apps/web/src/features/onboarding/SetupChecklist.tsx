@@ -1,13 +1,24 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ArrowRight, Check } from 'lucide-react';
+import { Check, ChevronRight, X } from 'lucide-react';
 import { api, type Connection, type Profile } from '../../lib/api.js';
-import { Card } from '../../components/ui/card.js';
+import { Button } from '../../components/ui/button.js';
 import { Feedback } from '../../components/shared/Controls.js';
-import { GettingStarted, setupSteps } from './GettingStarted.js';
+import { setupSteps } from './GettingStarted.js';
 import { setupProgress, type AccessKey } from './setupProgress.js';
 
-export function SetupChecklist({ compact = false }: { compact?: boolean }) {
+const dismissedKey = 'mcp-platform:setup-dismissed';
+
+/** Three-step onboarding; collapses to one line when done and can then be dismissed. */
+export function SetupChecklist() {
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(dismissedKey) === '1';
+    } catch {
+      return false;
+    }
+  });
   const connections = useQuery({
     queryKey: ['connections'],
     queryFn: () => api<Connection[]>('/connections'),
@@ -19,68 +30,54 @@ export function SetupChecklist({ compact = false }: { compact?: boolean }) {
   });
   const loaded = connections.isSuccess && profiles.isSuccess && keys.isSuccess;
   const error = connections.error ?? profiles.error ?? keys.error;
-  const complete = loaded
-    ? setupProgress({ connections: connections.data, profiles: profiles.data, keys: keys.data })
-    : [];
-  const nextIndex = complete.findIndex((done) => !done);
+  if (error) return <Feedback error={error} />;
+  if (!loaded) return null;
+  const complete = setupProgress({
+    connections: connections.data,
+    profiles: profiles.data,
+    keys: keys.data,
+  });
+  const done = complete.filter(Boolean).length;
+  const nextIndex = complete.findIndex((value) => !value);
   const next = setupSteps[nextIndex];
+  if (!next) {
+    if (dismissed) return null;
+    return (
+      <section className="setup setup-done" aria-label="上手流程">
+        <Check size={16} aria-hidden="true" />
+        <span className="grow">已完成 3/3</span>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="关闭上手清单"
+          onClick={() => {
+            setDismissed(true);
+            try {
+              localStorage.setItem(dismissedKey, '1');
+            } catch {
+              // Private mode: keep it hidden for this session only.
+            }
+          }}
+        >
+          <X aria-hidden="true" />
+        </Button>
+      </section>
+    );
+  }
   return (
-    <Card className={compact ? 'mb-5 gap-3 p-4' : 'gap-0 p-5'} aria-label="上手流程">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-sm">
-            {loaded
-              ? next
-                ? `下一步：${next.title}`
-                : '配置已就绪，去客户端检查工具目录'
-              : error
-                ? '上手进度读取失败'
-                : '正在读取上手进度…'}
-          </h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {loaded && !next
-              ? '接入密钥已生成；是否接通客户端，请在客户端确认。'
-              : '连接服务 → 分配 Agent 权限 → 复制客户端配置'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {loaded && next ? (
-            <Link
-              to={next.to}
-              hash={next.hash}
-              className="inline-flex min-h-10 items-center gap-1 text-xs text-primary hover:underline"
-            >
-              {next.action}
-              <ArrowRight size={14} aria-hidden="true" />
-            </Link>
-          ) : null}
-          <GettingStarted />
-        </div>
-      </div>
-      <Feedback error={error} />
-      {!compact && loaded ? (
-        <ol className="mt-4 divide-y">
-          {setupSteps.map((step, index) => (
-            <li key={step.title}>
-              <Link to={step.to} hash={step.hash} className="flex min-h-16 items-center gap-3 py-3">
-                <span
-                  className={`flex size-7 shrink-0 items-center justify-center rounded-full border ${complete[index] ? 'border-primary/30 bg-primary/10 text-primary' : 'text-muted-foreground'}`}
-                  aria-hidden="true"
-                >
-                  {complete[index] ? <Check size={14} /> : index + 1}
-                </span>
-                <span className="grow">
-                  <strong className="block text-xs">{step.title}</strong>
-                  <span className="text-xs text-muted-foreground">
-                    {complete[index] ? step.ready : step.action}
-                  </span>
-                </span>
-                <ArrowRight size={14} className="text-muted-foreground" aria-hidden="true" />
-              </Link>
-            </li>
-          ))}
-        </ol>
-      ) : null}
-    </Card>
+    <section className="setup" aria-label="上手流程">
+      <strong>
+        上手 {done}/{setupSteps.length}
+      </strong>
+      <ol className="setup-steps" aria-hidden="true">
+        {setupSteps.map((step, index) => (
+          <li key={step.title} className={complete[index] ? 'done' : undefined} />
+        ))}
+      </ol>
+      <span className="grow">下一步：{next.title}</span>
+      <Link to={next.to} hash={next.hash} className="setup-next">
+        {next.action} <ChevronRight size={14} aria-hidden="true" />
+      </Link>
+    </section>
   );
 }

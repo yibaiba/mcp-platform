@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, json, type Device, type Connection } from '../../lib/api.js';
-import { Card } from '../../components/ui/card.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
 import { Action, Code, Empty, Feedback, Status } from '../../components/shared/Controls.js';
 import { ConnectionForm } from './ConnectionForm.js';
@@ -28,8 +27,7 @@ export function IncomingShares({ devices }: { devices: Device[] }) {
   });
   const [result, setResult] = useState<unknown>();
   return (
-    <Card className="panel padded">
-      <h2>共享给我的连接</h2>
+    <div className="grid gap-2">
       <Feedback error={shares.error} />
       {shares.data?.length === 0 && <Empty>尚无共享连接。</Empty>}
       {shares.data?.map((share) => (
@@ -115,6 +113,6 @@ export function IncomingShares({ devices }: { devices: Device[] }) {
         </div>
       ))}
       {result !== undefined && <Code value={result} />}
-    </Card>
+    </div>
   );
 }

@@ -24,13 +24,7 @@ export function ContentCatalog({
   const [selected, setSelected] = useState<ContentEntry>();
   const [result, setResult] = useState<unknown>();
   return (
-    <section className="mt-8 space-y-4" aria-labelledby="content-catalog-title">
-      <div>
-        <h2 id="content-catalog-title">Prompts 与 Resources</h2>
-        <p className="text-sm text-muted-foreground">
-          获取提示词、读取资源和资源模板。对外开放范围在 Agent 配置中单独授权。
-        </p>
-      </div>
+    <section className="space-y-4" aria-label="Prompts 与 Resources">
       <Feedback error={catalog.error} />
       <div className="tool-layout">
         <Card className="panel">
@@ -57,7 +51,7 @@ export function ContentCatalog({
               </Button>
             ))
           ) : (
-            <Empty>上游尚未提供 Prompts 或 Resources。连接时会按服务声明发现这些能力。</Empty>
+            <Empty title="上游没有提供 Prompts 或 Resources" />
           )}
         </Card>
         <Card className="panel padded">

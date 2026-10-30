@@ -70,34 +70,7 @@ export default function LibraryPage() {
           </select>
         </Field>
       </div>
-      <div className="overview-grid">
-        <Card className="panel padded">
-          <div className="section-heading">
-            <h2>{selected ? '编辑内容' : '新建内容'}</h2>
-            {selected ? (
-              <Button disabled={saving} variant="outline" onClick={() => change(() => reset())}>
-                新建另一条
-              </Button>
-            ) : null}
-          </div>
-          <LibraryEditor
-            key={`${kind}:${generation}`}
-            initial={initialItem(kind, selected)}
-            onDirtyChange={setDirty}
-            save={async (item) => {
-              setSaving(true);
-              try {
-                await api(selected ? `${path}/${selected.id}` : path, {
-                  method: selected ? 'PUT' : 'POST',
-                  body: json({ ...item, ...(selected ? { revision: selected.revision } : {}) }),
-                });
-                reset();
-              } finally {
-                setSaving(false);
-              }
-            }}
-          />
-        </Card>
+      <div className="library-grid">
         <Card className="panel padded">
           <h2>我的内容</h2>
           <ErrorState error={query.error} title="加载失败" onRetry={() => query.refetch()} />
@@ -106,9 +79,9 @@ export default function LibraryPage() {
           {query.data?.map((item) => (
             <div key={item.id} className="space-y-2 border-b py-3">
               <strong className="break-all">{item.name}</strong>
-              <p>
+              <small className="block text-muted-foreground">
                 {item.enabled ? '已启用' : '已停用'} · 修订 {item.revision}
-              </p>
+              </small>
               <div className="flex flex-wrap gap-2">
                 <Button
                   disabled={saving}
@@ -138,6 +111,33 @@ export default function LibraryPage() {
               </div>
             </div>
           ))}
+        </Card>
+        <Card className="panel padded">
+          <div className="section-heading">
+            <h2>{selected ? '编辑内容' : '新建内容'}</h2>
+            {selected ? (
+              <Button disabled={saving} variant="outline" onClick={() => change(() => reset())}>
+                新建另一条
+              </Button>
+            ) : null}
+          </div>
+          <LibraryEditor
+            key={`${kind}:${generation}`}
+            initial={initialItem(kind, selected)}
+            onDirtyChange={setDirty}
+            save={async (item) => {
+              setSaving(true);
+              try {
+                await api(selected ? `${path}/${selected.id}` : path, {
+                  method: selected ? 'PUT' : 'POST',
+                  body: json({ ...item, ...(selected ? { revision: selected.revision } : {}) }),
+                });
+                reset();
+              } finally {
+                setSaving(false);
+              }
+            }}
+          />
         </Card>
       </div>
       <ConfirmDialog
