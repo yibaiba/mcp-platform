@@ -76,7 +76,11 @@ function EmptyArt({ icon: Icon }: { icon: LucideIcon }) {
       <svg viewBox="0 0 120 88" width="120" height="88" fill="none">
         <defs>
           <radialGradient id={`${id}-glow`} cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.22" />
+            <stop
+              offset="0%"
+              stopColor="var(--primary)"
+              style={{ stopOpacity: 'var(--empty-art-glow)' }}
+            />
             <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
           </radialGradient>
           <linearGradient id={`${id}-card`} x1="0" y1="0" x2="0" y2="1">

@@ -41,6 +41,8 @@
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.35);
   --shadow-md: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 8px 24px -12px rgb(0 0 0 / 0.6);
   --shadow-lg: 0 24px 64px -16px rgb(0 0 0 / 0.7);
+  --overlay: rgb(0 0 0 / 0.6);
+  --empty-art-glow: 0.22;
   --glow-primary: color-mix(in oklch, var(--primary) 9%, transparent);
   --glow-info: color-mix(in oklch, var(--info) 7%, transparent);
   --focus-glow: 0 0 0 3px color-mix(in oklch, var(--ring) 28%, transparent);
@@ -56,6 +58,41 @@
   /* 布局 */
   --sidebar-width: 224px;
   --topbar-height: 56px;
+}
+/* 浅色主题：只覆盖颜色与层次变量；主色加深保证文字与按钮文字 ≥ 4.5:1 */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --background: #f5f7f9;
+  --surface: #fbfcfd;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --muted: #eef1f4;
+  --border: #dce1e6;
+  --input: #cfd5dc;
+  --foreground: #14181c;
+  --muted-foreground: #56616c;
+  --subtle-foreground: #646f7a;
+  --secondary: #e9edf1;
+  --secondary-foreground: #1b2026;
+  --code-foreground: #335a1a;
+  --primary: #3b6b0c;
+  --primary-foreground: #ffffff;
+  --accent: #e6f2d9;
+  --accent-foreground: #2c520a;
+  --ring: #3b6b0c;
+  --success: #13764a;
+  --warning: #875400;
+  --destructive: #c42b2b;
+  --info: #1d5fbf;
+  --shadow-sm: 0 1px 2px rgb(16 24 32 / 0.06);
+  --shadow-md: 0 1px 2px rgb(16 24 32 / 0.04), 0 8px 24px -14px rgb(16 24 32 / 0.18);
+  --shadow-lg: 0 24px 56px -18px rgb(16 24 32 / 0.25);
+  --overlay: rgb(20 24 28 / 0.32);
+  --empty-art-glow: 0.14;
+  --glow-primary: color-mix(in oklch, var(--primary) 6%, transparent);
+  --glow-info: color-mix(in oklch, var(--info) 5%, transparent);
+  --focus-glow: 0 0 0 3px color-mix(in oklch, var(--ring) 22%, transparent);
+  --shimmer: color-mix(in oklch, var(--foreground) 5%, transparent);
 }
 @theme inline {
   --color-background: var(--background);

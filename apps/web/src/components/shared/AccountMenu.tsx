@@ -1,13 +1,35 @@
 import { Link } from '@tanstack/react-router';
-import { ChevronsUpDown, CircleHelp, Globe, Info, LogOut, UserRound, Users } from 'lucide-react';
+import {
+  ChevronsUpDown,
+  CircleHelp,
+  Globe,
+  Info,
+  LogOut,
+  Monitor,
+  Moon,
+  Sun,
+  UserRound,
+  Users,
+} from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu.js';
 import { authClient } from '../../lib/auth-client.js';
+import { setThemePreference, useThemePreference, type ThemePreference } from '../../lib/theme.js';
+
+const themes = [
+  { value: 'dark', label: '深色', icon: Moon },
+  { value: 'light', label: '浅色', icon: Sun },
+  { value: 'system', label: '跟随系统', icon: Monitor },
+] as const;
 
 /** Bottom-left account menu: personal and system pages, guide, version and sign-out. */
 export function AccountMenu({
@@ -23,6 +45,7 @@ export function AccountMenu({
   onGuide: () => void;
   onNavigate?: () => void;
 }) {
+  const theme = useThemePreference();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="account" aria-label="账号菜单">
@@ -61,6 +84,20 @@ export function AccountMenu({
         >
           <CircleHelp /> 使用指南
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>外观</DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={theme}
+            onValueChange={(value) => setThemePreference(value as ThemePreference)}
+          >
+            {themes.map(({ value, label, icon: Icon }) => (
+              <DropdownMenuRadioItem key={value} value={value} closeOnClick={false}>
+                <Icon /> {label}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => void authClient.signOut().then(() => window.location.reload())}

@@ -429,3 +429,19 @@ body {
     transform: none;
   }
 }
+
+/* ---------- Theme ---------- */
+/* Overlay tint follows the theme (the class default is a fixed black). */
+[data-slot='dialog-overlay'],
+[data-slot='sheet-overlay'] {
+  background-color: var(--overlay);
+}
+/* Brief colour cross-fade while switching theme; theme.ts skips it under reduced motion. */
+html.theme-switching,
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow !important;
+  transition-duration: var(--duration-slow) !important;
+  transition-timing-function: var(--ease-in-out) !important;
+}

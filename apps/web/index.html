@@ -3,7 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
     <title>MCP Platform · 工具与设备管理</title>
+    <script>
+      // Apply the saved theme (or the system one) before first paint to avoid a flash.
+      // Keep the storage key in sync with src/lib/theme.ts.
+      (function () {
+        var theme;
+        try {
+          theme = localStorage.getItem('mcp-theme');
+        } catch (e) {}
+        if (theme !== 'light' && theme !== 'dark')
+          theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
   </head>
 
   <body>
