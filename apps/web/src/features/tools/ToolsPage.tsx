@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Card } from '../../components/ui/card.js';
 import { Button } from '../../components/ui/button.js';
-import { Empty, Feedback } from '../../components/shared/Controls.js';
+import { Empty, Feedback, ListSkeleton } from '../../components/shared/Controls.js';
 import { api, type Tool, type Connection, type Device, type Profile } from '../../lib/api.js';
 import { ContentCatalog } from './ContentCatalog.js';
 import { ToolFilters } from './ToolFilters.js';
@@ -80,6 +80,7 @@ export default function ToolsPage() {
       </p>
       <div className="tool-layout">
         <Card className="panel">
+          {tools.isPending ? <ListSkeleton /> : null}
           {filtered.map((tool) => (
             <Button
               key={tool.id}

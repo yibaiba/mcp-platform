@@ -53,7 +53,15 @@ export function ConnectionShares({ connectionId }: { connectionId: string }) {
             {grant.revoked ? '重新授权' : '编辑授权'}
           </Button>
           {!grant.revoked && (
-            <Action danger action={() => api(`${base}/${grant.id}`, { method: 'DELETE' })}>
+            <Action
+              danger
+              confirmation={{
+                title: '撤销这个共享？',
+                description: '接收方将立即无法使用该连接。',
+                confirmLabel: '撤销',
+              }}
+              action={() => api(`${base}/${grant.id}`, { method: 'DELETE' })}
+            >
               撤销共享
             </Action>
           )}

@@ -28,6 +28,7 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog.js';
 import { AuthorizationBindings } from './AuthorizationBindings.js';
+import { ConfirmDialog } from '../../components/shared/ConfirmDialog.js';
 import { ConnectorIcon } from './ConnectorIcon.js';
 import { executionLocation } from '../tools/toolCatalog.js';
 import { ConnectionRecovery } from './ConnectionRecovery.js';
@@ -53,6 +54,7 @@ export function ConnectionItem({
   const [failure, setFailure] = useState<{ label: string; message: string }>();
   const [message, setMessage] = useState('');
   const [authorizationOpen, setAuthorizationOpen] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const connected = connection.status === 'connected';
   const preset = connectorPresets.find((preset) => preset.id === connection.presetId);
   const publicService = preset?.authentication.length === 1 && preset.authentication[0] === 'none';
@@ -198,7 +200,7 @@ export function ConnectionItem({
               <DropdownMenuItem onClick={() => perform('sleep', '休眠连接')}>
                 休眠连接
               </DropdownMenuItem>
-              <DropdownMenuItem variant="destructive" onClick={() => perform('stop', '停止连接')}>
+              <DropdownMenuItem variant="destructive" onClick={() => setStopping(true)}>
                 停止连接
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -239,6 +241,18 @@ export function ConnectionItem({
           ，再复制客户端接入配置。
         </p>
       ) : null}
+      <ConfirmDialog
+        open={stopping}
+        onOpenChange={setStopping}
+        title={`停止「${connection.name}」？`}
+        description="正在进行的调用会被中断。"
+        confirmLabel="停止"
+        danger
+        onConfirm={() => {
+          setStopping(false);
+          perform('stop', '停止连接');
+        }}
+      />
       <Dialog open={authorizationOpen} onOpenChange={setAuthorizationOpen}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>

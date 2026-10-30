@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { api, json } from '../../lib/api.js';
-import { Action, Feedback } from '../../components/shared/Controls.js';
+import { Action, Feedback, ListSkeleton } from '../../components/shared/Controls.js';
 export type VersionStatus = {
   build: { version: string; commit: string; builtAt: string | null; release: boolean };
   scheduled: boolean;
@@ -112,7 +112,7 @@ export default function AboutPage() {
           ) : null}
         </section>
       ) : version.isPending ? (
-        <p>正在读取版本信息…</p>
+        <ListSkeleton rows={2} />
       ) : null}
       <section className="panel mt-4 space-y-3 p-5 sm:p-6">
         <h2>设备连接器版本</h2>
@@ -123,7 +123,7 @@ export default function AboutPage() {
             </p>
           ))
         ) : devices.isPending ? (
-          <p role="status">正在读取设备版本…</p>
+          <ListSkeleton rows={2} />
         ) : devices.isSuccess ? (
           <p>尚无设备版本记录。</p>
         ) : null}

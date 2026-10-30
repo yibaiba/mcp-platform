@@ -7,7 +7,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog.js';
-import { Action, Code, date, Feedback, Status } from '../../components/shared/Controls.js';
+import {
+  Action,
+  Code,
+  date,
+  Feedback,
+  Status,
+  ListSkeleton,
+} from '../../components/shared/Controls.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
 import { api, type Call } from '../../lib/api.js';
 import {
@@ -45,7 +52,7 @@ export function CallDetail({
           <DialogDescription>查看此次调用的身份、执行位置和诊断信息。</DialogDescription>
         </DialogHeader>
         <Feedback error={query.error} />
-        {query.isPending ? <p role="status">正在读取调用记录…</p> : null}
+        {query.isPending ? <ListSkeleton rows={3} /> : null}
         {query.data ? <CallInformation call={query.data} names={names} /> : null}
       </DialogContent>
     </Dialog>

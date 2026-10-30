@@ -99,6 +99,11 @@ export default function AccountPage() {
             </small>
             <Action
               danger
+              confirmation={{
+                title: '撤销这个登录会话？',
+                description: '使用该会话的浏览器需要重新登录。',
+                confirmLabel: '撤销',
+              }}
               action={async () => {
                 await api(`/me/sessions/${encodeURIComponent(session.id)}`, { method: 'DELETE' });
                 window.location.reload();

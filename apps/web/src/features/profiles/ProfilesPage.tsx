@@ -254,6 +254,11 @@ export default function ProfilesPage() {
                       <code className="grow">{k.id.slice(0, 8)}…</code>
                       <Action
                         danger
+                        confirmation={{
+                          title: `撤销密钥 ${k.id.slice(0, 8)}…？`,
+                          description: '使用它的客户端会立即失效。',
+                          confirmLabel: '撤销',
+                        }}
                         action={() => api(`/profiles/keys/${k.id}`, { method: 'DELETE' })}
                       >
                         撤销密钥

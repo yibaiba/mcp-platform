@@ -1,9 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { api } from '../../lib/api.js';
+import { api, isForbidden } from '../../lib/api.js';
 import { Input } from '../../components/ui/input.js';
 import { Card } from '../../components/ui/card.js';
-import { Action, Field, Feedback, Form, value } from '../../components/shared/Controls.js';
+import {
+  Action,
+  Field,
+  Forbidden,
+  Form,
+  QueryError,
+  value,
+} from '../../components/shared/Controls.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
 import { SelectItem } from '../../components/ui/select.js';
 import { SelectControl } from '../../components/shared/SelectControl.js';
@@ -57,6 +64,7 @@ function UserEditor({ user }: { user?: User }) {
 
 export default function UsersPage() {
   const users = useQuery({ queryKey: ['admin-users'], queryFn: () => api<User[]>('/admin/users') });
+  if (isForbidden(users.error)) return <Forbidden />;
   return (
     <>
       <div className="page-heading">
@@ -67,7 +75,7 @@ export default function UsersPage() {
           </p>
         </div>
       </div>
-      <Feedback error={users.error} />
+      <QueryError error={users.error} onRetry={() => users.refetch()} />
       <Card className="panel padded">
         <h2>创建用户</h2>
         <Disclosure title="填写新用户信息">
@@ -88,6 +96,15 @@ export default function UsersPage() {
           <div className="my-4 flex flex-wrap items-center gap-3">
             <Action
               danger={user.enabled}
+              confirmation={
+                user.enabled
+                  ? {
+                      title: `停用「${user.name}」？`,
+                      description: '将撤销其 Agent 凭证并终止活跃调用，重新启用后需重新签发。',
+                      confirmLabel: '停用',
+                    }
+                  : undefined
+              }
               action={() =>
                 api(`/admin/users/${encodeURIComponent(user.id)}`, {
                   method: 'PATCH',
@@ -99,6 +116,11 @@ export default function UsersPage() {
             </Action>
             <Action
               danger
+              confirmation={{
+                title: `让「${user.name}」在所有设备上退出登录？`,
+                description: '该账号的全部登录会话会立即失效。',
+                confirmLabel: '退出全部会话',
+              }}
               action={() =>
                 api(`/admin/users/${encodeURIComponent(user.id)}/sessions`, { method: 'DELETE' })
               }

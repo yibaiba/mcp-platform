@@ -148,6 +148,11 @@ export function ApprovalPanel({ profileId, taskId }: { profileId?: string; taskI
           {!grant.revokedAt ? (
             <Action
               danger
+              confirmation={{
+                title: '撤销此临时授权？',
+                description: '任务将无法继续使用这些权限。',
+                confirmLabel: '撤销',
+              }}
               action={() => api(`/temporary-grants/${grant.id}`, { method: 'DELETE' })}
             >
               撤销此临时授权

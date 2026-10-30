@@ -23,6 +23,7 @@ export function RePairDevice({
           </p>
           <Action
             danger
+            confirmed
             action={async () => {
               setPairing(await api(`/devices/${device.id}/re-pairings`, { method: 'POST' }));
               setConfirming(false);

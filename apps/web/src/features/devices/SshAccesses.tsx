@@ -110,6 +110,7 @@ export default function SshAccesses() {
               </p>
               <Action
                 danger
+                confirmed
                 action={async () => {
                   await api(`/ssh-accesses/${item.id}`, {
                     method: 'DELETE',

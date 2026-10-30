@@ -76,6 +76,11 @@ export function AuthorizationBindings({
           </Action>
           <Action
             danger
+            confirmation={{
+              title: '撤销此绑定的本地凭证？',
+              description: '依赖该绑定的调用将无法继续。',
+              confirmLabel: '撤销',
+            }}
             action={async () => {
               if (!impact) throw new Error('请先查看此绑定的撤销影响');
               setResult(await api(endpoint, { method: 'DELETE' }));

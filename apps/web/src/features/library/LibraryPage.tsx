@@ -3,7 +3,13 @@ import { useBlocker } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import type { LibraryItem } from '@platform/contracts';
 import { api, json } from '../../lib/api.js';
-import { Action, Field, Feedback, Empty } from '../../components/shared/Controls.js';
+import {
+  Action,
+  Field,
+  Empty,
+  ErrorState,
+  ListSkeleton,
+} from '../../components/shared/Controls.js';
 import { ConfirmDialog } from '../../components/shared/ConfirmDialog.js';
 import { Button } from '../../components/ui/button.js';
 import { Card } from '../../components/ui/card.js';
@@ -98,12 +104,9 @@ export default function LibraryPage() {
         </Card>
         <Card className="panel padded">
           <h2>我的内容</h2>
-          <Feedback error={query.error} />
-          {query.isPending ? <p role="status">正在读取内容…</p> : null}
-          {query.isError ? (
-            <Action action={() => query.refetch({ throwOnError: true })}>重新读取内容</Action>
-          ) : null}
-          {query.isSuccess && !query.data.length ? <Empty>还没有内容。</Empty> : null}
+          <ErrorState error={query.error} title="加载失败" onRetry={() => query.refetch()} />
+          {query.isPending ? <ListSkeleton rows={3} /> : null}
+          {query.isSuccess && !query.data.length ? <Empty title="还没有内容" /> : null}
           {query.data?.map((item) => (
             <div key={item.id} className="space-y-2 border-b py-3">
               <strong className="break-all">{item.name}</strong>

@@ -17,7 +17,7 @@ import {
 } from '../../components/ui/dialog.js';
 import { api, type Connection, type Device } from '../../lib/api.js';
 import { Input } from '../../components/ui/input.js';
-import { Empty, Feedback, Field } from '../../components/shared/Controls.js';
+import { Empty, Feedback, Field, ListSkeleton } from '../../components/shared/Controls.js';
 import { ConnectionForm } from './ConnectionForm.js';
 import { ConnectorCatalog } from './ConnectorCatalog.js';
 import { ConnectorForm } from './ConnectorForm.js';
@@ -238,9 +238,7 @@ export default function ConnectionsPage() {
             />
           ))
         ) : connections.isPending ? (
-          <p role="status" className="p-5 text-muted-foreground">
-            正在读取连接…
-          </p>
+          <ListSkeleton />
         ) : connections.isSuccess ? (
           <Empty>选择上方服务添加第一个账号，或使用“添加连接”填写自定义服务。</Empty>
         ) : null}

@@ -24,7 +24,12 @@ export function Shell() {
     queryFn: () => api<VersionStatus>('/version'),
     enabled: Boolean(session),
   });
-  if (isPending) return <div className="auth-screen">正在加载会话…</div>;
+  if (isPending)
+    return (
+      <div className="auth-screen" aria-busy="true">
+        <span className="sr-only">加载中</span>
+      </div>
+    );
   if (error)
     return (
       <div className="auth-screen" role="alert">

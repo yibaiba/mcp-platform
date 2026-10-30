@@ -223,3 +223,59 @@ textarea:disabled {
 .mobile-navigation-drawer .account small {
   max-width: 230px;
 }
+
+/* Shared states: empty, error with retry, inline success, skeleton rows, route progress. */
+.empty .empty-action {
+  margin-top: 16px;
+}
+.error-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.error-state strong {
+  display: block;
+}
+.inline-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--success, var(--primary));
+  font-size: 12px;
+}
+.list-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.list-skeleton-row:last-child {
+  border-bottom: 0;
+}
+.route-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 60;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  background-size: 50% 100%;
+  animation: route-progress 1.2s linear infinite;
+}
+@keyframes route-progress {
+  from {
+    background-position: -50% 0;
+  }
+  to {
+    background-position: 150% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .route-progress {
+    animation: none;
+  }
+}

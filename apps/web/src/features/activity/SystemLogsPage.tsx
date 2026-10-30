@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '../../lib/api.js';
-import { Action, Code, Field, Feedback, date } from '../../components/shared/Controls.js';
+import { api, isForbidden } from '../../lib/api.js';
+import {
+  Action,
+  Code,
+  Field,
+  Feedback,
+  Forbidden,
+  date,
+} from '../../components/shared/Controls.js';
 import { Card } from '../../components/ui/card.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
@@ -48,6 +55,7 @@ export default function SystemLogsPage() {
     });
     return () => source.close();
   }, [streaming]);
+  if (isForbidden(logs.error)) return <Forbidden />;
   return (
     <>
       <div className="page-heading">
@@ -102,6 +110,11 @@ export default function SystemLogsPage() {
             <span>清理 {preview.count} 条日志</span>
             <Action
               danger
+              confirmation={{
+                title: `清理 ${preview.count} 条日志？`,
+                description: '清理后无法恢复。',
+                confirmLabel: '清理',
+              }}
               action={async () => {
                 await api('/admin/logs/cleanup', {
                   method: 'POST',
