@@ -39,7 +39,7 @@ export default function TasksPage() {
   return (
     <>
       <PageHeader
-        title="内置 Agent"
+        title="运行记录"
         info="按所选 Agent 配置使用工具和 Skills；只有执行推理任务才需要模型。"
       />
       <Feedback error={me.error ?? profiles.error ?? tasks.error} />

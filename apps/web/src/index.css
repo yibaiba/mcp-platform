@@ -241,18 +241,12 @@ code {
   font-size: var(--text-caption);
   font-weight: 600;
 }
-.nav-label {
-  color: var(--subtle-foreground);
-  font-size: var(--text-caption);
-  padding: 0 12px;
-  margin-bottom: 8px;
-}
-nav {
+.workspace-navigation {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-nav a {
+.workspace-navigation a {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -262,20 +256,13 @@ nav a {
   border-radius: var(--radius-sm);
   font-size: var(--text-body);
 }
-nav a:hover {
+.workspace-navigation a:hover {
   background: var(--muted);
   color: var(--foreground);
 }
-nav a.active {
+.workspace-navigation a.active {
   background: var(--accent);
   color: var(--primary);
-}
-nav small {
-  font-size: var(--text-caption);
-  margin-left: auto;
-  border: 1px solid var(--border);
-  padding: 0 4px;
-  border-radius: var(--radius-sm);
 }
 .sidebar-bottom {
   margin-top: auto;
@@ -831,24 +818,20 @@ legend {
   .brand {
     padding: 0 2px;
   }
-  .nav-label,
   .sidebar-bottom {
     display: none;
   }
-  nav {
+  .workspace-navigation {
     flex-direction: row;
     overflow: auto;
     margin-top: 16px;
     padding-bottom: 4px;
   }
-  nav a {
+  .workspace-navigation a {
     flex-shrink: 0;
     min-height: 44px;
     padding: 8px;
     font-size: var(--text-caption);
-  }
-  nav small {
-    display: none;
   }
   .workspace-main {
     margin: 0;

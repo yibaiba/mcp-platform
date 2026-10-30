@@ -48,16 +48,28 @@ try {
   await page.getByRole('alert').getByRole('button', { name: '重试', exact: true }).click();
   await page.getByText('还没有内容', { exact: true }).waitFor();
   await page.getByLabel('名称', { exact: true }).fill('keep me');
-  await page.getByRole('link', { name: 'MCP 连接', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: '主导航' })
+    .getByRole('link', { name: '连接', exact: true })
+    .click();
   await page.getByRole('button', { name: '放弃修改并继续', exact: true }).click();
   await page.getByRole('heading', { name: '连接', exact: true }).waitFor();
   await page.setViewportSize({ width: 390, height: 600 });
   await page.getByRole('button', { name: '打开导航菜单', exact: true }).click();
   await mkdir('.data/ui-browser-acceptance', { recursive: true });
   await page.screenshot({ path: '.data/ui-browser-acceptance/mobile-navigation.png' });
-  await page.getByRole('dialog').getByRole('link', { name: '内容库', exact: true }).click();
-  await page.getByRole('heading', { name: '内容库', exact: true }).waitFor();
+  await page.getByRole('dialog').getByRole('link', { name: 'Agent', exact: true }).click();
+  await page.getByRole('heading', { name: 'Agent', exact: true }).waitFor();
   await page.getByRole('dialog').waitFor({ state: 'detached' });
+  await page
+    .getByRole('navigation', { name: 'Agent子页面' })
+    .getByRole('link', { name: '内容库', exact: true })
+    .click();
+  await page.locator('.page-tab[aria-current="page"]', { hasText: '内容库' }).waitFor();
+  assert.ok(
+    (await page.evaluate(() => document.documentElement.scrollWidth)) <= 390,
+    'tabs must scroll inside their own row',
+  );
   console.log('PASS: library loading/empty/error/retry, route discard, mobile drawer navigation');
 } finally {
   await browser.close();

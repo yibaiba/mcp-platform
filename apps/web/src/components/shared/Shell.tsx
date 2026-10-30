@@ -13,6 +13,7 @@ import { AuthScreen } from './AuthScreen.js';
 import { Feedback } from './Controls.js';
 import { AccountMenu } from './AccountMenu.js';
 import { PageHeaderProvider } from './PageHeader.js';
+import { PageTabs } from './PageTabs.js';
 import { GettingStarted } from '../../features/onboarding/GettingStarted.js';
 export function Shell() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -85,15 +86,11 @@ export function Shell() {
                   <DialogHeader>
                     <DialogTitle>导航</DialogTitle>
                   </DialogHeader>
-                  <WorkspaceNavigation
-                    admin={admin}
-                    piEnabled={piEnabled}
-                    onNavigate={() => setMenuOpen(false)}
-                  />
+                  <WorkspaceNavigation onNavigate={() => setMenuOpen(false)} />
                   {account}
                 </DialogContent>
               </Dialog>
-              <WorkspaceNavigation admin={admin} piEnabled={piEnabled} />
+              <WorkspaceNavigation />
               <div className="sidebar-bottom">{account}</div>
             </aside>
             <div className="workspace-main">
@@ -105,6 +102,7 @@ export function Shell() {
                 </div>
               </header>
               <main className="page">
+                <PageTabs admin={admin} piEnabled={piEnabled} />
                 <Feedback error={info.error} />
                 <Outlet />
               </main>
