@@ -108,7 +108,7 @@ async function profiles() {
     });
     await page.goto(h.baseURL + '/profiles');
     await openProfile('Safety Agent');
-    await page.getByText('授权目录尚未完整加载', { exact: false }).waitFor();
+    await page.getByText('可授权的内容尚未完整加载', { exact: false }).waitFor();
     assert.equal(await page.getByRole('button', { name: '保存', exact: true }).count(), 0);
     release();
     const error = page
