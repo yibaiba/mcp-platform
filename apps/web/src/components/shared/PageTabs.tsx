@@ -1,6 +1,7 @@
 import { Link, useRouterState } from '@tanstack/react-router';
 import { Hint } from '../ui/tooltip.js';
 import { sectionFor } from './navigation.js';
+import { useSlidingIndicator } from './useSlidingIndicator.js';
 
 /**
  * Route tabs for the current section. Real links, so a tab URL can be shared and refreshed.
@@ -10,10 +11,27 @@ export function PageTabs({ admin, piEnabled }: { admin: boolean; piEnabled: bool
   const location = useRouterState({ select: (state) => state.location });
   const section = sectionFor(location.pathname);
   const search = location.search as Record<string, unknown>;
+  const indicator = useSlidingIndicator<HTMLElement>(
+    'a.active',
+    `${location.pathname}?${String(search.tab ?? '')}`,
+    'underline',
+  );
   if (!section?.tabs || search.workspace || search.device) return null;
   const tabs = section.tabs.filter((tab) => !tab.adminOnly || admin);
   return (
-    <nav className="page-tabs" aria-label={`${section.label}子页面`}>
+    <nav
+      className="page-tabs"
+      aria-label={`${section.label}子页面`}
+      ref={indicator.ref}
+      data-indicator={indicator.style ? '' : undefined}
+    >
+      <span
+        aria-hidden="true"
+        className="tab-indicator"
+        data-ready={indicator.ready ? '' : undefined}
+        style={indicator.style}
+        hidden={!indicator.style}
+      />
       {tabs.map((tab) => {
         const active =
           location.pathname === tab.to &&

@@ -5,6 +5,7 @@ import { routeTree } from './routeTree.gen.js';
 import { ListSkeleton } from './components/shared/Controls.js';
 import './index.css';
 import './workspace-polish.css';
+import './motion.css';
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 5000, retry: false, refetchOnWindowFocus: true } },
 });

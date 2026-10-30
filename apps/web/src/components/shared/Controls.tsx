@@ -58,10 +58,58 @@ export function Empty({
 }) {
   return (
     <div className="empty" data-variant={variant}>
-      {Icon ? <Icon size={28} aria-hidden="true" /> : null}
+      {Icon ? <EmptyArt icon={Icon} /> : null}
       {title ? <h3>{title}</h3> : null}
       {children}
       {action ? <div className="empty-action">{action}</div> : null}
+    </div>
+  );
+}
+/**
+ * Inline SVG backdrop for empty states: two stacked cards and a soft glow behind the icon.
+ * Colors come from CSS variables, so it follows the theme without image assets.
+ */
+function EmptyArt({ icon: Icon }: { icon: LucideIcon }) {
+  const id = useId();
+  return (
+    <div className="empty-art" aria-hidden="true">
+      <svg viewBox="0 0 120 88" width="120" height="88" fill="none">
+        <defs>
+          <radialGradient id={`${id}-glow`} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
+          </radialGradient>
+          <linearGradient id={`${id}-card`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--muted)" />
+            <stop offset="100%" stopColor="var(--card)" />
+          </linearGradient>
+        </defs>
+        <ellipse cx="60" cy="46" rx="56" ry="40" fill={`url(#${id}-glow)`} />
+        <rect
+          x="22"
+          y="22"
+          width="64"
+          height="44"
+          rx="8"
+          fill="var(--card)"
+          stroke="var(--border)"
+          transform="rotate(-6 54 44)"
+        />
+        <rect
+          x="34"
+          y="18"
+          width="64"
+          height="48"
+          rx="8"
+          fill={`url(#${id}-card)`}
+          stroke="var(--border)"
+        />
+        <rect x="44" y="52" width="28" height="4" rx="2" fill="var(--border)" />
+        <rect x="44" y="59" width="18" height="3" rx="1.5" fill="var(--border)" opacity="0.7" />
+        <circle cx="96" cy="20" r="2" fill="var(--primary)" opacity="0.7" />
+        <circle cx="18" cy="60" r="1.5" fill="var(--info)" opacity="0.7" />
+      </svg>
+      <Icon className="empty-art-icon" size={22} />
     </div>
   );
 }

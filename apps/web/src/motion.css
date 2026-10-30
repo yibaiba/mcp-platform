@@ -1,0 +1,431 @@
+/*
+ * Motion and surface polish. Durations and easing come from the tokens in index.css
+ * (--duration-*, --ease-*). Only transform and opacity animate; colours use short
+ * transitions. Everything that moves or loops is switched off under reduced motion.
+ */
+
+/* ---------- Surfaces ---------- */
+body {
+  background:
+    radial-gradient(1200px 600px at 85% -10%, var(--glow-primary), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, var(--glow-info), transparent 60%), var(--background);
+  background-attachment: fixed;
+}
+.panel,
+[data-slot='card'],
+.setup,
+.stat-tile {
+  box-shadow: var(--shadow-md);
+}
+.panel,
+[data-slot='card'] {
+  transition: border-color var(--duration-base) var(--ease-out);
+}
+[data-slot='dropdown-menu-content'],
+[data-slot='dialog-content'],
+[data-slot='tooltip-content'] {
+  box-shadow: var(--shadow-lg);
+}
+.sheet-content {
+  box-shadow: var(--shadow-lg);
+}
+
+/* Focus: keep the outline, add a soft primary glow. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  box-shadow: var(--focus-glow);
+}
+[data-slot='button']:focus-visible,
+[data-slot='input']:focus-visible,
+[data-slot='select-trigger']:focus-visible {
+  box-shadow: var(--focus-glow);
+}
+
+/* ---------- Page and tab changes ---------- */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, var(--motion-distance), 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.page-transition {
+  animation: rise-in var(--duration-slow) var(--ease-out) both;
+}
+[role='tabpanel'][data-slot='tabs-panel'] {
+  animation: rise-in var(--duration-base) var(--ease-out) both;
+}
+
+/* Sliding sidebar pill and tab underline (see useSlidingIndicator). */
+.workspace-navigation,
+.page-tabs {
+  position: relative;
+}
+.workspace-navigation > a,
+.page-tabs > a {
+  position: relative;
+  z-index: 1;
+}
+.nav-indicator,
+.tab-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+.nav-indicator {
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  box-shadow: inset 2px 0 0 var(--primary);
+}
+.tab-indicator {
+  height: 2px;
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 0 8px color-mix(in oklch, var(--primary) 50%, transparent);
+  z-index: 2;
+}
+.nav-indicator[data-ready],
+.tab-indicator[data-ready] {
+  transition: transform var(--duration-slow) var(--ease-out);
+}
+.workspace-navigation[data-indicator] > a.active {
+  background: transparent;
+}
+.page-tabs[data-indicator] > .page-tab.active {
+  border-bottom-color: transparent;
+}
+.workspace-navigation > a,
+.page-tab {
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.workspace-navigation > a:hover:not(.active) {
+  background: color-mix(in oklch, var(--muted) 70%, transparent);
+}
+
+/* ---------- Overlays: dialog, drawer, menu, tooltip ---------- */
+[data-slot='dialog-overlay'],
+[data-slot='sheet-overlay'] {
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+[data-slot='dialog-overlay'][data-starting-style],
+[data-slot='dialog-overlay'][data-ending-style],
+[data-slot='sheet-overlay'][data-starting-style],
+[data-slot='sheet-overlay'][data-ending-style] {
+  opacity: 0;
+}
+[data-slot='dialog-content'] {
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out);
+}
+[data-slot='dialog-content'][data-starting-style],
+[data-slot='dialog-content'][data-ending-style] {
+  opacity: 0;
+  transform: scale(0.96);
+}
+.sheet-content {
+  transition:
+    opacity var(--duration-slow) var(--ease-out),
+    transform var(--duration-slow) var(--ease-out);
+}
+.sheet-content[data-starting-style],
+.sheet-content[data-ending-style] {
+  opacity: 0;
+  transform: translate3d(32px, 0, 0);
+}
+[data-slot='dropdown-menu-content'],
+[data-slot='select-content'],
+[data-slot='tooltip-content'] {
+  transform-origin: var(--transform-origin);
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+[data-slot='dropdown-menu-content'][data-starting-style],
+[data-slot='dropdown-menu-content'][data-ending-style],
+[data-slot='select-content'][data-starting-style],
+[data-slot='select-content'][data-ending-style],
+[data-slot='tooltip-content'][data-starting-style],
+[data-slot='tooltip-content'][data-ending-style] {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+/* ---------- Lists: rows fade up in sequence on first render ---------- */
+:is(.panel, .tool-layout .panel)
+  > :is(section, .row, .row-link, .profile-row, .device-row, .tool-option, .connection-row),
+.panel tbody > tr,
+.stat-tiles > .stat-tile {
+  animation: rise-in var(--duration-slow) var(--ease-out) both;
+}
+:is(.panel > *, .panel tbody > tr, .stat-tiles > *):nth-child(2) {
+  animation-delay: calc(var(--stagger-step) * 1);
+}
+:is(.panel > *, .panel tbody > tr, .stat-tiles > *):nth-child(3) {
+  animation-delay: calc(var(--stagger-step) * 2);
+}
+:is(.panel > *, .panel tbody > tr, .stat-tiles > *):nth-child(4) {
+  animation-delay: calc(var(--stagger-step) * 3);
+}
+:is(.panel > *, .panel tbody > tr):nth-child(5) {
+  animation-delay: calc(var(--stagger-step) * 4);
+}
+:is(.panel > *, .panel tbody > tr):nth-child(6) {
+  animation-delay: calc(var(--stagger-step) * 5);
+}
+:is(.panel > *, .panel tbody > tr):nth-child(7) {
+  animation-delay: calc(var(--stagger-step) * 6);
+}
+:is(.panel > *, .panel tbody > tr):nth-child(n + 8) {
+  animation-delay: calc(var(--stagger-step) * 7);
+}
+
+/* ---------- Hover and press ---------- */
+[data-slot='button'] {
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+[data-slot='button']:active:not(:disabled):not([aria-haspopup]) {
+  transform: scale(0.97);
+}
+[data-slot='button'][data-variant='default']:hover:not(:disabled),
+[data-slot='button'].bg-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 16px -6px color-mix(in oklch, var(--primary) 60%, transparent);
+}
+.row-link,
+.profile-open,
+.tool-option,
+.panel tbody > tr {
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+.row-link:active,
+.profile-open:active,
+.tool-option:active {
+  transform: scale(0.995);
+}
+.panel:hover {
+  border-color: color-mix(in oklch, var(--border) 60%, var(--subtle-foreground));
+}
+
+/* ---------- Status badges ---------- */
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.status i {
+  position: relative;
+}
+.status:is(.status-connected, .status-online) i::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: currentColor;
+  animation: breathe 2.4s var(--ease-in-out) infinite;
+}
+.status:is(.status-running, .status-executing, .status-waiting, .status-waiting_authorization) i {
+  width: 8px;
+  height: 8px;
+  background: transparent;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  animation: spin 0.9s linear infinite;
+}
+
+/* ---------- Skeleton shimmer (a moving highlight, transform only) ---------- */
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--shimmer), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 1.4s var(--ease-in-out) infinite;
+}
+
+/* ---------- Success feedback ---------- */
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.inline-status {
+  display: inline-flex;
+  animation: pop-in var(--duration-slow) var(--ease-out) both;
+}
+.copy-done {
+  color: var(--success);
+  animation: pop-in var(--duration-slow) var(--ease-out) both;
+}
+.setup-steps li {
+  transition: background-color var(--duration-slow) var(--ease-out);
+}
+
+/* ---------- Overview tiles and empty art ---------- */
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.stat-tile {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'icon label'
+    'value value'
+    'detail detail';
+  align-items: center;
+  column-gap: 8px;
+  padding: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(240px 120px at 100% 0%, var(--glow-primary), transparent 70%),
+    linear-gradient(180deg, var(--muted), var(--card) 60%);
+  transition: transform var(--duration-base) var(--ease-out);
+}
+.stat-tile:hover {
+  transform: translate3d(0, -2px, 0);
+}
+.stat-tile-icon {
+  grid-area: icon;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--primary);
+}
+.stat-tile-label {
+  grid-area: label;
+  color: var(--muted-foreground);
+  font-size: var(--text-caption);
+}
+.stat-tile-value {
+  grid-area: value;
+  margin-top: 12px;
+  font-size: var(--text-number);
+  line-height: 32px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.stat-tile-detail {
+  grid-area: detail;
+  color: var(--subtle-foreground);
+  font-size: var(--text-caption);
+}
+.empty-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin-bottom: 4px;
+  animation: rise-in var(--duration-slow) var(--ease-out) both;
+}
+.empty-art > svg {
+  display: block;
+}
+.empty-art-icon {
+  position: absolute;
+  top: 32px;
+  left: 50%;
+  margin-left: 5px;
+  transform: translateX(-50%);
+  color: var(--primary);
+}
+@media (max-width: 760px) {
+  .stat-tiles {
+    gap: 8px;
+  }
+  .stat-tile {
+    padding: 12px;
+  }
+  .stat-tile-detail {
+    display: none;
+  }
+}
+
+/* ---------- Reduced motion: no movement, no loops ---------- */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-distance: 0px;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+  .skeleton::after,
+  .status i::after {
+    display: none;
+  }
+  .status i {
+    animation: none !important;
+  }
+  [data-slot='button']:active:not(:disabled),
+  .stat-tile:hover,
+  .row-link:active,
+  .profile-open:active,
+  .tool-option:active {
+    transform: none;
+  }
+}

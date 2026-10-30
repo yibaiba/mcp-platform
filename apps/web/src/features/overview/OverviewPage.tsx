@@ -1,6 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { AlertTriangle, ChevronRight, Network, Plus } from 'lucide-react';
+import {
+  AlertTriangle,
+  ChevronRight,
+  Monitor,
+  Network,
+  Plus,
+  Wrench,
+  type LucideIcon,
+} from 'lucide-react';
 import { Card } from '../../components/ui/card.js';
 import { Button } from '../../components/ui/button.js';
 import { Hint } from '../../components/ui/tooltip.js';
@@ -15,6 +23,28 @@ import {
 } from '../../components/shared/Controls.js';
 import { PageHeader } from '../../components/shared/PageHeader.js';
 import { SetupChecklist } from '../onboarding/SetupChecklist.js';
+function StatTile({
+  icon: Icon,
+  label,
+  value,
+  detail,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value?: number;
+  detail?: string;
+}) {
+  return (
+    <div className="stat-tile">
+      <span className="stat-tile-icon" aria-hidden="true">
+        <Icon size={16} />
+      </span>
+      <span className="stat-tile-label">{label}</span>
+      <strong className="stat-tile-value">{value ?? '—'}</strong>
+      <span className="stat-tile-detail">{detail ?? ' '}</span>
+    </div>
+  );
+}
 export default function OverviewPage() {
   const connections = useQuery({
     queryKey: ['connections'],
@@ -27,6 +57,7 @@ export default function OverviewPage() {
   });
   const tools = useQuery({ queryKey: ['tools'], queryFn: () => api<Tool[]>('/tools') });
   const calls = useQuery({ queryKey: ['calls'], queryFn: () => api<Call[]>('/calls?limit=5') });
+  const userConnections = connections.data?.filter((connection) => connection.source !== 'library');
   const failing = connections.data?.filter((connection) => connection.status === 'error') ?? [];
   const activeDevices = devices.data?.filter((device) => !device.revoked) ?? [];
   const offline = activeDevices.filter((device) => !device.online);
@@ -65,6 +96,30 @@ export default function OverviewPage() {
         </div>
       ) : null}
       <SetupChecklist />
+      <div className="stat-tiles" aria-label="统计">
+        <StatTile
+          icon={Network}
+          label="连接"
+          value={userConnections?.length}
+          detail={
+            userConnections
+              ? `${userConnections.filter((c) => c.status === 'connected').length} 个已连接`
+              : undefined
+          }
+        />
+        <StatTile
+          icon={Monitor}
+          label="设备在线"
+          value={devices.data ? activeDevices.length - offline.length : undefined}
+          detail={devices.data ? `共 ${activeDevices.length} 台` : undefined}
+        />
+        <StatTile
+          icon={Wrench}
+          label="工具"
+          value={tools.data?.length}
+          detail={calls.data ? `最近 ${calls.data.length} 次调用` : undefined}
+        />
+      </div>
       <div className="overview-lists">
         <Card className="panel">
           <div className="panel-heading">
@@ -145,11 +200,6 @@ export default function OverviewPage() {
           ) : null}
         </Card>
       </div>
-      <p className="inline-stats">
-        连接 {connections.data?.length ?? '—'} · 设备{' '}
-        {devices.data ? `${activeDevices.length - offline.length}/${activeDevices.length}` : '—'}{' '}
-        在线 · 工具 {tools.data?.length ?? '—'}
-      </p>
     </>
   );
 }

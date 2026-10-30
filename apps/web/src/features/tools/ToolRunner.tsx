@@ -7,7 +7,7 @@ import { Textarea } from '../../components/ui/textarea.js';
 import { Input } from '../../components/ui/input.js';
 import { Button } from '../../components/ui/button.js';
 import { Hint } from '../../components/ui/tooltip.js';
-import { Copy, History } from 'lucide-react';
+import { Check, Copy, History } from 'lucide-react';
 import { api, json, type Tool } from '../../lib/api.js';
 const AppHost = lazy(() =>
   import('../apps/AppHost.js').then((module) => ({ default: module.AppHost })),
@@ -45,11 +45,18 @@ export function ToolRunner({
             onClick={() =>
               void navigator.clipboard
                 .writeText(selected.id)
-                .then(() => setCopied(true))
+                .then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                })
                 .catch(() => setCopied(false))
             }
           >
-            <Copy aria-hidden="true" />
+            {copied ? (
+              <Check aria-hidden="true" className="copy-done" />
+            ) : (
+              <Copy aria-hidden="true" />
+            )}
           </Button>
         </Hint>
         <Hint content="调用记录">
