@@ -59,11 +59,17 @@ test('external catalog describes only granted tools without changing stable IDs 
   try {
     const listed = (await client.listTools()).tools;
     expect(listed).toHaveLength(2);
-    expect(listed.map((tool) => tool.name)).toEqual(
-      expect.arrayContaining(created.slice(0, 2).map((item) => item.tool.id)),
+    // Non-ASCII connection names fall back to the connection id prefix; ids stay internal.
+    expect(listed.map((tool) => tool.name).sort()).toEqual(
+      created
+        .slice(0, 2)
+        .map((item) => `c${item.connection.id.replace(/-/g, '').slice(0, 6)}__echo`)
+        .sort(),
     );
     for (const tool of listed) {
-      const source = created.find((item) => item.tool.id === tool.name)!;
+      const source = created.find((item) =>
+        tool.name.startsWith(`c${item.connection.id.replace(/-/g, '').slice(0, 6)}__`),
+      )!;
       expect(tool.description).toContain('Echo for SDK integration');
       expect(tool.description).toContain(`连接 ${source.connection.name}`);
       expect(tool.description).toContain('执行位置 平台主机');

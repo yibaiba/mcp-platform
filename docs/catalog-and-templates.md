@@ -40,7 +40,7 @@
 }
 ```
 
-工具引用使用原始工具名；Prompt 使用原始名称作为 `locator`，Resource/Template 使用原始 URI/URI 模板。工具条目可携带 `alias`、`description`、`hiddenParameters`。Profile 支持 `toolNaming`、按连接逻辑名配置的 `connectionAliases` 和 `connectionIdentities`，以及 `requestable.tools/content/artifacts`。
+工具引用使用原始工具名；Prompt 使用原始名称作为 `locator`，Resource/Template 使用原始 URI/URI 模板。工具条目可携带 `alias`、`description`、`hiddenParameters`。Profile 支持 `toolNaming`、按连接逻辑名配置的 `connectionAliases` 和 `connectionIdentities`，以及 `requestable.tools/content/artifacts`。`toolNaming` 默认 `stable`：对外名为可读的 `连接名slug__工具名`（`[A-Za-z0-9_-]`、≤48 字符，冲突或过长时追加工具 ID 短哈希，规则见 README“对外工具名”）；旧 `t_<sha256>` 名称不再列出但 `tools/call` 仍可调用。`original` 使用上游原名，`prefixed` 使用 `connectionAliases` 前缀。
 
 一份合法声明先整体落库，再解析实际对象。即使缺少秘密、设备、身份、目录或能力，也保存所有条目及 `pending/ready/error` 状态。待配置 Profile 的 Agent 接口返回 `DEPLOYMENT_PENDING`；更新声明尚未就绪时，旧权限不会继续用于调用。已发现且未变更声明的普通临时断网仍由连接状态表达。
 

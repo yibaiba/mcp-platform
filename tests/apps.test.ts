@@ -53,9 +53,9 @@ test('Apps preserve ui URI namespaces and visibility for official external clien
   );
   try {
     const catalog = await client.listTools();
-    expect(
-      catalog.tools.find((t) => t.name === tools.find((t) => t.name === 'show')!.id)?._meta,
-    ).toMatchObject({ ui: { resourceUri: scopedUri(connection.id, upstream.uri) } });
+    expect(catalog.tools.find((t) => t.name === 'apps__show')?._meta).toMatchObject({
+      ui: { resourceUri: scopedUri(connection.id, upstream.uri) },
+    });
     expect((await client.listResources()).resources[0]?.uri).toMatch(/^ui:\/\//);
     await client.callTool({ name: tools.find((t) => t.name === 'show')!.id, arguments: {} });
     expect(h.services.apps.list(account.ownerId)).toHaveLength(0);

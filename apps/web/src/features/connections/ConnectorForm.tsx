@@ -10,6 +10,7 @@ import { Input } from '../../components/ui/input.js';
 import { SelectItem } from '../../components/ui/select.js';
 import { api, json } from '../../lib/api.js';
 import { presetConnection } from './presetConnection.js';
+import { useMe } from '../../lib/me.js';
 
 export function ConnectorForm({
   preset,
@@ -23,6 +24,8 @@ export function ConnectorForm({
   );
   const [adapter, setAdapter] = useState<'direct' | 'pi'>('direct');
   const [transport, setTransport] = useState<'http' | 'stdio'>('http');
+  // Host stdio is admin-only behind PLATFORM_STDIO_ENABLED; the server enforces it too.
+  const hostStdio = Boolean(useMe().data?.hostStdio);
   const oauthSteps =
     adapter === 'pi'
       ? 'Pi 管理注册、授权与刷新，平台自动接收回调。预注册应用需先登记平台回调地址。'
@@ -57,7 +60,7 @@ export function ConnectorForm({
       <Field label="连接名称">
         <Input name="name" defaultValue={preset.name} required />
       </Field>
-      {preset.stdio ? (
+      {preset.stdio && hostStdio ? (
         <Field
           label="运行方式"
           hint="远程服务免安装；本地进程由平台主机执行，需要 Node.js / npx 和 npm 网络访问。"

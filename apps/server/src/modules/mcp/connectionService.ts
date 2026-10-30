@@ -2,7 +2,7 @@ import { indexLibrary, libraryConflict } from '../library/indexStore.js';
 import type { DiagnosticLogger } from '../activity/systemLogger.js';
 import { activeUser } from '../users/userAccess.js';
 import { randomUUID } from 'node:crypto';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { connections, catalogSnapshots, type Database } from '@platform/db';
 import {
   connectionInput,
@@ -25,6 +25,7 @@ import { CatalogRepository, toolId } from './catalogRepository.js';
 import { compileDocument } from '../openapi/compile.js';
 import type { ApiDocument } from '../openapi/types.js';
 import { validateOpenApiDocument } from '../openapi/importService.js';
+import { assertHostStdioAllowed, isHostStdio } from './hostStdio.js';
 export type ConnectionEvent = {
   ownerId: string;
   connectionId: string;
@@ -59,6 +60,8 @@ export class ConnectionService {
       devices: DeviceService;
       publicUrl: string;
       shares: ShareService;
+      /** Read on every check so the deployment switch is authoritative for existing rows too. */
+      hostStdio?: () => boolean;
     },
   ) {
     this.bindings = new BindingService(deps);
@@ -165,8 +168,48 @@ export class ConnectionService {
       this.deps.logger.report('MCP_DIAGNOSTIC_PERSISTENCE_FAILED', context.ownerId);
     });
   }
+  /** Marks stored platform-host stdio rows that are no longer allowed so they never spawn silently. */
+  async enforceHostStdio() {
+    const rows = await this.deps.db
+      .select({
+        id: connections.id,
+        ownerId: connections.ownerId,
+        adapter: connections.adapter,
+        config: connections.config,
+      })
+      .from(connections)
+      .where(inArray(connections.adapter, ['direct', 'pi']));
+    let blocked = 0;
+    for (const row of rows) {
+      let config: ConnectionInput;
+      try {
+        config = this.deps.vault.open<ConnectionInput>(row.config, `${row.ownerId}:${row.id}`);
+      } catch {
+        // Unreadable rows cannot start either; createAdapter re-checks before any spawn.
+        continue;
+      }
+      if (!isHostStdio({ adapter: row.adapter, transport: config.transport })) continue;
+      try {
+        await this.assertHostStdio(row.ownerId);
+      } catch (error) {
+        if (!(error instanceof AppError)) throw error;
+        blocked += 1;
+        await this.deps.db
+          .update(connections)
+          .set({ status: 'error', error: error.message })
+          .where(eq(connections.id, row.id));
+        this.deps.logger.report(`${error.code}_BLOCKED`, row.ownerId);
+      }
+    }
+    return blocked;
+  }
+  /** Platform-host stdio is admin-only and requires PLATFORM_STDIO_ENABLED=true. */
+  async assertHostStdio(ownerId: string) {
+    await assertHostStdioAllowed(this.deps.db, this.deps.hostStdio?.() ?? false, ownerId);
+  }
   async validate(ownerId: string, input: unknown) {
     let config = connectionInput.parse(input);
+    if (isHostStdio(config)) await this.assertHostStdio(ownerId);
     if (config.deviceResourceId)
       await this.deps.devices.assertLocalReference(ownerId, {
         deviceId: config.deviceId!,
@@ -272,6 +315,19 @@ export class ConnectionService {
   }
   private async createAdapter(context: ConnectionContext) {
     await activeUser(this.deps.db, context.ownerId);
+    // Existing rows predate the switch: never spawn a host process unless still allowed.
+    if (isHostStdio(context.config)) {
+      const owner = context.resourceOwnerId ?? context.ownerId;
+      try {
+        await this.assertHostStdio(owner);
+      } catch (error) {
+        this.deps.logger.report(
+          error instanceof AppError ? `${error.code}_BLOCKED` : 'HOST_STDIO_BLOCKED',
+          owner,
+        );
+        throw error;
+      }
+    }
     await this.deps.shares.assertContext(context);
     await this.bindings.assertCredentials(context);
     const adapter = await this.deps.factory(context);
@@ -409,6 +465,8 @@ export class ConnectionService {
           502,
         );
       }
+      // Policy rejections keep their 403 code instead of looking like an upstream failure.
+      if (error instanceof AppError && error.code.startsWith('HOST_STDIO_')) throw error;
       throw new AppError('CONNECTION_FAILED', message, 502);
     }
   }

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, test, vi } from 'vitest';
 import { readFile } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import { devices, pairings, connections } from '../packages/db/src/index.js';
+import { devices, pairings, connections, systemLogs } from '../packages/db/src/index.js';
 import { deviceAuthInput, deviceAuthResponse } from '../packages/contracts/src/index.js';
 import { envSchema } from '../apps/server/src/config.js';
 import { Vault } from '../apps/server/src/shared/crypto.js';
@@ -322,4 +322,35 @@ test('legacy connector errors at the deadline remain outcome unknown before the 
   } finally {
     vi.useRealTimers();
   }
+});
+test('challenges announce PUBLIC_URL and failures are logged with reason codes but no secrets', async () => {
+  const device = await paired();
+  const reasons = async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    return (await h.db.select().from(systemLogs)).filter((row) =>
+      row.code?.startsWith('DEVICE_AUTH_'),
+    );
+  };
+  const started = new Date(Date.now() - 1000);
+  const mismatch = await peer();
+  expect(mismatch.challenge.origin).toBe(new URL(h.config.PUBLIC_URL).origin);
+  await rejected(mismatch, authResponse(device, mismatch.challenge, 'http://localhost:4301'));
+  const aborted = await peer();
+  await rejected(aborted, { type: 'auth.abort', v: 1, reason: 'origin_mismatch' });
+  const malformed = await peer();
+  await rejected(malformed, { type: 'auth.response', v: 1 });
+  const logs = (await reasons()).filter((row) => row.at >= started);
+  expect(logs.map((row) => row.code)).toEqual(
+    expect.arrayContaining([
+      'DEVICE_AUTH_MAC_MISMATCH',
+      'DEVICE_AUTH_ORIGIN_MISMATCH',
+      'DEVICE_AUTH_MALFORMED',
+    ]),
+  );
+  expect(
+    logs.some((row) => row.code === 'DEVICE_AUTH_MAC_MISMATCH' && row.ownerId === owner.ownerId),
+  ).toBe(true);
+  const serialized = JSON.stringify(logs);
+  expect(serialized).not.toContain(device.deviceSecret);
+  expect(serialized).not.toContain(mismatch.challenge.nonce);
 });

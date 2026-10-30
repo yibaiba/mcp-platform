@@ -131,6 +131,7 @@ export function createServices(db: Database, config: Config) {
     broker,
     vault: new Vault(config.DEVICE_AUTH_ENCRYPTION_KEY),
     platformOrigin: new URL(config.PUBLIC_URL).origin,
+    logger,
   });
   const upstreamOAuth = new UpstreamOAuth({
     db,
@@ -152,6 +153,7 @@ export function createServices(db: Database, config: Config) {
     vault,
     devices,
     publicUrl: config.PUBLIC_URL,
+    hostStdio: () => config.PLATFORM_STDIO_ENABLED === 'true',
     factory: async (context) => {
       if (context.config.source === 'library') return createLibraryAdapter(context);
       if (context.config.source === 'openapi')

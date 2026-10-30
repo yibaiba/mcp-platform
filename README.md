@@ -25,7 +25,19 @@ pnpm connector:build # 平台管理员构建六种设备安装包；需要 Go 1.
 pnpm dev
 ```
 
-开发管理界面 <http://localhost:4301>，API 和 Apps 资源 <http://localhost:4300>；Apps 使用 `/_apps/*` 路由。在“MCP 连接”添加内置服务账号，或使用“添加连接”选择平台直连、Pi 桥接或设备连接器；自定义连接保存后点击“连接”，已连接服务通过“更多操作”刷新目录，再到“工具目录”实际调用。页面的“使用指南”提供从服务授权、Agent 权限到客户端配置的完整入口，详见[首次接入说明](docs/getting-started.md)。也可展开 OpenAPI 导入，预览并选择操作发布。stdio 命令在所选执行位置运行：平台直连/Pi 使用平台主机（Docker 的 server 容器），设备连接器使用所选设备。服务返回错误会直接展示；连接配置中的请求头和环境变量加密保存在数据库，不在列表中返回。
+开发管理界面 <http://localhost:4301>，API 和 Apps 资源 <http://localhost:4300>；Apps 使用 `/_apps/*` 路由。在“MCP 连接”添加内置服务账号，或使用“添加连接”选择平台直连、Pi 桥接或设备连接器；自定义连接保存后点击“连接”，已连接服务通过“更多操作”刷新目录，再到“工具目录”实际调用。页面的“使用指南”提供从服务授权、Agent 权限到客户端配置的完整入口，详见[首次接入说明](docs/getting-started.md)。也可展开 OpenAPI 导入，预览并选择操作发布。stdio 命令在所选执行位置运行：平台直连/Pi 使用平台主机（Docker 的 server 容器），设备连接器使用所选设备。
+
+### 平台主机 stdio（默认关闭，仅管理员）
+
+平台直连/Pi 桥接的 stdio 会在平台服务器上启动子进程，等同于在服务器上执行任意命令。因此默认关闭：`.env` 设置 `PLATFORM_STDIO_ENABLED=true` 并重启后，**只有管理员**可以创建、修改和启动这类连接；普通成员请使用设备连接器在自己的电脑上运行本地进程。开关关闭时创建/更新返回 403 `HOST_STDIO_DISABLED`，非管理员返回 403 `HOST_STDIO_ADMIN_ONLY`；已存在的此类连接在启动时被标记为错误、连接时拒绝并写入系统日志（`HOST_STDIO_*_BLOCKED`），不会启动子进程，页面也不再显示该选项。MCPB 扩展包安装到平台主机同样受此限制。子进程环境变量为白名单：`PATH`、`HOME`、`USER`、`SHELL`、`TERM`、`LOGNAME`、`LANG`/`LC_*`/`TZ`/`TMPDIR`、uv 运行时路径，再加上连接自身配置的环境变量；平台自身的数据库地址和密钥不会传入。未提供沙箱。
+
+### 对外地址（PUBLIC_URL）
+
+设备安装命令、Agent MCP 地址和客户端配置一律使用 `/api/v1/me` 返回的 `platformOrigin`（即 `PUBLIC_URL` 的 origin），不使用浏览器当前地址；两者不一致时页面会提示。设备认证签名绑定 `PUBLIC_URL`：开发模式下页面在 4301，复制出的安装命令指向 `http://localhost:4300`，可直接配对上线。连接器若用其他地址（例如 `--server http://localhost:4301`）连接，会报 `platform origin mismatch` 并说明应使用的地址；服务端系统日志记录 `DEVICE_AUTH_*` 原因码（如 `DEVICE_AUTH_ORIGIN_MISMATCH`、`DEVICE_AUTH_MAC_MISMATCH`），不记录密钥、nonce 或 MAC。
+
+### 对外工具名
+
+MCP `tools/list` 默认给出可读、稳定的工具名：`连接名slug__工具名`，只含 `[A-Za-z0-9_-]`，不超过 48 个字符；过长时截断并追加 6 位哈希。同一 Agent 内重名时按内部工具 ID 排序，第一个保留原名，其余追加该工具 ID 的短哈希；同样的输入总是得到同样的名字。重命名连接会改变前缀。旧版 `t_<sha256>` 名称不再出现在 `tools/list` 中，但 `tools/call` 仍然接受；内部工具 ID、授权与 REST 路径不变。服务返回错误会直接展示；连接配置中的请求头和环境变量加密保存在数据库，不在列表中返回。
 
 开发启动从仓库根目录 `.env` 读取配置，不依赖工作目录。`pnpm build` 验证后端编译并产出前端静态文件，生产使用 `NODE_ENV=production pnpm start`，由后端在 4300 同时提供网页、API、MCP、WebSocket 和 Apps。后端使用 `tsx` 源码入口，以支持按需加载内置 Pi 运行时；不要直接运行 `apps/server/dist`。
 

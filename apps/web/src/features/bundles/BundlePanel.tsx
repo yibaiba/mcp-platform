@@ -8,6 +8,7 @@ import { Action, Code, Field, Form, value } from '../../components/shared/Contro
 import { Input } from '../../components/ui/input.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
 import { BundleFields, bundleValues } from './BundleFields.js';
+import { useMe } from '../../lib/me.js';
 type Package = { id: string; sha256: string; manifest: McpbManifest };
 export function BundlePanel({
   devices,
@@ -19,6 +20,7 @@ export function BundlePanel({
   defaultOpen?: boolean;
 }) {
   const [pkg, setPackage] = useState<Package>();
+  const hostStdio = Boolean(useMe().data?.hostStdio);
   const [review, setReview] = useState<{ input: object; preview: unknown }>();
   const [result, setResult] = useState<unknown>();
   return (
@@ -82,9 +84,14 @@ export function BundlePanel({
             }}
           >
             <Field label="执行位置">
-              <SelectControl name="adapter" defaultValue="direct">
-                <SelectItem value="direct">平台直连</SelectItem>
-                <SelectItem value="pi">平台 Pi 桥接</SelectItem>
+              <SelectControl
+                key={hostStdio ? 'host' : 'device'}
+                name="adapter"
+                defaultValue={hostStdio ? 'direct' : 'device'}
+              >
+                {/* MCPB always runs stdio: platform targets are admin-only behind PLATFORM_STDIO_ENABLED. */}
+                {hostStdio ? <SelectItem value="direct">平台直连</SelectItem> : null}
+                {hostStdio ? <SelectItem value="pi">平台 Pi 桥接</SelectItem> : null}
                 <SelectItem value="device">设备连接器</SelectItem>
               </SelectControl>
             </Field>

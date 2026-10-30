@@ -2,8 +2,10 @@ package agent
 
 import (
 	"encoding/json"
+	"errors"
 	"mcplatform/connector/internal/config"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -30,5 +32,24 @@ func TestSharedAuthenticationVectors(t *testing.T) {
 				t.Fatalf("MAC mismatch: %v", err)
 			}
 		})
+	}
+}
+
+func TestCheckOriginReportsPublicURLMismatch(t *testing.T) {
+	cfg := config.Config{Server: "http://localhost:4301"}
+	err := CheckOrigin(cfg, Challenge{Origin: "http://localhost:4300"})
+	var mismatch *OriginMismatchError
+	if !errors.As(err, &mismatch) || mismatch.Configured != "http://localhost:4301" || mismatch.Platform != "http://localhost:4300" {
+		t.Fatalf("expected origin mismatch, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "PUBLIC_URL is http://localhost:4300") {
+		t.Fatalf("error should name PUBLIC_URL: %v", err)
+	}
+	if err = CheckOrigin(config.Config{Server: "http://LOCALHOST:4300/"}, Challenge{Origin: "http://localhost:4300"}); err != nil {
+		t.Fatalf("normalized origins must match: %v", err)
+	}
+	// Older platforms omit the origin; the MAC check stays authoritative.
+	if err = CheckOrigin(cfg, Challenge{}); err != nil {
+		t.Fatalf("missing origin must not fail: %v", err)
 	}
 }

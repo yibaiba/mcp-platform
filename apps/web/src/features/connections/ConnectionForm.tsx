@@ -6,6 +6,7 @@ import { SelectItem } from '../../components/ui/select.js';
 import { SelectControl } from '../../components/shared/SelectControl.js';
 import { Field, Form, value } from '../../components/shared/Controls.js';
 import { api, json, type Device } from '../../lib/api.js';
+import { useMe } from '../../lib/me.js';
 
 export function ConnectionForm({
   devices,
@@ -20,6 +21,9 @@ export function ConnectionForm({
 }) {
   const [adapter, setAdapter] = useState(initialDeviceId ? 'device' : 'direct');
   const [transport, setTransport] = useState(initialDeviceId ? 'stdio' : 'http');
+  // Platform-host stdio is admin-only behind PLATFORM_STDIO_ENABLED; the server enforces it too.
+  const hostStdio = Boolean(useMe().data?.hostStdio);
+  const stdioAllowed = adapter === 'device' || hostStdio;
   async function submit(data: FormData) {
     const extra = JSON.parse(value(data, 'advanced') || '{}') as Record<string, unknown>;
     const config = {
@@ -74,7 +78,7 @@ export function ConnectionForm({
           <SelectControl value={transport} onValueChange={setTransport}>
             <SelectItem value="http">Streamable HTTP</SelectItem>
             <SelectItem value="sse">HTTP + SSE（旧版兼容）</SelectItem>
-            <SelectItem value="stdio">stdio（本地进程）</SelectItem>
+            {stdioAllowed ? <SelectItem value="stdio">stdio（本地进程）</SelectItem> : null}
           </SelectControl>
         </Field>
         {transport !== 'stdio' ? (

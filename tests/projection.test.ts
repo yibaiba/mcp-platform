@@ -46,7 +46,12 @@ test('projection retains stable IDs and raw names while applying aliases, descri
   expect(() => assertVisibleArguments(projected!, { required: 'yes' })).not.toThrow();
 });
 test('default names remain stable and explicit prefix mode never invents names on collisions', () => {
-  expect(projectTools([tool], catalogOptions.parse({}))[0]?.exposedName).toBe(tool.id);
+  // Default `stable` naming is readable; with no connection name the id prefix is the slug.
+  expect(projectTools([tool], catalogOptions.parse({}))[0]?.exposedName).toBe('c93bdd0__echo');
+  expect(
+    projectTools([tool], catalogOptions.parse({}), new Map([[connectionId, 'Docs']]))[0]
+      ?.exposedName,
+  ).toBe('docs__echo');
   expect(
     projectTools([tool], catalogOptions.parse({ toolNaming: 'original' }))[0]?.exposedName,
   ).toBe('echo');

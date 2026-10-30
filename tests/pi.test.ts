@@ -18,7 +18,7 @@ beforeAll(async () => {
   h = await harness();
   fixture = await fixtureMcp();
   sseFixture = await fixtureSseMcp();
-  account = await h.signup();
+  account = await h.signup({ role: 'admin' });
 });
 afterAll(async () => {
   await h?.close();
@@ -63,7 +63,8 @@ test.each(['http', 'sse'] as const)(
       structuredContent: { name: 'echo' },
     });
     await verifyExternalAgent(tools[0]!.id);
-    expect(upstream.count()).toBe(2);
+    // Platform call + readable-name call + legacy `t_` name call.
+    expect(upstream.count()).toBe(3);
   },
   30_000,
 );
@@ -149,6 +150,42 @@ test.each(['direct', 'pi'] as const)(
   30_000,
 );
 
+test.each(['direct', 'pi'] as const)(
+  '%s stdio children receive only the allowlisted environment plus their own env',
+  async (adapter) => {
+    // Simulates a platform secret in the server process env; the child must never see it.
+    const previous = process.env.MCP_TEST_MARKER;
+    process.env.MCP_TEST_MARKER = 'platform-process-secret';
+    try {
+      const connection = await h.services.connections.create(account.ownerId, {
+        name: `${adapter} env allowlist`,
+        adapter,
+        transport: 'stdio',
+        mode: 'managed',
+        command: process.execPath,
+        args: [
+          '--import',
+          pathToFileURL(createRequire(import.meta.url).resolve('tsx')).href,
+          resolve('tests/fixtureStdio.mts'),
+        ],
+        cwd: h.directory,
+      });
+      const [tool] = await h.services.connections.discover(account.ownerId, connection.id);
+      const result = await h.services.invocations.call({
+        ownerId: account.ownerId,
+        toolId: tool!.id,
+        arguments: { message: 'allowlist' },
+      });
+      expect(result).toMatchObject({ structuredContent: { marker: null } });
+      await h.services.connections.stop(account.ownerId, connection.id);
+    } finally {
+      if (previous === undefined) delete process.env.MCP_TEST_MARKER;
+      else process.env.MCP_TEST_MARKER = previous;
+    }
+  },
+  30_000,
+);
+
 function processExists(pid: number) {
   try {
     process.kill(pid, 0);
@@ -172,10 +209,17 @@ async function verifyExternalAgent(toolId: string) {
         requestInit: { headers: { Authorization: `Bearer ${key.token}` } },
       }),
     );
-    expect((await client.listTools()).tools.map((tool) => tool.name)).toEqual([toolId]);
+    const names = (await client.listTools()).tools.map((tool) => tool.name);
+    expect(names).toHaveLength(1);
+    expect(names[0]).toMatch(/^[A-Za-z0-9_-]{1,48}$/);
+    expect(names[0]).toMatch(/__echo$/);
     expect(
-      await client.callTool({ name: toolId, arguments: { message: 'external call' } }),
+      await client.callTool({ name: names[0]!, arguments: { message: 'external call' } }),
     ).toMatchObject({ content: [{ type: 'text', text: 'external call' }] });
+    // The legacy `t_<sha256>` name is not listed but remains callable.
+    expect(
+      await client.callTool({ name: toolId, arguments: { message: 'legacy call' } }),
+    ).toMatchObject({ content: [{ type: 'text', text: 'legacy call' }] });
   } finally {
     await client.close();
   }

@@ -6,6 +6,8 @@ import { Action, Code, ErrorState, Field, ListSkeleton } from '../../components/
 import { Disclosure } from '../../components/shared/Disclosure.js';
 import { Button } from '../../components/ui/button.js';
 import { ClientExportBody, type Export } from './ClientExport.js';
+import { OriginNotice } from '../../components/shared/OriginNotice.js';
+import { useMe } from '../../lib/me.js';
 
 export type IssuedAccess = { profileId: string; exports?: Export[] };
 export type AccessKey = { id: string; profileId: string; revoked: boolean };
@@ -30,6 +32,8 @@ export function ProfileAccess({
     queryFn: () => api<AccessKey[]>('/profiles/keys/all'),
   });
   const active = keys.data?.filter((key) => key.profileId === profile.id && !key.revoked);
+  // Client configs must point at PUBLIC_URL, not whatever origin this page was opened from.
+  const platformOrigin = useMe().data?.platformOrigin;
   return (
     <div className="grid gap-5">
       {permissionsSaved ? (
@@ -66,8 +70,9 @@ export function ProfileAccess({
         复制配置不代表客户端已经接通。请在客户端刷新工具列表；平台测试需选择工具并主动点击执行。
       </p>
       <Disclosure title="已有密钥？查看配置模板">
+        <OriginNotice platformOrigin={platformOrigin} />
         <Field label="MCP 地址">
-          <Code value={`${window.location.origin}/mcp/${profile.id}`} />
+          <Code value={`${platformOrigin ?? ''}/mcp/${profile.id}`} />
         </Field>
         <p className="my-3 text-sm text-muted-foreground">
           模板使用凭证占位符，请填入你保存的接入密钥。

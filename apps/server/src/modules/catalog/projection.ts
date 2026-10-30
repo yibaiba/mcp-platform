@@ -1,5 +1,6 @@
 import type { CatalogOptions } from '@platform/contracts';
 import { AppError } from '../../shared/errors.js';
+import { readableToolNames } from './toolNames.js';
 
 export type CatalogTool = {
   id: string;
@@ -71,23 +72,45 @@ function hiddenSchema(tool: CatalogTool, hidden: readonly string[]) {
     ),
   };
 }
-function exposedName(tool: CatalogTool, config: CatalogOptions) {
+function exposedName(
+  tool: CatalogTool,
+  config: CatalogOptions,
+  readable: ReadonlyMap<string, string>,
+) {
   const alias = config.tools[tool.id]?.alias;
   if (alias !== undefined) return alias;
-  if (config.toolNaming === 'stable') return tool.id;
+  if (config.toolNaming === 'stable') return readable.get(tool.id)!;
   if (config.toolNaming === 'original') return tool.name;
   const prefix = config.connectionAliases[tool.connectionId];
   if (!prefix)
     throw new AppError('CATALOG_CONNECTION_ALIAS', `连接 ${tool.connectionId} 尚未设置展示前缀`);
   return `${prefix}_${tool.name}`;
 }
+/**
+ * Default (`stable`) names are readable `connslug__toolname` (see toolNames.ts); aliases and
+ * reserved platform names win, generated names never collide. Internal tool ids stay `t_<sha256>`.
+ */
 export function projectTools<T extends CatalogTool>(
   tools: readonly T[],
   config: CatalogOptions,
+  connectionNames?: ReadonlyMap<string, string>,
+  /** The full set names are resolved against (defaults to `tools`) so one row matches its listing. */
+  universe: readonly CatalogTool[] = tools,
 ): ProjectedTool<T>[] {
   const names = new Set<string>();
+  const readable =
+    config.toolNaming === 'stable'
+      ? readableToolNames(
+          [...universe, ...tools].filter((tool) => config.tools[tool.id]?.alias === undefined),
+          connectionNames,
+          new Set([
+            ...reservedNames,
+            ...[...universe, ...tools].flatMap((tool) => config.tools[tool.id]?.alias ?? []),
+          ]),
+        )
+      : new Map<string, string>();
   return tools.map((tool) => {
-    const name = exposedName(tool, config);
+    const name = exposedName(tool, config, readable);
     if (reservedNames.has(name) || names.has(name))
       throw new AppError('CATALOG_NAME_CONFLICT', `工具展示名冲突：${name}`, 409);
     names.add(name);

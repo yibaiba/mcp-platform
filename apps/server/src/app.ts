@@ -223,6 +223,9 @@ export function createApp(deps: {
       userId: owner(c),
       role: c.get('role'),
       piEnabled: config.PI_ENABLED === 'true',
+      hostStdioEnabled: config.PLATFORM_STDIO_ENABLED === 'true',
+      // Effective permission: the deployment switch is on and this caller is an admin.
+      hostStdio: config.PLATFORM_STDIO_ENABLED === 'true' && c.get('role') === 'admin',
       platformOrigin: new URL(config.PUBLIC_URL).origin,
     }),
   );

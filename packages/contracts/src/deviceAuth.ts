@@ -10,6 +10,16 @@ export const deviceAuthChallenge = z
     v: z.literal(DEVICE_AUTH_VERSION),
     nonce: deviceAuthBytes,
     expiresAt: z.iso.datetime(),
+    /** PUBLIC_URL origin the MAC is bound to; informational, connectors still sign their own --server. */
+    origin: z.string().optional(),
+  })
+  .strict();
+/** Sent by a connector that refuses to sign because its --server origin differs from `origin`. */
+export const deviceAuthAbort = z
+  .object({
+    type: z.literal('auth.abort'),
+    v: z.literal(DEVICE_AUTH_VERSION),
+    reason: z.literal('origin_mismatch'),
   })
   .strict();
 export const deviceAuthResponse = z

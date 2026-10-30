@@ -20,6 +20,8 @@ export async function harness(
     connectorFiles?: ConnectorFiles;
     webOrigin?: string;
     providers?: import('../packages/auth/src/providers.js').ProviderConfig;
+    /** PLATFORM_STDIO_ENABLED; tests opt into platform-host stdio explicitly (still admin-only). */
+    hostStdio?: boolean;
   } = {},
 ) {
   if (!process.env.DATABASE_URL)
@@ -30,6 +32,7 @@ export async function harness(
     ...process.env,
     DATA_DIR: directory,
     PI_ENABLED: 'false',
+    PLATFORM_STDIO_ENABLED: String(options.hostStdio ?? true),
     PI_MODEL_PROVIDER: undefined,
     PI_MODEL_ID: undefined,
     ALLOW_REGISTRATION: String(options.registration ?? true),
@@ -59,7 +62,7 @@ export async function harness(
   const app = createApp({ db, auth, config, services, connectorFiles: options.connectorFiles });
   const sockets = attachDeviceSocket(server as Server, services);
   const owners: string[] = [];
-  async function signup() {
+  async function signup(options: { role?: 'admin' | 'member' } = {}) {
     const response = await app.request('/api/v1/auth/sign-up/email', {
       method: 'POST',
       headers: { Origin: config.WEB_ORIGIN, 'Content-Type': 'application/json' },
@@ -73,6 +76,8 @@ export async function harness(
     if (!response.ok || !data.user)
       throw new Error(`Sign up failed: ${response.status} ${data.message}`);
     owners.push(data.user.id);
+    if (options.role === 'admin')
+      await db.update(user).set({ role: 'admin' }).where(eq(user.id, data.user.id));
     const cookie = response.headers
       .getSetCookie()
       .map((value) => value.split(';')[0])

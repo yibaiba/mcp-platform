@@ -21,6 +21,7 @@ import {
 import { catalogOptions, profileInput } from '@platform/contracts';
 import { validateCatalogOptions } from '../catalog/validation.js';
 import { projectTools } from '../catalog/projection.js';
+import { legacyToolName } from '../catalog/toolNames.js';
 import { digest, secretToken } from '../../shared/crypto.js';
 import { AppError, requireValue } from '../../shared/errors.js';
 export type Principal = { ownerId: string; profileId: string; credentialId: string; token: string };
@@ -332,6 +333,27 @@ export class ProfileService {
     );
     return [profile.instructions, ...descriptions].filter(Boolean).join('\n\n');
   }
+  /** Projects with connection names so readable tool names are identical on every path. */
+  private async project<T extends typeof tools.$inferSelect>(
+    rows: readonly T[] | Promise<readonly T[]>,
+    config: import('@platform/contracts').CatalogOptions,
+    universe?: readonly (typeof tools.$inferSelect)[],
+  ) {
+    const catalog = await rows;
+    const ids = [...new Set([...catalog, ...(universe ?? [])].map((row) => row.connectionId))];
+    const names = ids.length
+      ? await this.db
+          .select({ id: connections.id, name: connections.name })
+          .from(connections)
+          .where(inArray(connections.id, ids))
+      : [];
+    return projectTools(
+      catalog,
+      config,
+      new Map(names.map((row) => [row.id, row.name])),
+      universe ?? catalog,
+    );
+  }
   async potentialCatalog(ownerId: string, profileId: string) {
     const profile = await this.owned(ownerId, profileId);
     assertDeploymentReady(profile);
@@ -342,7 +364,7 @@ export class ProfileService {
           .from(tools)
           .where(and(await this.shares.resourceFilter(ownerId, 'toolIds'), inArray(tools.id, ids)))
       : [];
-    return projectTools(await this.presentedCatalog(ownerId, profileId, rows), profile.catalog);
+    return this.project(await this.presentedCatalog(ownerId, profileId, rows), profile.catalog);
   }
   async hasArtifactOutputs(ownerId: string, profileId: string) {
     const profile = await this.owned(ownerId, profileId);
@@ -402,16 +424,14 @@ export class ProfileService {
         ),
       );
     if (!profileId)
-      return projectTools(await this.scopedCatalog(ownerId, rows), catalogOptions.parse({}));
+      return this.project(await this.scopedCatalog(ownerId, rows), catalogOptions.parse({}));
     const profile = await this.owned(ownerId, profileId);
     const effective = await this.access?.effective({ ownerId, profileId });
-    return projectTools(
-      await this.presentedCatalog(
-        ownerId,
-        profileId,
-        rows.filter((tool) => (effective ?? profile).toolIds.includes(tool.id)),
-      ),
+    const selected = rows.filter((tool) => (effective ?? profile).toolIds.includes(tool.id));
+    return this.project(
+      await this.presentedCatalog(ownerId, profileId, selected),
       profile.catalog,
+      connectionId ? await this.effectiveRows(ownerId, (effective ?? profile).toolIds) : selected,
     );
   }
   private async searchDefinitions(ownerId: string, input: { id: string; names: string[] }) {
@@ -449,15 +469,33 @@ export class ProfileService {
           .from(tools)
           .where(and(await this.shares.resourceFilter(ownerId, 'toolIds'), inArray(tools.id, ids)))
       : [];
-    return projectTools(
+    return this.project(
       await this.describeCatalog(ownerId, profileId, await this.scopedCatalog(ownerId, rows, true)),
       profile.catalog,
+      // Name against all effective rows, not a `selected` subset, so names match tools/list.
+      selected ? await this.effectiveRows(ownerId, (effective ?? profile).toolIds) : rows,
     );
   }
+  private async effectiveRows(ownerId: string, ids: readonly string[]) {
+    return ids.length
+      ? this.db
+          .select()
+          .from(tools)
+          .where(
+            and(await this.shares.resourceFilter(ownerId, 'toolIds'), inArray(tools.id, [...ids])),
+          )
+      : [];
+  }
   async resolveName(ownerId: string, input: { profileId: string; name: string }) {
-    const row = (await this.catalog(ownerId, input.profileId)).find(
-      (tool) => tool.exposedName === input.name,
-    );
+    const catalog = await this.catalog(ownerId, input.profileId);
+    const config = (await this.owned(ownerId, input.profileId)).catalog;
+    // Legacy `t_<sha256>` names stay callable after readable naming but are no longer listed.
+    // Only where the old default exposed them: `stable` naming without an explicit alias.
+    const row =
+      catalog.find((tool) => tool.exposedName === input.name) ??
+      (legacyToolName.test(input.name) && config.toolNaming === 'stable'
+        ? catalog.find((tool) => tool.id === input.name && !config.tools[tool.id]?.alias)
+        : undefined);
     if (!row) throw new AppError('TOOL_FORBIDDEN', '该工具展示名不存在或未授权', 403);
     return row.id;
   }
@@ -471,9 +509,24 @@ export class ProfileService {
       .select()
       .from(tools)
       .where(and(await this.shares.resourceFilter(ownerId, 'toolIds'), eq(tools.id, input.toolId)));
-    const config = input.profileId
-      ? (await this.owned(ownerId, input.profileId)).catalog
-      : catalogOptions.parse({});
-    return projectTools(await this.presentedCatalog(ownerId, input.profileId, rows), config)[0];
+    if (!input.profileId)
+      return (
+        await this.project(
+          this.presentedCatalog(ownerId, undefined, rows),
+          catalogOptions.parse({}),
+        )
+      )[0];
+    const profile = await this.owned(ownerId, input.profileId);
+    const effective = await this.access?.effective({ ownerId, profileId: input.profileId });
+    const ids = (effective ?? profile).toolIds;
+    // Resolve the readable name against the profile's whole tool set, like tools/list does.
+    const universe = await this.effectiveRows(ownerId, ids);
+    return (
+      await this.project(
+        this.presentedCatalog(ownerId, input.profileId, rows),
+        profile.catalog,
+        universe,
+      )
+    )[0];
   }
 }

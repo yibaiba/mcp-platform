@@ -120,7 +120,7 @@ test.each([
 ] as const)(
   '$id $adapter $transport $authentication credentials persist encrypted and stay out of management responses',
   async ({ id, adapter, transport, authentication }) => {
-    const account = await h.signup();
+    const account = await h.signup({ role: 'admin' });
     const secret = randomBytes(24).toString('hex');
     const input = presetConnection({
       preset: connectorPresets.find((preset) => preset.id === id)!,

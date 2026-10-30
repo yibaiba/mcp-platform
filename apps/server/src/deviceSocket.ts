@@ -3,6 +3,7 @@ import { WebSocketServer, type WebSocket, type RawData } from 'ws';
 import {
   DEVICE_AUTH_LIFETIME_MS,
   DEVICE_AUTH_MAX_BYTES,
+  deviceAuthAbort,
   deviceAuthResponse,
   type DeviceAuthChallenge,
 } from '@platform/contracts';
@@ -14,11 +15,15 @@ function authenticateSocket(ws: WebSocket, services: Services) {
     v: 1,
     nonce: secretToken(),
     expiresAt: new Date(Date.now() + DEVICE_AUTH_LIFETIME_MS).toISOString(),
+    // Public origin the MAC is bound to; connectors compare it with --server for a clear error.
+    origin: services.devices.platformOrigin,
   };
   let consumed = false;
   let failed = false;
-  const fail = () => {
+  const fail = (reason?: string) => {
     if (failed) return;
+    // Reason codes only: never log the nonce, MAC or any device secret.
+    if (reason) services.logger.report(`DEVICE_AUTH_${reason}`);
     failed = true;
     clearTimeout(timer);
     if (ws.readyState === ws.OPEN) {
@@ -28,37 +33,46 @@ function authenticateSocket(ws: WebSocket, services: Services) {
       ws.close(1008, 'Device authentication failed');
     }
   };
-  const timer = setTimeout(fail, DEVICE_AUTH_LIFETIME_MS);
+  const timer = setTimeout(() => fail('TIMEOUT'), DEVICE_AUTH_LIFETIME_MS);
   ws.on('error', () => ws.terminate());
   ws.once('close', () => {
     failed = true;
     clearTimeout(timer);
   });
   const receive = (data: RawData, binary: boolean) => {
-    if (consumed) return fail();
+    if (consumed) return fail('UNEXPECTED_MESSAGE');
     consumed = true;
     // Bound the authentication envelope before converting or parsing JSON.
     const length = Array.isArray(data)
       ? data.reduce((sum, part) => sum + part.length, 0)
       : data.byteLength;
-    if (binary || length > DEVICE_AUTH_MAX_BYTES) return fail();
+    if (binary || length > DEVICE_AUTH_MAX_BYTES) return fail('MALFORMED');
     void (async () => {
-      const response = deviceAuthResponse.parse(
-        JSON.parse((Array.isArray(data) ? Buffer.concat(data) : data).toString()),
-      );
+      let message: unknown;
+      try {
+        message = JSON.parse((Array.isArray(data) ? Buffer.concat(data) : data).toString());
+      } catch {
+        return fail('MALFORMED');
+      }
+      // Newer connectors abort instead of signing when --server differs from PUBLIC_URL.
+      const abort = deviceAuthAbort.safeParse(message);
+      if (abort.success) return fail('ORIGIN_MISMATCH');
+      const parsed = deviceAuthResponse.safeParse(message);
+      if (!parsed.success) return fail('MALFORMED');
+      const response = parsed.data;
       await services.devices.authenticate({
         challenge,
         response,
         register: () => {
           if (failed || ws.readyState !== ws.OPEN || Date.now() >= Date.parse(challenge.expiresAt))
-            return fail();
+            return fail('REGISTER_LATE');
           clearTimeout(timer);
           ws.removeListener('message', receive);
           services.broker.attach(response.deviceId, ws);
           ws.send(JSON.stringify({ type: 'auth.success', v: 1 }));
         },
       });
-    })().catch(fail);
+    })().catch(() => fail());
   };
   ws.on('message', receive);
   ws.send(JSON.stringify(challenge));

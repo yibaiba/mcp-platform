@@ -51,7 +51,7 @@ async function receipt(input: {
 }
 
 test('a replacement frees the old package while retaining the new connection and both receipts', async () => {
-  const { ownerId } = await h.signup();
+  const { ownerId } = await h.signup({ role: 'admin' });
   const first = await upload(ownerId);
   const second = await upload(ownerId, archive({ ...manifest(), name: 'replacement-package' }));
   const firstPreview = await h.services.bundles.preview(ownerId, first.id, destination);
@@ -98,7 +98,7 @@ test('a replacement frees the old package while retaining the new connection and
 });
 
 test('renaming a connection still protects the package directory without a current receipt revision', async () => {
-  const { ownerId } = await h.signup();
+  const { ownerId } = await h.signup({ role: 'admin' });
   const pkg = await upload(ownerId);
   const preview = await h.services.bundles.preview(ownerId, pkg.id, destination);
   const connection = await h.services.connections.create(ownerId, {
@@ -123,7 +123,7 @@ test('renaming a connection still protects the package directory without a curre
 test.each(['/device/packages/', 'C:\\device\\packages\\'])(
   'device package directories remain protected after edits (%s)',
   async (prefix) => {
-    const { ownerId } = await h.signup();
+    const { ownerId } = await h.signup({ role: 'admin' });
     const pkg = await upload(ownerId);
     const pairing = await h.services.devices.createPairing(ownerId, 'cleanup-device');
     const device = await h.services.devices.pair(pairing.code);
@@ -152,7 +152,7 @@ test.each(['/device/packages/', 'C:\\device\\packages\\'])(
 );
 
 test('a running installation prevents cleanup before it has a connection', async () => {
-  const { ownerId } = await h.signup();
+  const { ownerId } = await h.signup({ role: 'admin' });
   const pkg = await upload(ownerId);
   await receipt({ ownerId, packageId: pkg.id, state: 'running' });
   await expect(h.services.bundles.lifecycle.remove(ownerId, pkg.id)).rejects.toMatchObject({
@@ -162,7 +162,7 @@ test('a running installation prevents cleanup before it has a connection', async
 });
 
 test('failed directory cleanup retains the original and can be explicitly retried', async () => {
-  const { ownerId } = await h.signup();
+  const { ownerId } = await h.signup({ role: 'admin' });
   const pkg = await upload(ownerId);
   const failure = Object.assign(new Error('directory removal denied'), { code: 'EACCES' });
   vi.spyOn(BundleDiskStore.prototype, 'remove').mockRejectedValueOnce(failure);
@@ -176,7 +176,7 @@ test('failed directory cleanup retains the original and can be explicitly retrie
 });
 
 test('same-digest reupload repairs missing bytes left by a previous interrupted cleanup', async () => {
-  const { ownerId } = await h.signup();
+  const { ownerId } = await h.signup({ role: 'admin' });
   const pkg = await upload(ownerId);
   const operationId = await receipt({ ownerId, packageId: pkg.id, state: 'failed' });
   await rm(archivePath(pkg.id));
@@ -188,7 +188,7 @@ test('same-digest reupload repairs missing bytes left by a previous interrupted 
 });
 
 test('a failed reupload write propagates its error and never reports repaired bytes', async () => {
-  const { ownerId } = await h.signup();
+  const { ownerId } = await h.signup({ role: 'admin' });
   const pkg = await upload(ownerId);
   await rm(archivePath(pkg.id));
   const failure = Object.assign(new Error('repair disk full'), { code: 'ENOSPC' });
@@ -205,7 +205,7 @@ test('a failed reupload write propagates its error and never reports repaired by
 });
 
 test('same-digest reupload does not invalidate the archive already opened by an installation', async () => {
-  const { ownerId } = await h.signup();
+  const { ownerId } = await h.signup({ role: 'admin' });
   const data = archive();
   const upload = () =>
     h.services.bundles.upload(ownerId, new Blob([new Uint8Array(data)]).stream());

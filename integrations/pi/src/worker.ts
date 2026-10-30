@@ -204,6 +204,8 @@ async function dispatch(
                         args: context.config.args,
                         env: context.config.env,
                         literalEnv: true,
+                        // The worker inherits the server env; the child gets only the allowlist.
+                        inheritEnv: false,
                         cwd: context.config.cwd ?? process.cwd(),
                         debug: true,
                       }

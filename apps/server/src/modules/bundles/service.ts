@@ -119,6 +119,8 @@ export class BundleService {
   ): Promise<BundleEnvironment> {
     if (input.adapter !== 'device') {
       if (input.deviceId) throw new AppError('MCPB_TARGET', '平台执行不能选择设备');
+      // Host extraction and runtime checks run on the platform server: same gate as host stdio.
+      await this.deps.connections.assertHostStdio(ownerId);
       return {
         platform: z.enum(['darwin', 'linux', 'win32']).parse(process.platform),
         home: homedir(),

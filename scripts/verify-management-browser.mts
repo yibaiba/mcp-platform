@@ -9,7 +9,9 @@ const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? 'playwright')
 const h = await harness();
 await mountWeb(h.app, resolve('apps/web/dist'));
 h.config.WEB_ORIGIN = h.baseURL;
-const account = await h.signup();
+// Platform-host MCPB/stdio is admin-only; a member context checks that the option is hidden.
+const account = await h.signup({ role: 'admin' });
+const member = await h.signup();
 const profile = await h.services.profiles.save(account.ownerId, { name: 'Browser compression' });
 const screenshots = resolve('.data/management-browser-acceptance');
 await mkdir(screenshots, { recursive: true });
@@ -173,6 +175,33 @@ try {
       ?.resultPresentation.strategy,
     'json',
   );
+  const memberContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  memberContext.setDefaultTimeout(10000);
+  await memberContext.addCookies(
+    member.cookie.split('; ').map((pair) => ({
+      name: pair.slice(0, pair.indexOf('=')),
+      value: pair.slice(pair.indexOf('=') + 1),
+      url: h.baseURL,
+    })),
+  );
+  const memberPage = await memberContext.newPage();
+  await memberPage.goto(h.baseURL + '/connections');
+  await memberPage
+    .getByRole('banner')
+    .getByRole('button', { name: '添加连接', exact: true })
+    .click();
+  await memberPage.getByRole('tab', { name: '自定义', exact: true }).click();
+  await memberPage.getByRole('combobox', { name: '传输协议', exact: true }).click();
+  await memberPage.getByRole('option', { name: 'Streamable HTTP', exact: true }).waitFor();
+  assert.equal(await memberPage.getByRole('option', { name: 'stdio（本地进程）' }).count(), 0);
+  await memberPage.keyboard.press('Escape');
+  await memberPage.getByRole('combobox', { name: '执行适配器', exact: true }).click();
+  await memberPage.getByRole('option', { name: '设备连接器', exact: true }).click();
+  await memberPage.getByRole('combobox', { name: '传输协议', exact: true }).click();
+  await memberPage.getByRole('option', { name: 'stdio（本地进程）', exact: true }).waitFor();
+  await memberPage.keyboard.press('Escape');
+  await memberPage.screenshot({ path: join(screenshots, 'member-no-host-stdio.png') });
+  await memberContext.close();
   await page.goto(h.baseURL + '/connections');
   await page.getByRole('banner').getByRole('button', { name: '添加连接', exact: true }).click();
   await page.getByRole('tab', { name: '导入', exact: true }).click();
@@ -258,7 +287,7 @@ try {
   await local.getByRole('button', { name: '连接验证', exact: true }).waitFor({ state: 'detached' });
   assert.ok(await local.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   console.log(
-    'PASS: library draft preview/race/discard/arguments/confirmation/loading state, CRUD/disable, HTML literal content, compression persistence, MCPB preview/install/discovery, history reload/uninstall/cleanup, local encrypted setup/start/stop/client config/removal, narrow layouts',
+    'PASS: member sees no platform-host stdio option, library draft preview/race/discard/arguments/confirmation/loading state, CRUD/disable, HTML literal content, compression persistence, MCPB preview/install/discovery, history reload/uninstall/cleanup, local encrypted setup/start/stop/client config/removal, narrow layouts',
   );
 } catch (error) {
   console.error(error);

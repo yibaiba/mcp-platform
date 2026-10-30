@@ -361,7 +361,7 @@ test('request catalog contains only opened capabilities with sources and explici
   };
   expect(directory.toolIds).toEqual([s.tool.id]);
   expect(directory.entries.tools[0]!.name).toBe('echo');
-  expect(directory.entries.tools[0]!.exposedName).toBe(s.tool.id);
+  expect(directory.entries.tools[0]!.exposedName).toBe('workspace__echo');
   expect(directory.entries.connections[0]!.id).toBe(s.connection.id);
   const request = await s.run(() =>
     h.services.requests.create(s.access, {
@@ -442,8 +442,10 @@ test('external MCP request tools return approval state and require a fresh expli
       permissions: request.requested,
     });
     expect(upstream.count()).toBe(before);
-    expect((await client.listTools()).tools.map((tool) => tool.name)).toContain(s.tool.id);
-    await client.callTool({ name: s.tool.id, arguments: {} });
+    const listed = (await client.listTools()).tools.map((tool) => tool.name);
+    expect(listed).toContain('workspace__echo');
+    expect(listed).not.toContain(s.tool.id);
+    await client.callTool({ name: 'workspace__echo', arguments: {} });
     expect(upstream.count()).toBe(before + 1);
   } finally {
     await client.close();

@@ -26,6 +26,6 @@ export * from './notifications.js';
 export * from './parseCatalog.js';
 export * from './schemaCompatibility.js';
 
-export { ManagedStdioTransport } from './lifecycle/managedStdio.js';
+export { ManagedStdioTransport, hostProcessEnvironment } from './lifecycle/managedStdio.js';
 export { InteractiveClient } from './interactiveClient.js';
 export { toolDispatchFetch } from './toolDispatchFetch.js';

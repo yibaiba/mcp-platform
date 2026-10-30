@@ -108,7 +108,7 @@ test('two Agent dedicated HTTP identities strip shared credentials and remain st
   expect(listing).not.toContain('shared-secret');
 });
 test('dedicated stdio environments execute independently on the selected connection without inheriting shared identity fields', async () => {
-  const account = await h.signup();
+  const account = await h.signup({ role: 'admin' });
   const connection = await h.services.connections.create(account.ownerId, {
     name: 'stdio identity',
     adapter: 'direct',
