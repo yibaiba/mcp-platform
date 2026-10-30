@@ -26,8 +26,8 @@ test('template rendering uses literal substitutions and validates declarations a
   expect(() => libraryItem.parse({ ...prompt, template: '{{topic' })).toThrow();
 });
 test('owner CRUD, atomic uniqueness, revision conflict and stable identifiers', async () => {
-  const account = await h.signup(),
-    other = await h.signup();
+  const account = await h.signup({ role: 'admin' }),
+    other = await h.signup({ role: 'admin' });
   const created = await account.request('/library/prompts', {
     method: 'POST',
     body: JSON.stringify(prompt),
@@ -68,7 +68,7 @@ test('owner CRUD, atomic uniqueness, revision conflict and stable identifiers', 
   ).toBe(409);
 });
 test('real MCP client reads only granted local content, with disabled and deleted entries immediately unavailable', async () => {
-  const { ownerId } = await h.signup();
+  const { ownerId } = await h.signup({ role: 'admin' });
   let item = await h.services.library.save(ownerId, { kind: 'prompt', value: prompt });
   await h.services.library.save(ownerId, {
     kind: 'prompt',
@@ -140,7 +140,7 @@ test('real MCP client reads only granted local content, with disabled and delete
   ).rejects.toThrow();
 });
 test('configuration export/import carries logical references and content without reusing account IDs', async () => {
-  const { ownerId } = await h.signup();
+  const { ownerId } = await h.signup({ role: 'admin' });
   const item = await h.services.library.save(ownerId, {
     kind: 'prompt',
     value: { ...prompt, name: 'review/path_提示' },
@@ -148,7 +148,7 @@ test('configuration export/import carries logical references and content without
   await h.services.profiles.save(ownerId, { name: 'agent', contentIds: [item.contentId] });
   const exported = await h.services.configExport.export(ownerId, 'content-template');
   expect(JSON.stringify(exported)).not.toContain(item.id);
-  const other = await h.signup();
+  const other = await h.signup({ role: 'admin' });
   const applied = await h.services.manifests.apply(other.ownerId, { declaration: exported });
   expect(applied.status).toBe('ready');
   const copied = await h.services.library.list(other.ownerId, 'prompt');
@@ -158,7 +158,7 @@ test('configuration export/import carries logical references and content without
 });
 
 test('deletion atomically removes Profile grants and presentation references while preserving other content', async () => {
-  const { ownerId } = await h.signup();
+  const { ownerId } = await h.signup({ role: 'admin' });
   const item = await h.services.library.save(ownerId, { kind: 'prompt', value: prompt });
   const keep = await h.services.library.save(ownerId, {
     kind: 'prompt',
@@ -222,7 +222,7 @@ test('deletion atomically removes Profile grants and presentation references whi
   ).rejects.toMatchObject({ code: 'REVISION_CONFLICT' });
 });
 test('concurrent grant creation and content deletion never leave a dangling reference', async () => {
-  const { ownerId } = await h.signup();
+  const { ownerId } = await h.signup({ role: 'admin' });
   const item = await h.services.library.save(ownerId, { kind: 'prompt', value: prompt });
   const results = await Promise.allSettled([
     h.services.profiles.save(ownerId, { name: 'racing', contentIds: [item.contentId] }),

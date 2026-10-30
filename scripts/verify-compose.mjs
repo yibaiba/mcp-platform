@@ -33,6 +33,7 @@ const environment = {
   PI_MCP_ADAPTER_OAUTH_FILE_KEY: randomBytes(32).toString('hex'),
   ALLOW_REGISTRATION: 'true',
   PI_ENABLED: 'false',
+  PLATFORM_STDIO_ENABLED: 'true',
   PI_MODEL_PROVIDER: '',
   PI_MODEL_ID: '',
 };
@@ -121,6 +122,11 @@ async function verifyManagement() {
   });
   assert.equal(connections.status, 200);
   assert.deepEqual(await connections.json(), []);
+  const me = async () =>
+    (await request(`${origin}/api/v1/me`, { headers: { Cookie: cookie } })).json();
+  assert.equal((await me()).hostStdio, false, 'A new member must not get platform-host stdio');
+  await compose(['exec', '-T', 'server', 'pnpm', 'user:role', `${project}@example.test`, 'admin']);
+  assert.equal((await me()).hostStdio, true, 'An admin gets platform-host stdio when enabled');
   console.log('PASS: single-port web, database health, authentication and management API');
   return cookie;
 }

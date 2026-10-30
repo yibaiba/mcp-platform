@@ -22,6 +22,38 @@ type Challenge struct {
 	V         int    `json:"v"`
 	Nonce     string `json:"nonce"`
 	ExpiresAt string `json:"expiresAt"`
+	// Origin is the platform's PUBLIC_URL origin. Older platforms omit it.
+	Origin string `json:"origin,omitempty"`
+}
+
+// OriginMismatchError reports a connector configured for a different origin than the platform's PUBLIC_URL.
+type OriginMismatchError struct {
+	Configured string
+	Platform   string
+}
+
+func (e *OriginMismatchError) Error() string {
+	return fmt.Sprintf("platform origin mismatch: this connector uses --server %s but the platform's PUBLIC_URL is %s; device authentication is bound to PUBLIC_URL. Re-run the install command copied from the platform's device page, or run connector connect --server %s (re-pair if the device was paired through the other address)", e.Configured, e.Platform, e.Platform)
+}
+
+// CheckOrigin compares the configured server origin with the origin announced in the challenge.
+func CheckOrigin(cfg config.Config, challenge Challenge) error {
+	if challenge.Origin == "" {
+		return nil
+	}
+	configured, err := config.NormalizeOrigin(cfg.Server)
+	if err != nil {
+		return err
+	}
+	platform, err := config.NormalizeOrigin(challenge.Origin)
+	if err != nil {
+		// Informational field only: an origin we cannot normalize falls back to the MAC check.
+		return nil
+	}
+	if configured != platform {
+		return &OriginMismatchError{Configured: configured, Platform: platform}
+	}
+	return nil
 }
 
 func AuthenticationMAC(cfg config.Config, challenge Challenge) (string, error) {
@@ -65,6 +97,11 @@ func (r *Runner) authenticate(parent context.Context, conn *websocket.Conn) erro
 	if err != nil || len(nonce) != sha256.Size || timeErr != nil || !expires.After(time.Now()) {
 		return fmt.Errorf("invalid or expired device authentication challenge")
 	}
+	if err = CheckOrigin(r.Config, challenge); err != nil {
+		// Tell the platform why we stop so its log shows the cause; never sign for a foreign origin.
+		_ = r.send(ctx, conn, map[string]any{"type": "auth.abort", "v": 1, "reason": "origin_mismatch"})
+		return err
+	}
 	mac, err := AuthenticationMAC(r.Config, challenge)
 	if err != nil {
 		return err
@@ -81,7 +118,7 @@ func (r *Runner) authenticate(parent context.Context, conn *websocket.Conn) erro
 		V    int    `json:"v"`
 	}
 	if kind != websocket.MessageText || json.Unmarshal(raw, &result) != nil || result.Type != "auth.success" || result.V != 1 {
-		return fmt.Errorf("device authentication failed; generate a re-pairing code and run connector re-pair")
+		return fmt.Errorf("device authentication failed (check the platform server log for the DEVICE_AUTH_* reason): if --server differs from the platform's PUBLIC_URL, re-run the install command copied from the platform page; otherwise generate a re-pairing code and run connector re-pair")
 	}
 	return nil
 }

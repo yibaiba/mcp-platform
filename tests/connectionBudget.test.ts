@@ -10,7 +10,7 @@ let h: Awaited<ReturnType<typeof harness>>;
 let account: Awaited<ReturnType<Awaited<ReturnType<typeof harness>>['signup']>>;
 beforeAll(async () => {
   h = await harness();
-  account = await h.signup();
+  account = await h.signup({ role: 'admin' });
 });
 afterAll(async () => {
   await h?.close();

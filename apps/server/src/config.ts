@@ -39,6 +39,8 @@ export const envSchema = z
         })
         .pipe(providerConfig),
     ),
+    // Platform-host stdio (direct/Pi adapters spawning processes on the server) is admin-only and off by default.
+    PLATFORM_STDIO_ENABLED: z.enum(['true', 'false']).default('false'),
     // Only gates built-in agent tasks; MCP bridging loads independently on demand.
     PI_ENABLED: z.enum(['true', 'false']).default('false'),
     PI_MODEL_PROVIDER: z.string().optional(),

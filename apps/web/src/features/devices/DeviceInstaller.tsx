@@ -6,13 +6,19 @@ import { SelectControl } from '../../components/shared/SelectControl.js';
 import { SelectItem } from '../../components/ui/select.js';
 import { Button } from '../../components/ui/button.js';
 import { installerCommand, type InstallerPlatform } from './installerCommand.js';
+import { OriginNotice } from '../../components/shared/OriginNotice.js';
+import { useMe } from '../../lib/me.js';
 
 export function DeviceInstaller() {
   const [platform, setPlatform] = useState<InstallerPlatform>('unix');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<Error>();
-  const command = installerCommand(window.location.origin, platform);
-  const localPlatform = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+  // The connector signs device auth with this origin; it must be PUBLIC_URL, not the page origin.
+  const platformOrigin = useMe().data?.platformOrigin;
+  const command = platformOrigin ? installerCommand(platformOrigin, platform) : '';
+  const localPlatform = platformOrigin
+    ? ['localhost', '127.0.0.1', '[::1]'].includes(new URL(platformOrigin).hostname)
+    : false;
   async function copy() {
     setCopied(false);
     setError(undefined);
@@ -45,9 +51,10 @@ export function DeviceInstaller() {
           域名打开此页，再复制命令。
         </p>
       ) : null}
-      <Code value={command} />
+      <OriginNotice platformOrigin={platformOrigin} />
+      <Code value={command || '正在读取平台对外地址…'} />
       <div className="flex flex-wrap items-center gap-3">
-        <Button variant="outline" onClick={() => void copy()}>
+        <Button variant="outline" disabled={!command} onClick={() => void copy()}>
           复制安装连接命令
         </Button>
         {copied ? (

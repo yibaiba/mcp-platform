@@ -76,7 +76,9 @@ test('real Go HMAC channel executes shared calls with two recipient keys without
       ),
     );
     for (const client of clients) {
-      expect((await client.listTools()).tools.map((tool) => tool.name)).toContain(tools[0]!.id);
+      const listed = (await client.listTools()).tools.map((tool) => tool.name);
+      expect(listed).toContain('owner_device__echo');
+      expect(listed).not.toContain(tools[0]!.id);
       expect(
         await client.callTool({ name: tools[0]!.id, arguments: { message: 'shared device' } }),
       ).toMatchObject({ structuredContent: { name: 'echo' } });

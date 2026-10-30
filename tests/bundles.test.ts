@@ -51,7 +51,7 @@ test('archive rejects traversal, missing entry and duplicate names without execu
   expect(() => unpackBundle(new Uint8Array())).toThrow();
 });
 test('platform preview does not start MCP; install discovers real tools and is idempotent', async () => {
-  const { ownerId } = await h.signup();
+  const { ownerId } = await h.signup({ role: 'admin' });
   const pkg = await upload(ownerId);
   const input = { adapter: 'direct', values: { key: 'fixture-private' } };
   const preview = await h.services.bundles.preview(ownerId, pkg.id, input);
@@ -72,12 +72,12 @@ test('platform preview does not start MCP; install discovers real tools and is i
   expect(JSON.stringify(await h.services.connections.list(ownerId))).not.toContain(
     'fixture-private',
   );
-  const other = await h.signup();
+  const other = await h.signup({ role: 'admin' });
   await expect(h.services.bundles.preview(other.ownerId, pkg.id, input)).rejects.toThrow();
   await expect(h.services.bundles.status(other.ownerId, operation.operationId)).rejects.toThrow();
 });
 test('changed previews, offline devices and missing runtime report failure without fallback', async () => {
-  const { ownerId } = await h.signup();
+  const { ownerId } = await h.signup({ role: 'admin' });
   const pkg = await upload(ownerId, archive(manifest('/definitely/missing/bundle-runtime')));
   const input = { adapter: 'direct', values: { key: 'private' } };
   const preview = await h.services.bundles.preview(ownerId, pkg.id, input);
@@ -110,7 +110,7 @@ test('changed previews, offline devices and missing runtime report failure witho
 });
 
 test('replacement keeps its receipt across revisions and restart recovery never replays', async () => {
-  const { ownerId } = await h.signup();
+  const { ownerId } = await h.signup({ role: 'admin' });
   const pkg = await upload(ownerId);
   const destination = { adapter: 'direct', values: { key: 'private' } };
   const preview = await h.services.bundles.preview(ownerId, pkg.id, destination);
@@ -165,7 +165,7 @@ test('manifest defaults expand only environment variables, preserving literal us
 });
 
 test('Pi installs the bundle and discovers tools without invoking a model', async () => {
-  const { ownerId } = await h.signup();
+  const { ownerId } = await h.signup({ role: 'admin' });
   const pkg = await upload(ownerId);
   const destination = { adapter: 'pi', values: { key: 'private' } };
   const preview = await h.services.bundles.preview(ownerId, pkg.id, destination);
@@ -198,7 +198,7 @@ for line in sys.stdin:
  print(json.dumps({"jsonrpc":"2.0","id":r["id"],"result":result}),flush=True)
 `;
   for (const type of ['python', 'binary'] as const) {
-    const { ownerId } = await h.signup();
+    const { ownerId } = await h.signup({ role: 'admin' });
     const entry = type === 'python' ? 'server.py' : 'native';
     const value = {
       ...manifest(),

@@ -14,6 +14,7 @@ import { pairingLifetimeMs, type DeviceResponse } from '@platform/contracts';
 import { digest, secretToken } from '../../shared/crypto.js';
 import { AppError, requireValue } from '../../shared/errors.js';
 import type { DeviceBroker } from './deviceBroker.js';
+import type { DiagnosticLogger } from '../activity/systemLogger.js';
 export class DeviceService {
   private readonly serial = new DeviceSerial();
   constructor(
@@ -22,10 +23,15 @@ export class DeviceService {
       broker: DeviceBroker;
       vault: Vault;
       platformOrigin: string;
+      /** Device auth failures are logged with a reason code only, never secrets or MACs. */
+      logger?: DiagnosticLogger;
     },
   ) {}
   private get db() {
     return this.deps.db;
+  }
+  get platformOrigin() {
+    return this.deps.platformOrigin;
   }
   private get broker() {
     return this.deps.broker;
@@ -114,20 +120,28 @@ export class DeviceService {
         .select()
         .from(devices)
         .where(eq(devices.id, input.response.deviceId));
-      if (
-        !device ||
-        device.revoked ||
-        !device.secretEncrypted ||
-        device.credentialVersion !== input.response.credentialVersion ||
-        Date.parse(input.challenge.expiresAt) <= Date.now()
-      )
+      const reject = (reason: string): never => {
+        this.deps.logger?.report(`DEVICE_AUTH_${reason}`, device?.ownerId);
         throw new AppError('DEVICE_UNAUTHORIZED', '设备认证失败', 401);
-      await activeUser(this.db, device.ownerId);
+      };
+      if (!device) return reject('UNKNOWN_DEVICE');
+      if (device.revoked) return reject('REVOKED');
+      if (!device.secretEncrypted) return reject('NOT_PAIRED');
+      if (device.credentialVersion !== input.response.credentialVersion)
+        return reject('CREDENTIAL_VERSION');
+      if (Date.parse(input.challenge.expiresAt) <= Date.now()) return reject('CHALLENGE_EXPIRED');
+      try {
+        await activeUser(this.db, device.ownerId);
+      } catch (error) {
+        this.deps.logger?.report('DEVICE_AUTH_OWNER_DISABLED', device.ownerId);
+        throw error;
+      }
       const secret = deviceAuthBytes.parse(
         this.deps.vault.open(device.secretEncrypted, this.scope(device)),
       );
+      // A mismatch is usually the connector signing a different origin than PUBLIC_URL.
       if (!verifyDeviceMac({ secret, platformOrigin: this.deps.platformOrigin, ...input }))
-        throw new AppError('DEVICE_UNAUTHORIZED', '设备认证失败', 401);
+        return reject('MAC_MISMATCH');
       input.register();
     });
   }

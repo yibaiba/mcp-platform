@@ -72,6 +72,7 @@ await db
   .update(transfers)
   .set({ status: 'unknown', error: '平台重启；请检查目标文件' })
   .where(eq(transfers.status, 'streaming'));
+await services.connections.enforceHostStdio();
 await services.bundles.recover();
 await services.pi.recover();
 await services.requests.recover();

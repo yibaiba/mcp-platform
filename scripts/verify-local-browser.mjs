@@ -217,6 +217,15 @@ try {
   platform = await context.newPage();
   platform.on('pageerror', (error) => errors.push(String(error)));
   await platform.goto(`${webOrigin}/devices`);
+  // Dev-style split origins: the copied installer must target PUBLIC_URL, with a visible notice.
+  await platform.getByRole('button', { name: '添加设备', exact: true }).first().click();
+  await platform.locator('[data-origin-mismatch]').waitFor();
+  const installer = (await platform.locator('pre').allTextContents()).join('\n');
+  assert.ok(installer.includes(`'${h.baseURL}/api/v1/connector/install.sh'`), installer);
+  assert.ok(installer.includes(`--server '${h.baseURL}'`), installer);
+  assert.ok(!installer.includes(webOrigin), installer);
+  await platform.screenshot({ path: join(screenshots, 'installer-origin-notice.png') });
+  await platform.keyboard.press('Escape');
   await deviceMenuAction('管理本机 MCP / Skills');
   await platform.getByRole('button', { name: 'browser-mcp offline browser edit' }).click();
   const remoteEditor = platform.getByLabel('所选 MCP 条目（JSON）');

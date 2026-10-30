@@ -51,7 +51,7 @@ export function CatalogEditor(props: {
             setConfig({ ...config, toolNaming: toolNaming as CatalogOptions['toolNaming'] })
           }
         >
-          <SelectItem value="stable">稳定名称（默认）</SelectItem>
+          <SelectItem value="stable">可读名称（默认，连接__工具）</SelectItem>
           <SelectItem value="original">上游原名</SelectItem>
           <SelectItem value="prefixed">连接前缀 + 原名</SelectItem>
         </SelectControl>

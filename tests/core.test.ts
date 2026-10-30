@@ -76,12 +76,16 @@ test('official MCP client routes duplicate names and revocation takes effect imm
       requestInit: { headers: { Authorization: `Bearer ${key.token}` } },
     }),
   );
-  expect((await client.listTools()).tools.map((t) => t.name)).toEqual([first[0]!.id]);
+  // Readable external name; the legacy `t_<sha256>` id is no longer listed but stays callable.
+  expect((await client.listTools()).tools.map((t) => t.name)).toEqual(['one__echo']);
   const result = await client.callTool({
-    name: first[0]!.id,
+    name: 'one__echo',
     arguments: { message: 'real dispatch' },
   });
   expect(result.content).toEqual([{ type: 'text', text: 'real dispatch' }]);
+  expect(
+    (await client.callTool({ name: first[0]!.id, arguments: { message: 'legacy' } })).content,
+  ).toEqual([{ type: 'text', text: 'legacy' }]);
   expect(result.structuredContent).toEqual({ name: 'echo' });
   await expect(client.callTool({ name: second[0]!.id, arguments: {} })).rejects.toThrow();
   await h.services.profiles.save(account.ownerId, { name: 'external', toolIds: [] }, profile.id);

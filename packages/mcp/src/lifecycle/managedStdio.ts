@@ -17,12 +17,20 @@ const PYTHON_RUNTIME_ENV = [
   'UV_PYTHON',
   'UV_PYTHON_DOWNLOADS',
 ] as const;
-function runtimeEnvironment() {
+// Locale and temp keys a well-behaved CLI expects; nothing that can carry platform secrets.
+const BASE_ENV = ['LANG', 'LANGUAGE', 'LC_ALL', 'LC_CTYPE', 'TZ', 'TMPDIR'] as const;
+function pick(keys: readonly string[]) {
   return Object.fromEntries(
-    PYTHON_RUNTIME_ENV.flatMap((key) =>
-      process.env[key] === undefined ? [] : [[key, process.env[key]!]],
-    ),
+    keys.flatMap((key) => (process.env[key] === undefined ? [] : [[key, process.env[key]!]])),
   );
+}
+/**
+ * Child environment is an allowlist: the SDK's minimal set (PATH, HOME, USER, SHELL, TERM, LOGNAME;
+ * Windows system keys), locale/temp keys, uv runtime paths, then the connection's own configured
+ * env. The server's own process env (database URL, auth/encryption keys) is never inherited.
+ */
+export function hostProcessEnvironment(env?: Record<string, string>): Record<string, string> {
+  return { ...getDefaultEnvironment(), ...pick(BASE_ENV), ...pick(PYTHON_RUNTIME_ENV), ...env };
 }
 
 type Options = {
@@ -62,7 +70,7 @@ export class ManagedStdioTransport implements Transport {
         ]
       : (this.options.args ?? []);
     const child = spawn(command, args, {
-      env: { ...getDefaultEnvironment(), ...runtimeEnvironment(), ...this.options.env },
+      env: hostProcessEnvironment(this.options.env),
       cwd: this.options.cwd,
       stdio: 'pipe',
       detached: !windows,

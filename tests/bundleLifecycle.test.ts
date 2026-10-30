@@ -30,8 +30,8 @@ async function install(ownerId: string, id: string) {
   });
 }
 test('history is owner scoped; uninstall cleans grants and package cleanup preserves receipts and permits reupload', async () => {
-  const owner = await h.signup(),
-    other = await h.signup();
+  const owner = await h.signup({ role: 'admin' }),
+    other = await h.signup({ role: 'admin' });
   const pkg = await upload(owner.ownerId);
   const receipt = await install(owner.ownerId, pkg.id);
   const tool = (await h.services.profiles.catalog(owner.ownerId))[0]!;
@@ -102,7 +102,7 @@ test('history is owner scoped; uninstall cleans grants and package cleanup prese
   expect((await h.services.bundles.status(owner.ownerId, receipt.id)).state).toBe('uninstalled');
 });
 test('an old installation receipt cannot uninstall an edited or replaced connection', async () => {
-  const { ownerId } = await h.signup();
+  const { ownerId } = await h.signup({ role: 'admin' });
   const pkg = await upload(ownerId),
     receipt = await install(ownerId, pkg.id);
   const connection = (await h.services.connections.list(ownerId))[0]!;
@@ -119,7 +119,7 @@ test('an old installation receipt cannot uninstall an edited or replaced connect
   ]);
 });
 test('runtime constraints are checked at installation with failure phase and sanitized cause retained', async () => {
-  const { ownerId } = await h.signup();
+  const { ownerId } = await h.signup({ role: 'admin' });
   const incompatible = await upload(ownerId, {
     ...manifest(),
     compatibility: { runtimes: { node: '>=999.0.0' } },
