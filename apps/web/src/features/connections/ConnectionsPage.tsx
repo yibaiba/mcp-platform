@@ -290,7 +290,7 @@ export default function ConnectionsPage() {
                   onSelect={setPreset}
                   onManage={(connection) => {
                     setShow(false);
-                    window.location.hash = `connection-${connection.id}`;
+                    setEditing(connection);
                   }}
                 />
               </TabsPanel>
@@ -337,7 +337,9 @@ export default function ConnectionsPage() {
         <SheetContent>
           <SheetHeader>
             <SheetTitle>编辑连接</SheetTitle>
-            <SheetDescription>保存后结束现有会话，后续调用按新配置执行。</SheetDescription>
+            <SheetDescription>
+              正在编辑「{editing?.name}」。保存后结束现有会话，后续调用按新配置执行。
+            </SheetDescription>
           </SheetHeader>
           {editing ? (
             <ConnectionSettings
