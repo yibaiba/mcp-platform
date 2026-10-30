@@ -15,6 +15,7 @@ import { ArgumentsField } from './ArgumentsField.js';
 import { connectNow, type ConnectOutcome } from './connectNow.js';
 import { connectionLocation, connectionNextStep } from './connectionHints.js';
 import { parseJsonObject } from './jsonField.js';
+import { ToolPrefixField } from './ToolPrefixField.js';
 export function ConnectionSettings({
   connection,
   onSaved,
@@ -29,6 +30,7 @@ export function ConnectionSettings({
   lastAttempt?: ConnectOutcome;
 }) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [name, setName] = useState(connection.name);
   const advanced = useRef<HTMLDivElement>(null);
   const devices = useQuery({ queryKey: ['devices'], queryFn: () => api<Device[]>('/devices') });
   const deviceById = new Map(devices.data?.map((device) => [device.id, device]));
@@ -98,6 +100,8 @@ export function ConnectionSettings({
               ...extra,
               ...target,
               name: value(data, 'name'),
+              // Empty clears it; the server then goes back to the name-derived prefix.
+              toolPrefix: value(data, 'toolPrefix'),
               revision: connection.revision,
               connectTimeoutMs: Number(value(data, 'connectTimeout')) * 1000,
               requestOptions: {
@@ -131,8 +135,23 @@ export function ConnectionSettings({
         }}
       >
         <Field label="连接名称">
-          <Input name="name" defaultValue={connection.name} required />
+          <Input
+            name="name"
+            defaultValue={connection.name}
+            required
+            onChange={(event) => setName(event.target.value)}
+          />
         </Field>
+        <ToolPrefixField
+          connectionId={connection.id}
+          initial={connection.toolPrefix}
+          source={{
+            name,
+            url: connection.url,
+            command: connection.command,
+            args: connection.args,
+          }}
+        />
         {usesUrl ? (
           <Field
             label="MCP 地址"

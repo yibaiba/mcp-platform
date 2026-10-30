@@ -51,6 +51,8 @@ export const connections = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     ownerId: owner(),
     name: text('name').notNull(),
+    /** User-set tool-name prefix; null keeps the name-derived prefix so upgrades never rename tools. */
+    toolPrefix: text('tool_prefix'),
     adapter: text('adapter').$type<'direct' | 'device' | 'pi'>().notNull(),
     deviceId: uuid('device_id').references(() => devices.id),
     config: text('config').notNull(),

@@ -386,14 +386,14 @@ export class ProfileService {
     const ids = [...new Set([...catalog, ...(universe ?? [])].map((row) => row.connectionId))];
     const names = ids.length
       ? await this.db
-          .select({ id: connections.id, name: connections.name })
+          .select({ id: connections.id, name: connections.name, prefix: connections.toolPrefix })
           .from(connections)
           .where(inArray(connections.id, ids))
       : [];
     return projectTools(
       catalog,
       config,
-      new Map(names.map((row) => [row.id, row.name])),
+      new Map(names.map((row) => [row.id, { name: row.name, prefix: row.prefix }])),
       universe ?? catalog,
     );
   }

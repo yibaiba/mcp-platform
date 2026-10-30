@@ -46,6 +46,8 @@ export type Device = {
   services: { id: string; status: string; error?: string }[];
 };
 export type Connection = {
+  /** User-set English tool-name prefix; null/absent uses the name-derived one. */
+  toolPrefix?: string | null;
   presetId?: string;
   revision: number;
   identityMode?: string;

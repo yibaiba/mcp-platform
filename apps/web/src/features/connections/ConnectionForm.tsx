@@ -12,6 +12,7 @@ import { parseArgumentLines } from '@platform/contracts';
 import { parseJsonObject } from './jsonField.js';
 import { ArgumentsField } from './ArgumentsField.js';
 import { connectNow, type ConnectOutcome } from './connectNow.js';
+import { ToolPrefixField } from './ToolPrefixField.js';
 
 const idOf = (value: unknown) =>
   value && typeof value === 'object' && 'id' in value && typeof value.id === 'string'
@@ -35,6 +36,8 @@ export function ConnectionForm({
   const [adapter, setAdapter] = useState(initialDeviceId ? 'device' : 'direct');
   const [transport, setTransport] = useState(initialDeviceId ? 'stdio' : 'http');
   const [mode, setMode] = useState('existing');
+  // What the tool-prefix suggestion is based on, kept in sync while the user types.
+  const [draft, setDraft] = useState({ name: '', url: '', command: '', args: '' });
   // Platform-host stdio is admin-only behind PLATFORM_STDIO_ENABLED; the server enforces it too.
   const hostStdio = Boolean(useMe().data?.hostStdio);
   const stdioAllowed = adapter === 'device' || hostStdio;
@@ -45,6 +48,7 @@ export function ConnectionForm({
     const config = {
       ...extra,
       name: value(data, 'name'),
+      toolPrefix: value(data, 'toolPrefix') || undefined,
       adapter,
       transport,
       mode: transport === 'stdio' ? 'managed' : mode,
@@ -62,7 +66,13 @@ export function ConnectionForm({
   }
   return (
     <Form label={onConnected ? '保存并连接' : '保存连接'} submit={submit}>
-      <div className="form-grid">
+      <div
+        className="form-grid"
+        onChange={(event) => {
+          const target = event.target as HTMLInputElement;
+          if (target.name in draft) setDraft((old) => ({ ...old, [target.name]: target.value }));
+        }}
+      >
         <Field label="连接名称">
           <Input name="name" placeholder="例如：文档搜索" required />
         </Field>
@@ -155,6 +165,14 @@ export function ConnectionForm({
           </>
         ) : null}
       </div>
+      <ToolPrefixField
+        source={{
+          name: draft.name,
+          url: transport !== 'stdio' ? draft.url : undefined,
+          command: needsCommand ? draft.command : undefined,
+          args: needsCommand ? parseArgumentLines(draft.args) : undefined,
+        }}
+      />
       <Disclosure
         title={
           transport === 'stdio'
