@@ -1,3 +1,4 @@
+import { useId, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import {
@@ -28,21 +29,90 @@ function StatTile({
   label,
   value,
   detail,
+  hero,
+  children,
 }: {
   icon: LucideIcon;
   label: string;
   value?: number;
   detail?: string;
+  hero?: boolean;
+  children?: ReactNode;
 }) {
   return (
-    <div className="stat-tile">
+    <div className={hero ? 'stat-tile is-hero' : 'stat-tile'}>
       <span className="stat-tile-icon" aria-hidden="true">
         <Icon size={16} />
       </span>
       <span className="stat-tile-label">{label}</span>
       <strong className="stat-tile-value">{value ?? '—'}</strong>
       <span className="stat-tile-detail">{detail ?? ' '}</span>
+      {children ? (
+        <span className="stat-tile-art" aria-hidden="true">
+          {children}
+        </span>
+      ) : null}
     </div>
+  );
+}
+type NodeState = 'ok' | 'error' | 'idle';
+const nodeColor: Record<NodeState, string> = {
+  ok: 'var(--success)',
+  error: 'var(--destructive)',
+  idle: 'var(--subtle-foreground)',
+};
+/** Decorative hub-and-spoke map: the platform in the middle, one node per connection. */
+function ConnectionMap({ states }: { states: NodeState[] }) {
+  const id = useId();
+  const nodes = states.slice(0, 8);
+  const cx = 160;
+  const cy = 60;
+  return (
+    <svg viewBox="0 0 320 120" fill="none">
+      <defs>
+        <linearGradient id={`${id}-line`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="var(--brand-2)" stopOpacity="0.25" />
+        </linearGradient>
+        <radialGradient id={`${id}-hub`}>
+          <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <g stroke="var(--border)" strokeWidth="1" opacity="0.6">
+        {[40, 80, 120, 200, 240, 280].map((x) => (
+          <circle key={x} cx={x} cy={cy} r="1" fill="var(--border)" />
+        ))}
+      </g>
+      {nodes.map((state, index) => {
+        const angle = -Math.PI / 2 + (2 * Math.PI * index) / nodes.length + Math.PI / nodes.length;
+        const x = cx + Math.cos(angle) * 128;
+        const y = cy + Math.sin(angle) * 44;
+        return (
+          <g key={index}>
+            <path
+              d={`M${cx} ${cy} Q ${(cx + x) / 2} ${(cy + y) / 2 - 12} ${x} ${y}`}
+              stroke={`url(#${id}-line)`}
+              strokeWidth="1.25"
+            />
+            <circle cx={x} cy={y} r="9" fill="var(--card)" stroke="var(--border)" />
+            <circle cx={x} cy={y} r="3.5" fill={nodeColor[state]} />
+          </g>
+        );
+      })}
+      <circle cx={cx} cy={cy} r="34" fill={`url(#${id}-hub)`} />
+      <rect
+        x={cx - 14}
+        y={cy - 14}
+        width="28"
+        height="28"
+        rx="8"
+        fill="var(--card)"
+        stroke="var(--primary)"
+        strokeOpacity="0.6"
+      />
+      <circle cx={cx} cy={cy} r="4" fill="var(--primary)" />
+    </svg>
   );
 }
 export default function OverviewPage() {
@@ -98,6 +168,7 @@ export default function OverviewPage() {
       <SetupChecklist />
       <div className="stat-tiles" aria-label="统计">
         <StatTile
+          hero
           icon={Network}
           label="连接"
           value={userConnections?.length}
@@ -106,7 +177,15 @@ export default function OverviewPage() {
               ? `${userConnections.filter((c) => c.status === 'connected').length} 个已连接`
               : undefined
           }
-        />
+        >
+          {userConnections?.length ? (
+            <ConnectionMap
+              states={userConnections.map((c) =>
+                c.status === 'connected' ? 'ok' : c.status === 'error' ? 'error' : 'idle',
+              )}
+            />
+          ) : null}
+        </StatTile>
         <StatTile
           icon={Monitor}
           label="设备在线"

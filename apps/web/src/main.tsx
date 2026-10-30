@@ -7,6 +7,7 @@ import { initTheme } from './lib/theme.js';
 import './index.css';
 import './workspace-polish.css';
 import './motion.css';
+import './style.css';
 initTheme();
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 5000, retry: false, refetchOnWindowFocus: true } },

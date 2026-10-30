@@ -3,7 +3,11 @@ import { createRoot } from 'react-dom/client';
 import { useEffect, useState } from 'react';
 import { LocalManager } from './features/local/LocalManager.js';
 import { localApi, type ManagementApi } from './features/local/api.js';
+import { LocalThemeSwitch } from './features/local/LocalThemeSwitch.js';
+import { initTheme } from './lib/theme.js';
+import './tokens.css';
 import './features/local/local.css';
+initTheme();
 function App() {
   const [api, setApi] = useState<ManagementApi>();
   const [error, setError] = useState('');
@@ -30,6 +34,7 @@ function App() {
   return (
     <main className="local-shell">
       <header>
+        <LocalThemeSwitch />
         <span className="local-eyebrow">MCP PLATFORM · LOCAL</span>
         <h1>本机 MCP 与 Skills</h1>
         <p>本地资源随时可用。选择纳入同步后，连接平台时自动核对修改。</p>

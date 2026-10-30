@@ -8,6 +8,7 @@ import {
   type ReactNode,
   type FormEvent,
 } from 'react';
+import { PageHeader } from './PageHeader.js';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { CircleCheck, LoaderCircle, ShieldAlert, type LucideIcon } from 'lucide-react';
@@ -160,18 +161,24 @@ export function InlineStatus({ children, onDone }: { children: ReactNode; onDone
     </span>
   );
 }
-/** Whole-page state for administrator-only screens opened by other accounts. */
-export function Forbidden() {
+/**
+ * Whole-page state for administrator-only screens opened by other accounts.
+ * Pass the page title so the topbar still names the page.
+ */
+export function Forbidden({ title }: { title?: string }) {
   return (
-    <div className="empty forbidden" role="alert">
-      <ShieldAlert size={28} aria-hidden="true" />
-      <h3>需要管理员权限</h3>
-      <div className="empty-action">
-        <Button variant="outline" render={<Link to="/" />}>
-          返回概览
-        </Button>
+    <>
+      {title ? <PageHeader title={title} /> : null}
+      <div className="empty forbidden" role="alert">
+        <ShieldAlert size={28} aria-hidden="true" />
+        <h3>需要管理员权限</h3>
+        <div className="empty-action">
+          <Button variant="outline" render={<Link to="/" />}>
+            返回概览
+          </Button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 /** Renders `Forbidden` for permission errors, otherwise the error with retry. */

@@ -207,8 +207,10 @@ body {
   transform: scale(0.97);
 }
 [data-slot='button'][data-variant='default']:hover:not(:disabled),
-[data-slot='button'].bg-primary:hover:not(:disabled) {
-  box-shadow: 0 4px 16px -6px color-mix(in oklch, var(--primary) 60%, transparent);
+[data-slot='button'].bg-primary-solid:hover:not(:disabled) {
+  box-shadow:
+    var(--glass-highlight),
+    0 4px 16px -6px color-mix(in oklch, var(--primary) 45%, transparent);
 }
 .row-link,
 .profile-open,
@@ -435,13 +437,4 @@ body {
 [data-slot='dialog-overlay'],
 [data-slot='sheet-overlay'] {
   background-color: var(--overlay);
-}
-/* Brief colour cross-fade while switching theme; theme.ts skips it under reduced motion. */
-html.theme-switching,
-html.theme-switching *,
-html.theme-switching *::before,
-html.theme-switching *::after {
-  transition-property: background-color, border-color, color, fill, stroke, box-shadow !important;
-  transition-duration: var(--duration-slow) !important;
-  transition-timing-function: var(--ease-in-out) !important;
 }

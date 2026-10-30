@@ -250,16 +250,8 @@ export default function ConnectionsPage() {
         ) : connections.isPending ? (
           <ListSkeleton />
         ) : connections.isSuccess ? (
-          <Empty
-            icon={Network}
-            title="还没有连接"
-            action={
-              <Button variant="outline" onClick={() => openAdd()}>
-                添加连接
-              </Button>
-            }
-          >
-            选择内置服务、填写自定义服务，或导入配置。
+          <Empty icon={Network} title="还没有连接">
+            点击右上角「添加连接」，选择内置服务、填写自定义服务，或导入配置。
           </Empty>
         ) : null}
       </Card>

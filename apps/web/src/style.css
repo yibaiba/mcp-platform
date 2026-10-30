@@ -1,0 +1,298 @@
+/*
+ * Visual style layer (loaded after index/workspace-polish/motion).
+ * Dark: Supabase-like graphite + brand green, bento tiles; Raycast-like glass bars, popovers and ⌘K.
+ * Light: Tailscale-like warm paper. Every colour comes from tokens.css.
+ */
+
+/* ---------- Glass surfaces ---------- */
+.sidebar,
+.topbar,
+[data-slot='dropdown-menu-content'],
+[data-slot='select-content'],
+[data-slot='dialog-content'],
+.sheet-content,
+.command-palette {
+  background-color: var(--glass);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+}
+[data-slot='dropdown-menu-content'],
+[data-slot='select-content'],
+[data-slot='dialog-content'],
+.sheet-content,
+.command-palette {
+  background-color: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--shadow-lg);
+}
+[data-slot='dropdown-menu-content'],
+[data-slot='select-content'] {
+  border-radius: var(--radius-md);
+}
+[data-slot='dialog-content'] {
+  border-radius: var(--radius-lg);
+}
+.sidebar {
+  border-right-color: var(--glass-border);
+  box-shadow: var(--glass-highlight);
+}
+.topbar {
+  border-bottom-color: var(--glass-border);
+}
+
+/* ---------- Panels and cards: thin bright edge + inner highlight ---------- */
+.panel,
+[data-slot='card'],
+.setup {
+  border-color: var(--panel-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-highlight), var(--shadow-md);
+}
+.panel-heading {
+  border-bottom-color: var(--panel-border);
+}
+
+/* ---------- Brand ---------- */
+.brand svg {
+  color: var(--primary);
+  filter: drop-shadow(0 0 8px color-mix(in oklch, var(--primary) 45%, transparent));
+}
+:root[data-theme='light'] .brand svg {
+  filter: none;
+}
+.nav-indicator {
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklch, var(--primary) 16%, var(--accent)),
+    var(--accent) 70%
+  );
+  box-shadow:
+    inset 2px 0 0 var(--primary),
+    var(--glass-highlight);
+}
+.workspace-navigation a.active,
+.workspace-navigation a.active svg {
+  color: var(--accent-foreground);
+}
+.tab-indicator {
+  background: linear-gradient(90deg, var(--primary), var(--brand-2));
+}
+
+/* ---------- Bento overview tiles ---------- */
+.stat-tiles {
+  grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto auto;
+}
+.stat-tile {
+  border-color: var(--panel-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-highlight), var(--shadow-md);
+  background:
+    radial-gradient(260px 140px at 100% 0%, var(--glow-primary), transparent 70%),
+    linear-gradient(180deg, var(--tile-from), var(--tile-to));
+}
+.stat-tile.is-hero {
+  grid-row: span 2;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto auto 1fr;
+  grid-template-areas:
+    'icon label'
+    'value value'
+    'detail detail'
+    'art art';
+  min-height: 248px;
+  background:
+    radial-gradient(420px 240px at 85% 100%, var(--glow-info), transparent 70%),
+    radial-gradient(320px 200px at 100% 0%, var(--glow-primary), transparent 70%),
+    linear-gradient(180deg, var(--tile-from), var(--tile-to));
+}
+.stat-tile.is-hero .stat-tile-value {
+  font-size: 40px;
+  line-height: 44px;
+  letter-spacing: -0.02em;
+}
+.stat-tile-art {
+  grid-area: art;
+  align-self: end;
+  justify-self: stretch;
+  margin-top: 12px;
+}
+.stat-tile-art svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 120px;
+}
+.stat-tiles > .stat-tile:not(.is-hero) {
+  grid-column: span 2;
+}
+@media (min-width: 1100px) {
+  .stat-tiles > .stat-tile:not(.is-hero) {
+    grid-column: auto;
+  }
+  .stat-tiles {
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .stat-tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .stat-tile.is-hero {
+    grid-row: auto;
+    min-height: 0;
+  }
+  .stat-tiles > .stat-tile:not(.is-hero) {
+    grid-column: auto;
+  }
+}
+.stat-tile-icon {
+  border-color: var(--panel-border);
+  background: color-mix(in oklch, var(--primary) 10%, var(--card));
+  box-shadow: var(--glass-highlight);
+}
+
+/* ---------- Status: dot + text, no filled pill ---------- */
+.status i {
+  box-shadow: 0 0 0 3px color-mix(in oklch, currentColor 18%, transparent);
+}
+
+/* ---------- Light theme: paper, almost no shadow ---------- */
+:root[data-theme='light'] body {
+  background: var(--background);
+}
+:root[data-theme='light'] .sidebar {
+  background-color: var(--surface);
+}
+
+/* ---------- Keyboard hints and ⌘K ---------- */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--foreground) 6%, transparent);
+  box-shadow: var(--glass-highlight);
+  color: var(--muted-foreground);
+  font:
+    500 12px/1 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+}
+.command-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 6px 0 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--foreground) 4%, transparent);
+  box-shadow: var(--glass-highlight);
+  color: var(--muted-foreground);
+  font-size: var(--text-caption);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+.command-trigger:hover {
+  color: var(--foreground);
+  border-color: var(--control-border);
+}
+.command-trigger-label {
+  min-width: 64px;
+  text-align: left;
+}
+@media (max-width: 760px) {
+  .command-trigger-label,
+  .command-trigger .kbd {
+    display: none;
+  }
+  .command-trigger {
+    padding: 0 8px;
+  }
+}
+[data-slot='dialog-content'].command-palette {
+  top: 18vh;
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: min(640px, calc(100% - 32px));
+  max-width: none;
+  padding: 0;
+  overflow: hidden;
+}
+.command-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--glass-border);
+  color: var(--muted-foreground);
+}
+.command-input input {
+  flex: 1;
+  min-width: 0;
+  height: 52px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-size: var(--text-section);
+}
+.command-input input:focus-visible {
+  outline: 0;
+  box-shadow: none;
+}
+.command-input input::placeholder {
+  color: var(--subtle-foreground);
+}
+.command-list {
+  max-height: min(420px, 56vh);
+  overflow-y: auto;
+  padding: 6px;
+}
+.command-group {
+  padding: 10px 10px 4px;
+  color: var(--subtle-foreground);
+  font-size: var(--text-caption);
+  letter-spacing: 0.04em;
+}
+.command-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  color: var(--foreground);
+  font-size: var(--text-body);
+  cursor: pointer;
+}
+.command-item > svg {
+  color: var(--muted-foreground);
+}
+.command-item[aria-selected='true'] {
+  background: color-mix(in oklch, var(--foreground) 8%, transparent);
+  box-shadow: var(--glass-highlight);
+}
+.command-item[aria-selected='true'] > svg:first-child {
+  color: var(--primary);
+}
+.command-enter {
+  margin-left: auto;
+}
+.command-empty {
+  padding: 24px 10px;
+  color: var(--muted-foreground);
+  text-align: center;
+}
+.sheet-content {
+  border-width: 0 0 0 1px;
+}
