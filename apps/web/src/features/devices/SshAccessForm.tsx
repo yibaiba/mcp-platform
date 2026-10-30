@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import type { SshAccessView, SshAccessInput } from '@platform/contracts';
 import { Field, Form, value } from '../../components/shared/Controls.js';
+import { SelectControl } from '../../components/shared/SelectControl.js';
+import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
+import { SelectItem } from '../../components/ui/select.js';
 import { api, json, type Connection } from '../../lib/api.js';
 export function SshAccessForm({
   current: initial,
@@ -50,13 +53,13 @@ export function SshAccessForm({
           />
         </Field>
         <Field label="设备系统">
-          <select name="platform" defaultValue={current?.platform ?? 'windows'}>
+          <SelectControl name="platform" defaultValue={current?.platform ?? 'windows'}>
             {['windows', 'macos', 'linux', 'other'].map((p) => (
-              <option key={p} value={p}>
+              <SelectItem key={p} value={p}>
                 {p}
-              </option>
+              </SelectItem>
             ))}
-          </select>
+          </SelectControl>
         </Field>
         <Field label="SSH 主机">
           <Input
@@ -105,24 +108,20 @@ export function SshAccessForm({
         <fieldset key={index} className="form-grid">
           <legend>映射 {index + 1}</legend>
           <Field label={`映射 ${index + 1} 的 MCP 连接`}>
-            <select
+            <SelectControl
               required
               value={binding.connectionId}
-              onChange={(event) =>
-                setBindings(
-                  bindings.map((b, i) =>
-                    i === index ? { ...b, connectionId: event.target.value } : b,
-                  ),
-                )
+              onValueChange={(connectionId) =>
+                setBindings(bindings.map((b, i) => (i === index ? { ...b, connectionId } : b)))
               }
             >
-              <option value="">选择现有连接</option>
+              <SelectItem value="">选择现有连接</SelectItem>
               {connections.map((connection) => (
-                <option key={connection.id} value={connection.id}>
+                <SelectItem key={connection.id} value={connection.id}>
                   {connection.name}
-                </option>
+                </SelectItem>
               ))}
-            </select>
+            </SelectControl>
           </Field>
           {(['localPort', 'remotePort'] as const).map((key) => (
             <Field
@@ -145,25 +144,25 @@ export function SshAccessForm({
               />
             </Field>
           ))}
-          <button
-            className="button"
+          <Button
+            variant="outline"
             type="button"
             disabled={bindings.length === 1}
             onClick={() => setBindings(bindings.filter((_, i) => i !== index))}
           >
             移除映射 {index + 1}
-          </button>
+          </Button>
         </fieldset>
       ))}
-      <button
-        className="button"
+      <Button
+        variant="outline"
         type="button"
         onClick={() =>
           setBindings([...bindings, { connectionId: '', localPort: 3000, remotePort: 13000 }])
         }
       >
         增加端口映射
-      </button>
+      </Button>
     </Form>
   );
 }

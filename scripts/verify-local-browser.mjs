@@ -370,7 +370,8 @@ try {
   await platform.getByLabel('接入名称', { exact: true }).fill('Browser SSH');
   await platform.getByLabel('SSH 主机', { exact: true }).fill('browser-ssh.example.test');
   await platform.getByLabel('SSH 用户', { exact: true }).fill('mcp');
-  await platform.getByLabel('映射 1 的 MCP 连接', { exact: true }).selectOption(sshConnection.id);
+  await platform.getByRole('combobox', { name: '映射 1 的 MCP 连接', exact: true }).click();
+  await platform.getByRole('option', { name: 'SSH browser fixture', exact: true }).click();
   await platform.getByLabel('映射 1 的远端端口', { exact: true }).fill(new URL(mcp.url).port);
   await platform.getByRole('button', { name: '添加 SSH 接入', exact: true }).click();
   await platform.getByText('Browser SSH', { exact: true }).waitFor();

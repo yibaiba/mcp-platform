@@ -5,6 +5,7 @@ import { api, json, type Connection } from '../../lib/api.js';
 import { Action, Empty, Feedback, Status } from '../../components/shared/Controls.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
 import { Card } from '../../components/ui/card.js';
+import { Button } from '../../components/ui/button.js';
 import { SshAccessForm } from './SshAccessForm.js';
 export default function SshAccesses() {
   const [editing, setEditing] = useState<string>();
@@ -30,12 +31,9 @@ export default function SshAccesses() {
     <Card className="panel padded">
       <div className="panel-heading">
         <h2>SSH 转发接入</h2>
-        <button
-          className="button"
-          onClick={() => setEditing(editing === 'new' ? undefined : 'new')}
-        >
+        <Button onClick={() => setEditing(editing === 'new' ? undefined : 'new')}>
           新增 SSH 接入
-        </button>
+        </Button>
       </div>
       <p>让已有 HTTP MCP 通过 SSH 反向隧道接入平台。设备仍负责启动 MCP 服务。</p>
       <Feedback error={accesses.error ?? connections.error} />
@@ -79,12 +77,12 @@ export default function SshAccesses() {
             </div>
           ))}
           <div className="row-actions">
-            <button
-              className="button"
+            <Button
+              variant="outline"
               onClick={() => setEditing(editing === item.id ? undefined : item.id)}
             >
               编辑接入
-            </button>
+            </Button>
             <Action
               action={async () => {
                 const response = await fetch(`/api/v1/ssh-accesses/${item.id}/windows-bundle`);
@@ -99,9 +97,9 @@ export default function SshAccesses() {
             >
               下载 Windows 连接包
             </Action>
-            <button className="button" onClick={() => setDeleting(item.id)}>
+            <Button variant="outline" onClick={() => setDeleting(item.id)}>
               删除接入
-            </button>
+            </Button>
           </div>
           {deleting === item.id ? (
             <div role="group" aria-label="确认删除 SSH 接入">
@@ -121,9 +119,9 @@ export default function SshAccesses() {
               >
                 确认删除记录
               </Action>
-              <button className="button" onClick={() => setDeleting(undefined)}>
+              <Button variant="outline" onClick={() => setDeleting(undefined)}>
                 取消删除
-              </button>
+              </Button>
             </div>
           ) : null}
           {editing === item.id ? (
