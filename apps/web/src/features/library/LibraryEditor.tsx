@@ -19,15 +19,19 @@ export function LibraryEditor({
     initial.kind === 'prompt' ? JSON.stringify(initial.arguments) : '[]',
   );
   const [previewValues, setPreviewValues] = useState('{}');
-  const [preview, setPreview] = useState<{ signature: string; value: unknown }>();
-  const signature = JSON.stringify([draft, argumentsJson, previewValues]);
+  const [previewVersion, setPreviewVersion] = useState(0);
+  const [preview, setPreview] = useState<{ version: number; value: unknown }>();
   const dirty =
     JSON.stringify(draft) !== JSON.stringify(initial) ||
     (initial.kind === 'prompt' && argumentsJson !== JSON.stringify(initial.arguments));
   useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
+  function invalidatePreview() {
+    setPreviewVersion((version) => version + 1);
+    setPreview(undefined);
+  }
   function update(patch: Record<string, unknown>) {
     setDraft({ ...draft, ...patch });
-    setPreview(undefined);
+    invalidatePreview();
   }
   const parsedDraft = () =>
     libraryItem.parse(
@@ -70,7 +74,7 @@ export function LibraryEditor({
               value={argumentsJson}
               onChange={(next) => {
                 setArgumentsJson(next);
-                setPreview(undefined);
+                invalidatePreview();
               }}
             />
           </>
@@ -112,6 +116,7 @@ export function LibraryEditor({
           <p className="text-muted-foreground">使用上方当前内容预览，无需先保存。</p>
           <Form
             label="预览当前草稿"
+            feedbackVersion={previewVersion}
             submit={async () => {
               setPreview(undefined);
               const result = await api<unknown>('/library/prompts/preview', {
@@ -121,7 +126,7 @@ export function LibraryEditor({
                   arguments: JSON.parse(previewValues || '{}'),
                 }),
               });
-              setPreview({ signature, value: result });
+              setPreview({ version: previewVersion, value: result });
             }}
           >
             <Field label="参数值（JSON）">
@@ -130,13 +135,13 @@ export function LibraryEditor({
                 value={previewValues}
                 onChange={(event) => {
                   setPreviewValues(event.target.value);
-                  setPreview(undefined);
+                  invalidatePreview();
                 }}
               />
             </Field>
           </Form>
           {preview ? (
-            preview.signature === signature ? (
+            preview.version === previewVersion ? (
               <Code value={preview.value} />
             ) : (
               <p role="status">草稿已修改，请重新预览。</p>
