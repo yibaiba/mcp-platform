@@ -102,3 +102,37 @@ function mulberry32(seed: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+test('env: empty Compose values fall back to defaults; 0 turns a limit off', async () => {
+  const { envSchema } = await import('../apps/server/src/config.js');
+  const base = {
+    DATABASE_URL: 'postgres://x@localhost/x',
+    PUBLIC_URL: 'http://localhost:4300',
+    WEB_ORIGIN: 'http://localhost:4301',
+    BETTER_AUTH_SECRET: 'x'.repeat(32),
+    ENCRYPTION_KEY: 'k',
+    DEVICE_AUTH_ENCRYPTION_KEY: Buffer.alloc(32).toString('base64'),
+  };
+  const empty = envSchema.parse({
+    ...base,
+    RATE_LIMIT_ENABLED: '',
+    RATE_LIMIT_MCP_PER_CREDENTIAL: '',
+    RATE_LIMIT_MCP_PER_USER: '',
+    RATE_LIMIT_MCP_PER_IP: '',
+    RATE_LIMIT_AUTH_PER_IP: '',
+    RATE_LIMIT_LOGIN_PER_IP: '',
+    TRUSTED_PROXIES: '',
+  });
+  expect(empty).toMatchObject({
+    RATE_LIMIT_ENABLED: 'true',
+    RATE_LIMIT_MCP_PER_CREDENTIAL: 600,
+    RATE_LIMIT_MCP_PER_USER: 1200,
+    RATE_LIMIT_MCP_PER_IP: 2400,
+    RATE_LIMIT_AUTH_PER_IP: 120,
+    RATE_LIMIT_LOGIN_PER_IP: 20,
+    TRUSTED_PROXIES: 'loopback,private',
+  });
+  expect(envSchema.parse({ ...base, RATE_LIMIT_MCP_PER_IP: '0' }).RATE_LIMIT_MCP_PER_IP).toBe(0);
+  expect(() => envSchema.parse({ ...base, RATE_LIMIT_MCP_PER_IP: '-1' })).toThrow();
+  expect(() => envSchema.parse({ ...base, RATE_LIMIT_ENABLED: 'yes' })).toThrow();
+});

@@ -5,6 +5,14 @@ export const platformRoot = fileURLToPath(new URL('../../../', import.meta.url))
 // Compose represents absent optional settings as empty environment strings.
 const optionalSetting = <T extends z.ZodType>(schema: T) =>
   z.preprocess((value) => (value === '' ? undefined : value), schema.optional());
+// A per-minute request limit; empty (Compose) means the default, 0 turns the limit off.
+const perMinute = (fallback: number) =>
+  z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.coerce.number().int().nonnegative().default(fallback),
+  );
+const withDefault = <T extends z.ZodType>(schema: T) =>
+  z.preprocess((value) => (value === '' ? undefined : value), schema);
 export const envSchema = z
   .object({
     DATABASE_URL: z.url(),
@@ -47,14 +55,14 @@ export const envSchema = z
     PI_MODEL_ID: z.string().optional(),
     PI_MCP_ADAPTER_OAUTH_FILE_KEY: z.string().optional(),
     // Request limits, per minute and per process (in-memory); 0 turns one limit off.
-    RATE_LIMIT_ENABLED: z.enum(['true', 'false']).default('true'),
-    RATE_LIMIT_MCP_PER_CREDENTIAL: z.coerce.number().int().nonnegative().default(600),
-    RATE_LIMIT_MCP_PER_USER: z.coerce.number().int().nonnegative().default(1200),
-    RATE_LIMIT_MCP_PER_IP: z.coerce.number().int().nonnegative().default(2400),
-    RATE_LIMIT_AUTH_PER_IP: z.coerce.number().int().nonnegative().default(120),
-    RATE_LIMIT_LOGIN_PER_IP: z.coerce.number().int().nonnegative().default(20),
+    RATE_LIMIT_ENABLED: withDefault(z.enum(['true', 'false']).default('true')),
+    RATE_LIMIT_MCP_PER_CREDENTIAL: perMinute(600),
+    RATE_LIMIT_MCP_PER_USER: perMinute(1200),
+    RATE_LIMIT_MCP_PER_IP: perMinute(2400),
+    RATE_LIMIT_AUTH_PER_IP: perMinute(120),
+    RATE_LIMIT_LOGIN_PER_IP: perMinute(20),
     // Hops allowed to set X-Forwarded-For: none, loopback, private, or CIDRs (comma separated).
-    TRUSTED_PROXIES: z.string().default('loopback,private'),
+    TRUSTED_PROXIES: withDefault(z.string().default('loopback,private')),
   })
   .refine(
     (value) => !value.CONFIG_MANIFEST_FILE || Boolean(value.CONFIG_MANIFEST_OWNER),
