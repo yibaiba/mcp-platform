@@ -43,6 +43,8 @@ MCP `tools/list` 默认给出可读、稳定的工具名：`连接名slug__工�
 
 直接部署使用 `docker-compose.yml` 和 `.env.docker.example`，从 `ghcr.io/yibaiba/mcp-platform` 拉取本仓库发布的应用镜像，同时启动 PostgreSQL，仅映射应用端口 4300。源码构建使用 `compose.yaml`，构建同一个应用镜像，通过 `DATABASE_URL` 连接外部 PostgreSQL。启动、镜像发布和备份步骤见[部署说明](docs/deployment.md)。
 
+服务端默认对 MCP 入口（按密钥、用户和地址）和登录、OAuth 端点（按地址）限流，超限返回 429 和 `Retry-After`；阈值、反向代理设置和多实例局限见[部署说明](docs/deployment.md#请求限流)。
+
 目标电脑无需构建项目或预装 `connector`。在设备页复制安装连接命令，自动下载对应系统/架构的二进制并校验后配对；Docker 服务端镜像自带六种安装文件。其他电脑需使用可访问的平台 HTTPS 地址，详见[设备安装说明](docs/connector.md)。
 
 ## 已实现

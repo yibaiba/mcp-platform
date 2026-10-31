@@ -20,6 +20,34 @@ docker compose -f docker-compose.yml logs --tail=100 server
 
 本仓库同时保留 `compose.yaml`，Docker Compose 默认优先选取该文件，因此单端口镜像部署必须显式使用 `-f docker-compose.yml`，或设置 `COMPOSE_FILE=docker-compose.yml`。
 
+## 请求限流
+
+服务端默认开启限流（`RATE_LIMIT_ENABLED=true`），计数保存在单个服务进程的内存里，重启后清零。超过限制时返回 HTTP 429 和 `Retry-After`（秒），等待这段时间后即可继续，被拒绝的请求不计入次数。
+
+| 范围                                                                                        | 变量                            | 默认（次/分钟） | 计数对象                                                    |
+| ------------------------------------------------------------------------------------------- | ------------------------------- | --------------- | ----------------------------------------------------------- |
+| MCP 入口（`/mcp/*`，含 Streamable HTTP、REST 调用和产物下载）                               | `RATE_LIMIT_MCP_PER_CREDENTIAL` | 600             | 每个接入密钥或 OAuth 授权（按 Agent 区分）                  |
+|                                                                                             | `RATE_LIMIT_MCP_PER_USER`       | 1200            | 同一用户的所有密钥和授权合计                                |
+|                                                                                             | `RATE_LIMIT_MCP_PER_IP`         | 2400            | 每个客户端地址，在校验密钥之前计数，无效密钥也计入          |
+| 登录与授权（OAuth 注册/授权/换取/撤销、CLI 登录、设备配对、`/api/v1/auth/*`，读取会话除外） | `RATE_LIMIT_AUTH_PER_IP`        | 120             | 每个客户端地址                                              |
+| 账号登录与注册                                                                              | `RATE_LIMIT_LOGIN_PER_IP`       | 20              | 每个客户端地址、每个登录方式（由 Better Auth 内置限流执行） |
+
+- 窗口为 60 秒滑动窗口；某一项设为 `0` 即关闭该项，`RATE_LIMIT_ENABLED=false` 关闭全部（包括 Better Auth 内置限流）。Compose 中留空表示使用默认值。
+- 默认值按“一个客户端先列工具再并发调用几百次”的用法留有余量：初始化、多次 `tools/list` 加 300 个并发 `tools/call` 不会触发。持续每秒超过 10 次调用的单个密钥会被限制；批量任务较多时调大 `RATE_LIMIT_MCP_PER_CREDENTIAL`。参考：MCPHub 默认每分钟 480 次，MetaMCP 分端点和用户两层。
+- MCP 入口的 429 响应体是 JSON-RPC 错误（`id` 为 `null`，`code` 为 `-32000`，`data` 内含 `scope`、`retryAfter` 和 `limit`）；其他接口返回 `{ code: "RATE_LIMITED", error, message, scope, retryAfter }`。
+
+### 客户端地址与反向代理
+
+按地址计数时使用 TCP 对端地址；只有对端属于 `TRUSTED_PROXIES` 时才读取 `X-Forwarded-For`，并从右往左跳过受信任的代理，取第一个不受信任的地址。客户端自己写的 `X-Forwarded-For` 不能越过第一个不受信任的地址。
+
+- 默认 `TRUSTED_PROXIES=loopback,private`：适合同一台主机或同一 Docker 网络里的 Nginx/Caddy。代理需要追加 `X-Forwarded-For`（Nginx：`proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`）；没有这个头时，所有人都会被算作代理这一个地址。
+- 客户端直接从内网访问 4300（没有代理）时，内网客户端可以伪造 `X-Forwarded-For` 换地址计数，应设为 `TRUSTED_PROXIES=none`。
+- 代理在其他网段时，列出它的地址或网段，例如 `TRUSTED_PROXIES=203.0.113.10,198.51.100.0/24`。
+
+### 多实例
+
+计数不在实例之间共享：同一用户的请求分到 N 个实例时，实际上限最多是 N 倍；重启也会清零。多实例部署请在入口负载均衡上做全局限流，或用会话粘滞把同一客户端固定到一个实例。
+
 ## 源码构建部署
 
 `compose.yaml` 从本仓库根目录构建 Dockerfile 的 `app` 阶段，运行与发布镜像相同的应用。构建配置不包含 PostgreSQL 服务，通过 `DATABASE_URL` 连接已有数据库。
