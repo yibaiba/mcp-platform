@@ -197,9 +197,10 @@ try {
   await memberPage.keyboard.press('Escape');
   await memberPage.getByRole('combobox', { name: '执行适配器', exact: true }).click();
   await memberPage.getByRole('option', { name: '设备连接器', exact: true }).click();
-  await memberPage.getByRole('combobox', { name: '传输协议', exact: true }).click();
-  await memberPage.getByRole('option', { name: 'stdio（本地进程）', exact: true }).waitFor();
+  await memberPage.getByRole('combobox', { name: '运行方式', exact: true }).click();
+  await memberPage.getByRole('option', { name: '运行本地命令（stdio）', exact: true }).waitFor();
   await memberPage.keyboard.press('Escape');
+  await memberPage.getByRole('link', { name: '添加设备', exact: true }).waitFor();
   await memberPage.screenshot({ path: join(screenshots, 'member-no-host-stdio.png') });
   await memberContext.close();
   await page.goto(h.baseURL + '/connections');

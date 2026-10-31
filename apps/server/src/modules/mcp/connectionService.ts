@@ -7,12 +7,14 @@ import { connections, catalogSnapshots, type Database } from '@platform/db';
 import {
   connectionInput,
   connectorPresets,
+  maskArguments,
   matchesConnectorPreset,
+  restoreHiddenArguments,
   type ConnectionInput,
 } from '@platform/contracts';
 import type { McpNotification } from '@platform/mcp';
 import { type Vault } from '../../shared/crypto.js';
-import { AppError, requireValue } from '../../shared/errors.js';
+import { AppError, errorMessage, requireValue } from '../../shared/errors.js';
 import { redactConnectionError } from './connectionDiagnostics.js';
 import type { DeviceService } from '../devices/deviceService.js';
 import type { AdapterFactory, ConnectionContext } from './adapter.js';
@@ -379,6 +381,11 @@ export class ConnectionService {
           mode: value.mode,
           presetId: connectorPresets.find((preset) => matchesConnectorPreset(value, preset))?.id,
           url: value.url ? new URL(value.url).origin + new URL(value.url).pathname : undefined,
+          // The edit form needs these; the query string and sensitive args may hold secrets.
+          urlHasQuery: Boolean(value.url && new URL(value.url).search),
+          command: value.command,
+          args: maskArguments(value.args ?? [], value.sensitiveArguments),
+          cwd: value.cwd,
         };
       }),
     );
@@ -447,10 +454,14 @@ export class ConnectionService {
         context.config.health.recover && this.lifecycle.recovery(id).length
           ? { next: slot, closed: Promise.resolve() }
           : this.runtime.invalidate(slot.id);
+      // An offline connector is not an upstream failure: say which device and what to do.
+      const offline = error instanceof AppError && error.code === 'DEVICE_OFFLINE';
       const message =
         context.shareId && context.credentialScope?.ownerId !== ownerId
           ? '共享上游不可用，请联系连接所有者检查授权或设备'
-          : this.redact(error, context.config);
+          : offline
+            ? (await this.unavailable(ownerId, id)).message
+            : this.redact(error, context.config);
       await this.runtime.write(next, () =>
         context.shareId
           ? this.deps.shares.state(context, 'error', message)
@@ -470,6 +481,7 @@ export class ConnectionService {
       }
       // Policy rejections keep their 403 code instead of looking like an upstream failure.
       if (error instanceof AppError && error.code.startsWith('HOST_STDIO_')) throw error;
+      if (offline) throw new AppError('DEVICE_OFFLINE', message, 503);
       throw new AppError('CONNECTION_FAILED', message, 502);
     }
   }
@@ -609,6 +621,12 @@ export class ConnectionService {
     const { revision, ...patch } = input as Record<string, unknown>;
     if (revision !== undefined && revision !== row.revision)
       throw new AppError('REVISION_CONFLICT', '连接配置已变化，请重新加载', 409);
+    if (Array.isArray(patch.args))
+      try {
+        patch.args = restoreHiddenArguments(old, patch.args as string[]);
+      } catch (error) {
+        throw new AppError('VALIDATION', errorMessage(error));
+      }
     const config = await this.validate(ownerId, replace ? patch : { ...old, ...patch });
     await this.close(ownerId, id);
     const updated = await this.deps.db

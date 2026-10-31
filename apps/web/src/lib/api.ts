@@ -85,6 +85,12 @@ export type Connection = {
   status: string;
   error: string | null;
   url?: string;
+  /** The stored URL has a query string; it is hidden here because it may carry credentials. */
+  urlHasQuery?: boolean;
+  command?: string;
+  /** Sensitive arguments come back as `hiddenArgument`; saving the placeholder keeps the value. */
+  args?: string[];
+  cwd?: string;
   protocolVersion?: string | null;
   capabilities?: Record<string, unknown>;
 };

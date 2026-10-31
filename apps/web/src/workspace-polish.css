@@ -602,3 +602,28 @@ textarea:disabled {
 .consent-tools small {
   color: var(--muted-foreground);
 }
+
+/* Devices › connections running on this device */
+.device-connections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-caption);
+}
+.device-connections li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+/* A save-and-connect result: title, upstream error and next step stacked. */
+.attention.stacked {
+  display: grid;
+  align-items: start;
+  gap: 4px;
+}
+.attention.stacked p {
+  margin: 0;
+}

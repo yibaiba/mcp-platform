@@ -81,6 +81,8 @@ Schema 使用官方 AJV 按 `$schema` 选择 draft-07、2019-09、2020-12；无�
 
 连接的 `transport` 分别为 `http`、`sse`、`stdio`。HTTP/SSE 提供 `url`；stdio 使用 `mode: "managed"`，提供 `command`、`args`，可选 `env`、`cwd`，无需 URL。平台及 Pi 的 stdio 命令在平台主机执行，Docker 部署时位于 server 容器，设备适配器在所选设备执行。可执行程序必须已安装在实际执行环境。停止连接会关闭 MCP 会话和子进程。
 
+`GET /connections` 和 `GET /connections/:id` 为编辑表单返回 `command`、`args`、`cwd` 和 `urlHasQuery`；`url` 只含 origin 和路径，查询参数不返回。`sensitiveArguments` 对应的参数以 `[已隐藏的敏感参数]` 返回，`PATCH` 时在原位置传回这个占位符即保留原值，放到其他位置返回 `VALIDATION`。设备离线时 `POST /connections/:id/discover` 返回 `503 DEVICE_OFFLINE`，错误里写明设备名和下一步。
+
 stdio 的进程凭证通过 `env` 配置；上游 HTTP OAuth 端点不适用于 stdio，调用时明确返回 `OAUTH_NOT_APPLICABLE`。外部 Agent 的接入授权和工具权限对三种传输一致生效。Pi 使用显式 `httpTransport`，按用户选择连接；协议不匹配会报错，不静默切换成另一协议。
 
 标准传输是 stdio 和 Streamable HTTP；HTTP+SSE 用于兼容旧版本。WebSocket、TCP 或 Unix socket 属于自定义传输，不能仅凭名称视为通用 MCP 兼容协议。参考 [MCP 传输规范](https://modelcontextprotocol.io/specification/latest/basic/transports)。

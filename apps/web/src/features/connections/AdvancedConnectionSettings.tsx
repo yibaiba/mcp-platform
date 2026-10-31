@@ -5,6 +5,7 @@ import { Textarea } from '../../components/ui/textarea.js';
 import { SelectControl } from '../../components/shared/SelectControl.js';
 import { SelectItem } from '../../components/ui/select.js';
 import { CheckChoice } from '../../components/shared/CheckChoice.js';
+import { Disclosure } from '../../components/shared/Disclosure.js';
 
 export function AdvancedConnectionSettings({ connection }: { connection: Connection }) {
   return (
@@ -126,12 +127,14 @@ export function AdvancedConnectionSettings({ connection }: { connection: Connect
       >
         <Input name="forwardHeaders" defaultValue={connection.forwardHeaders?.join(', ')} />
       </Field>
-      <Field
-        label="其他连接字段（JSON 增量）"
-        hint="可更新 url、command、args、env、headers、oauth 等；未填写的字段保留原值。"
-      >
-        <Textarea name="patch" defaultValue="{}" rows={5} />
-      </Field>
+      <Disclosure title="开发者选项：其他连接字段（JSON 增量）">
+        <Field
+          label="其他连接字段（JSON 增量）"
+          hint="可选。用于 env、headers、oauth 等表单没有的字段；地址、命令和参数请用上方表单。未填写的字段保留原值。"
+        >
+          <Textarea name="patch" defaultValue="{}" rows={5} />
+        </Field>
+      </Disclosure>
     </div>
   );
 }

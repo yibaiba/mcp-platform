@@ -30,6 +30,15 @@ import { api, type Connection, type Device } from '../../lib/api.js';
 import { Input } from '../../components/ui/input.js';
 import { Empty, Feedback, ListSkeleton } from '../../components/shared/Controls.js';
 import { ConnectionForm } from './ConnectionForm.js';
+import type { ConnectOutcome } from './connectNow.js';
+
+const connectNotice = (outcome: ConnectOutcome): ConnectionNotice =>
+  outcome.error
+    ? { connectionId: outcome.connectionId, message: '已保存，未连接', error: outcome.error }
+    : {
+        connectionId: outcome.connectionId,
+        message: `已保存并连接，读取到 ${outcome.tools ?? 0} 个工具`,
+      };
 import { ConnectorCatalog } from './ConnectorCatalog.js';
 import { ConnectorForm } from './ConnectorForm.js';
 import { ConnectionResult } from './ConnectionResult.js';
@@ -44,10 +53,6 @@ import { ConnectionShares } from './ConnectionShares.js';
 import { IncomingShares } from './IncomingShares.js';
 
 type AddTab = 'catalog' | 'custom' | 'import';
-const idOf = (value: unknown) =>
-  value && typeof value === 'object' && 'id' in value && typeof value.id === 'string'
-    ? value.id
-    : undefined;
 
 /** One line when someone shared connections with you; the details open in a drawer. */
 function SharedWithMe({ devices }: { devices: Device[] }) {
@@ -91,8 +96,10 @@ export default function ConnectionsPage() {
   const [editing, setEditing] = useState<Connection>();
   const [editingDirty, setEditingDirty] = useState(false);
   const protection = useDraftProtection(editingDirty);
+  const [editAttempt, setEditAttempt] = useState<ConnectOutcome>();
   const closeEditor = () => {
     setEditing(undefined);
+    setEditAttempt(undefined);
     setEditingDirty(false);
   };
   const [sharing, setSharing] = useState<Connection>();
@@ -303,10 +310,9 @@ export default function ConnectionsPage() {
               <TabsPanel value="custom">
                 <ConnectionForm
                   devices={devices.data ?? []}
-                  onSaved={(created) => {
+                  onConnected={(outcome) => {
                     setShow(false);
-                    const id = idOf(created);
-                    if (id) setNotice({ connectionId: id, message: '已保存，点「连接」读取工具' });
+                    setNotice(connectNotice(outcome));
                   }}
                 />
               </TabsPanel>
@@ -349,10 +355,22 @@ export default function ConnectionsPage() {
           </SheetHeader>
           {editing ? (
             <ConnectionSettings
-              key={editing.id}
+              key={`${editing.id}:${editing.revision}`}
               connection={editing}
+              lastAttempt={editAttempt}
               onDirtyChange={setEditingDirty}
-              onSaved={closeEditor}
+              onSaved={async (outcome) => {
+                if (!outcome.error) {
+                  closeEditor();
+                  setNotice(connectNotice(outcome));
+                  return;
+                }
+                // Stay in the editor with the saved values so the address can be fixed again.
+                const fresh = await api<Connection>(`/connections/${outcome.connectionId}`);
+                setEditingDirty(false);
+                setEditAttempt(outcome);
+                setEditing(fresh);
+              }}
             />
           ) : null}
         </SheetContent>

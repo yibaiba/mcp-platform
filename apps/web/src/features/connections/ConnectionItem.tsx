@@ -27,6 +27,7 @@ import { ConnectorIcon } from './ConnectorIcon.js';
 import { executionLocation } from '../tools/toolCatalog.js';
 import { ConnectionRecovery } from './ConnectionRecovery.js';
 import { ConnectionStatusMessage } from './ConnectionStatusMessage.js';
+import { connectionLocation } from './connectionHints.js';
 
 type Operation = { label: string; action: () => Promise<unknown>; inspect?: boolean };
 export type ConnectionInspection = { title: string; result: unknown };
@@ -127,7 +128,7 @@ export function ConnectionItem({
             </Hint>
           </div>
           <p className="mt-1 truncate text-xs text-muted-foreground" title={connection.url}>
-            {connection.url ?? `${connection.transport.toUpperCase()} · 本地进程`}
+            {connectionLocation(connection, devices)}
           </p>
         </div>
         <div

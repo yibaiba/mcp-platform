@@ -8,31 +8,65 @@ import { SelectControl } from '../../components/shared/SelectControl.js';
 import { SelectItem } from '../../components/ui/select.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
 import { AdvancedConnectionSettings } from './AdvancedConnectionSettings.js';
+import { useQuery } from '@tanstack/react-query';
+import { formatArgumentLines, parseArgumentLines } from '@platform/contracts';
+import type { Device } from '../../lib/api.js';
+import { ArgumentsField } from './ArgumentsField.js';
+import { connectNow, type ConnectOutcome } from './connectNow.js';
+import { connectionLocation, connectionNextStep } from './connectionHints.js';
+import { parseJsonObject } from './jsonField.js';
 export function ConnectionSettings({
   connection,
   onSaved,
   onDirtyChange,
+  lastAttempt,
 }: {
   connection: Connection;
-  onSaved: () => void;
+  /** Called after saving; the outcome tells whether connecting right after worked. */
+  onSaved: (outcome: ConnectOutcome) => void;
   onDirtyChange: (dirty: boolean) => void;
+  /** The previous "保存并连接" in this editor failed to connect; shown with its next step. */
+  lastAttempt?: ConnectOutcome;
 }) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const advanced = useRef<HTMLDivElement>(null);
+  const devices = useQuery({ queryKey: ['devices'], queryFn: () => api<Device[]>('/devices') });
+  const deviceById = new Map(devices.data?.map((device) => [device.id, device]));
+  const usesUrl = connection.transport !== 'stdio' && connection.source !== 'openapi';
+  const usesCommand =
+    connection.transport === 'stdio' ||
+    (connection.adapter === 'device' && connection.mode === 'managed');
+  const initialArgs = formatArgumentLines(connection.args ?? []);
   return (
     <>
       <section className="space-y-2" aria-label="当前连接状态">
         <Status
-          value={connection.status}
-          label={connection.status === 'waiting_authorization' ? '等待账号授权' : undefined}
+          value={connection.deviceOffline ? 'error' : connection.status}
+          label={
+            connection.deviceOffline
+              ? '设备离线'
+              : connection.status === 'waiting_authorization'
+                ? '等待账号授权'
+                : undefined
+          }
         />
-        {connection.url ? (
-          <p className="break-all text-sm text-muted-foreground">{connection.url}</p>
-        ) : null}
-        <Feedback error={connection.error ? new Error(connection.error) : null} />
+        <p className="break-all text-sm text-muted-foreground">
+          {connectionLocation(connection, deviceById)}
+        </p>
+        {lastAttempt?.error ? (
+          <div role="alert" className="attention stacked text-sm">
+            <p className="m-0 font-medium">已保存，但没有连上</p>
+            <p className="m-0 break-words">{lastAttempt.error.message}</p>
+            <p className="m-0">
+              {connectionNextStep(connection, lastAttempt.error.message, lastAttempt.error.code)}
+            </p>
+          </div>
+        ) : (
+          <Feedback error={connection.error ? new Error(connection.error) : null} />
+        )}
       </section>
       <Form
-        label="保存设置"
+        label="保存并连接"
         onDirtyChange={onDirtyChange}
         onInvalid={(event) => {
           const input = event.target as HTMLInputElement;
@@ -45,11 +79,24 @@ export function ConnectionSettings({
           });
         }}
         submit={async (data) => {
-          const extra = JSON.parse(value(data, 'patch') || '{}') as Record<string, unknown>;
+          const extra = parseJsonObject(value(data, 'patch'), '其他连接字段');
+          const target: Record<string, unknown> = {};
+          // Only send what changed: the shown URL has its query string stripped.
+          if (usesUrl && value(data, 'url') !== (connection.url ?? ''))
+            target.url = value(data, 'url');
+          if (usesCommand) {
+            if (value(data, 'command') !== (connection.command ?? ''))
+              target.command = value(data, 'command');
+            if (value(data, 'args').trim() !== initialArgs.trim())
+              target.args = parseArgumentLines(value(data, 'args'));
+            if (value(data, 'cwd') && value(data, 'cwd') !== (connection.cwd ?? ''))
+              target.cwd = value(data, 'cwd');
+          }
           await api(`/connections/${connection.id}`, {
             method: 'PATCH',
             body: json({
               ...extra,
+              ...target,
               name: value(data, 'name'),
               revision: connection.revision,
               connectTimeoutMs: Number(value(data, 'connectTimeout')) * 1000,
@@ -80,12 +127,44 @@ export function ConnectionSettings({
               },
             }),
           });
-          onSaved();
+          onSaved(await connectNow(connection.id));
         }}
       >
         <Field label="连接名称">
           <Input name="name" defaultValue={connection.name} required />
         </Field>
+        {usesUrl ? (
+          <Field
+            label="MCP 地址"
+            hint={
+              connection.urlHasQuery
+                ? '原地址里的查询参数已隐藏；不改这一栏会原样保留，改了会用新地址整体替换。'
+                : connection.adapter === 'device'
+                  ? '从那台电脑访问的地址。'
+                  : undefined
+            }
+          >
+            <Input name="url" type="url" defaultValue={connection.url} required />
+          </Field>
+        ) : null}
+        {usesCommand ? (
+          <>
+            <Field
+              label="启动命令"
+              hint={
+                connection.adapter === 'device'
+                  ? '命令在所选设备上运行；该设备必须已安装程序。'
+                  : '命令在平台主机上运行。'
+              }
+            >
+              <Input name="command" defaultValue={connection.command} required />
+            </Field>
+            <ArgumentsField args={connection.args} />
+            <Field label="工作目录（可选）">
+              <Input name="cwd" defaultValue={connection.cwd} placeholder="留空使用默认目录" />
+            </Field>
+          </>
+        ) : null}
         <Field label="上游身份">
           <SelectControl name="identityMode" defaultValue={connection.identityMode ?? 'shared'}>
             <SelectItem value="shared">继续使用连接账号</SelectItem>
