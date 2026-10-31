@@ -385,6 +385,22 @@ function registerManagement(
     await s.gateway.revoke(paramId(c));
     return c.json({ revoked: true });
   });
+  // What the consent page shows: who is asking and exactly which tools they will get.
+  app.get('/api/v1/oauth/consent', async (c) => {
+    const { value, profileId, clientName } = await s.agentOAuth.validate(c.req.query());
+    const profile = await s.profiles.owned(owner(c), profileId);
+    const tools = await s.profiles.catalog(owner(c), profileId);
+    return c.json({
+      clientName,
+      redirectUri: value.redirect_uri,
+      profile: { id: profile.id, name: profile.name },
+      tools: tools.map((tool) => ({
+        name: tool.exposedName,
+        description: tool.definition.description,
+        unavailable: Boolean(tool.unavailable),
+      })),
+    });
+  });
   app.post('/api/v1/oauth/consent', async (c) =>
     c.json(await s.agentOAuth.consent(owner(c), await c.req.json())),
   );

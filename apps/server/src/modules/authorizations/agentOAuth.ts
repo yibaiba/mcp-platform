@@ -8,16 +8,41 @@ import { AppError, requireValue } from '../../shared/errors.js';
 import type { ProfileService } from '../agent-profiles/profileService.js';
 const TOKEN_LIFETIME = 3600;
 const REFRESH_LIFETIME = 30 * 24 * 3600_000;
-const redirectSchema = z.url().refine((raw) => {
-  const url = new URL(raw);
-  return (
-    !url.hash &&
-    !url.username &&
-    !url.password &&
-    (url.protocol === 'https:' ||
-      (url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))
-  );
-}, 'Redirect must use HTTPS or HTTP loopback');
+// Schemes a browser or OS handles itself: never valid as a native app's private-use callback.
+const reservedSchemes = new Set([
+  'about:',
+  'blob:',
+  'chrome:',
+  'data:',
+  'file:',
+  'filesystem:',
+  'ftp:',
+  'javascript:',
+  'mailto:',
+  'sms:',
+  'tel:',
+  'view-source:',
+  'vbscript:',
+  'ws:',
+  'wss:',
+]);
+/**
+ * HTTPS, HTTP loopback, or a native app's private-use scheme (RFC 8252 §7.1). Cursor registers
+ * `cursor://anysphere.cursor-mcp/oauth/callback` alongside its loopback callback in one DCR call,
+ * so rejecting the custom scheme would fail its whole registration.
+ */
+const redirectSchema = z.string().refine((raw) => {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (url.hash || url.username || url.password) return false;
+  if (url.protocol === 'https:') return true;
+  if (url.protocol === 'http:') return ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  return /^[a-z][a-z0-9+.-]*:$/.test(url.protocol) && !reservedSchemes.has(url.protocol);
+}, 'Redirect must use HTTPS, HTTP loopback or a private-use app scheme');
 export const authorizeSchema = z.object({
   client_id: z.uuid(),
   redirect_uri: redirectSchema,

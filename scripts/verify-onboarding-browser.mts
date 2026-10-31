@@ -105,11 +105,18 @@ async function flow() {
   const response = page.waitForResponse(
     (r) => r.request().method() === 'POST' && r.url().endsWith(`/profiles/${existing.id}/keys`),
   );
+  const oauthTab = access.getByRole('button', { name: '浏览器授权（推荐）', exact: true });
+  assert.equal(await oauthTab.getAttribute('aria-pressed'), 'true', 'OAuth is the default path');
+  await access.getByRole('radio', { name: /^Cursor/ }).click();
+  await access.getByRole('link', { name: '添加到 Cursor', exact: true }).waitFor();
+  assert.equal(issued, 0, 'The OAuth path must not issue a key');
+  await access.getByRole('button', { name: '接入密钥', exact: true }).click();
   await access.getByRole('button', { name: '生成接入密钥', exact: true }).click();
   const key = await (await response).json();
   const issuedDialog = page.getByRole('dialog', { name: '接入密钥已生成', exact: true });
+  await issuedDialog.getByRole('radio', { name: /^其他客户端/ }).click();
   await issuedDialog.getByRole('combobox', { name: '客户端', exact: true }).click();
-  await page.getByRole('option', { name: 'generic-mcp-servers', exact: true }).click();
+  await page.getByRole('option', { name: '其他客户端（mcpServers JSON）', exact: true }).click();
   await issuedDialog.getByRole('button', { name: '复制配置', exact: true }).click();
   await issuedDialog.getByText('已复制配置', { exact: true }).waitFor();
   const clipboard = await page.evaluate(() => navigator.clipboard.readText());

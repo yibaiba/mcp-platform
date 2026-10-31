@@ -255,7 +255,10 @@ export default function ProfilesPage() {
         <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>接入密钥已生成</DialogTitle>
-            <DialogDescription>密钥只显示这一次。复制后请在客户端确认工具列表。</DialogDescription>
+            <DialogDescription>
+              密钥只显示这一次。复制后请在客户端确认工具列表。
+              {key?.revoked?.length ? `已撤销这个 Agent 的 ${key.revoked.length} 把旧密钥。` : ''}
+            </DialogDescription>
           </DialogHeader>
           {key ? (
             <ol className="key-steps">
