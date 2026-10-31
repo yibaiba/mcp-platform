@@ -164,6 +164,9 @@ export class DeviceService {
       .where(eq(devices.ownerId, ownerId));
     return rows.map((row) => ({ ...row, online: this.broker.online(row.id) }));
   }
+  online(id: string) {
+    return this.deps.broker.online(id);
+  }
   async owned(ownerId: string, id: string) {
     const [row] = await this.db
       .select()

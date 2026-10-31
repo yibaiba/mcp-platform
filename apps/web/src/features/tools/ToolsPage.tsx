@@ -1,11 +1,11 @@
 import { PageHeader } from '../../components/shared/PageHeader.js';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Wrench } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Wrench } from 'lucide-react';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { Card } from '../../components/ui/card.js';
 import { Button } from '../../components/ui/button.js';
-import { Empty, Feedback, ListSkeleton } from '../../components/shared/Controls.js';
+import { Empty, Feedback, ListSkeleton, Status } from '../../components/shared/Controls.js';
 import { api, type Tool, type Connection, type Device, type Profile } from '../../lib/api.js';
 import { ContentCatalog } from './ContentCatalog.js';
 import { ToolFilters } from './ToolFilters.js';
@@ -51,6 +51,14 @@ export default function ToolsPage() {
     filters,
   });
   const selected = filtered.find((tool) => tool.id === filters.toolId);
+  // One message per broken connection; its tools stay listed here but are hidden from Agents.
+  const unavailable = [
+    ...new Map(
+      (tools.data ?? []).flatMap((tool) =>
+        tool.unavailable ? [[tool.connectionId, tool.unavailable.message] as const] : [],
+      ),
+    ).values(),
+  ];
   const connection = selected ? connectionById.get(selected.connectionId) : undefined;
   const profile = profiles.data?.find((item) => item.id === profileId);
   const [view, setView] = useState<'tools' | 'content'>('tools');
@@ -81,6 +89,23 @@ export default function ToolsPage() {
           )}
         </p>
       </ToolFilters>
+      {unavailable.length ? (
+        <div className="attention" role="status">
+          <AlertTriangle size={16} aria-hidden="true" />
+          <div className="grow">
+            <strong>
+              {unavailable.length} 个连接暂不可用，其工具不会出现在 Agent
+              的工具列表里；其余工具照常可用
+            </strong>
+            {unavailable.map((message) => (
+              <p key={message}>{message}</p>
+            ))}
+          </div>
+          <Link to="/connections">
+            去修复 <ChevronRight size={14} aria-hidden="true" />
+          </Link>
+        </div>
+      ) : null}
       <div className="segmented" role="group" aria-label="目录类型">
         <Button
           size="sm"
@@ -112,7 +137,10 @@ export default function ToolsPage() {
                 aria-pressed={selected?.id === tool.id}
                 onClick={() => update({ toolId: tool.id })}
               >
-                <strong>{tool.name}</strong>
+                <strong>
+                  {tool.name}
+                  {tool.unavailable ? <Status value="error" label="不可用" /> : null}
+                </strong>
                 <small>{connectionNames.get(tool.connectionId) ?? tool.connectionId}</small>
                 {tool.definition.description ? (
                   <p title={tool.definition.description}>{tool.definition.description}</p>

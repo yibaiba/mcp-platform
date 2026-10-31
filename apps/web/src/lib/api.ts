@@ -80,6 +80,8 @@ export type Connection = {
   transport: string;
   mode: string;
   deviceId: string | null;
+  /** The connection's device is offline, so its tools cannot run until the connector is back. */
+  deviceOffline?: boolean;
   status: string;
   error: string | null;
   url?: string;
@@ -90,6 +92,8 @@ export type Tool = {
   id: string;
   name: string;
   connectionId: string;
+  /** Present when the tool's connection or device is down; Agents do not see it in tools/list. */
+  unavailable?: { code: string; message: string };
   definition: {
     description?: string;
     inputSchema: unknown;

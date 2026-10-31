@@ -80,8 +80,12 @@ export class ContentService {
   private async scopedCatalog(ownerId: string, rows: ContentEntry[]) {
     const scoped = await Promise.all(
       [...new Set(rows.map((row) => row.connectionId))].map(async (id) => {
-        const catalog = await this.deps.connections.catalogForAccess(ownerId, id);
-        return catalog
+        // A broken upstream or offline device drops only its own prompts and resources.
+        const { snapshot: catalog, unavailable } = await this.deps.connections.catalogOrUnavailable(
+          ownerId,
+          id,
+        );
+        return catalog && !unavailable
           ? catalogEntries(await this.deps.connections.context(ownerId, id), catalog)
           : [];
       }),

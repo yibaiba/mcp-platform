@@ -26,14 +26,17 @@ export class DiscoveryService {
       const rows = potential
         ? await this.deps.profiles.potentialCatalog(ownerId, profileId)
         : await this.deps.profiles.catalog(ownerId, profileId);
-      return rows.map(toolDefinition);
+      // Tools of a broken upstream or offline device stay callable (with a clear error) but unlisted.
+      return rows.filter((row) => !row.unavailable).map(toolDefinition);
     }
     await this.deps.profiles.access!.effective({ ownerId, profileId });
     if (!profile.pinnedTools.length) return discoveryTools;
     const rows = await this.deps.profiles.searchCatalog(ownerId, profileId);
     return [
       ...discoveryTools,
-      ...rows.filter((row) => profile.pinnedTools.includes(row.id)).map(toolDefinition),
+      ...rows
+        .filter((row) => profile.pinnedTools.includes(row.id) && !row.unavailable)
+        .map(toolDefinition),
     ];
   }
   async read(ownerId: string, input: { profileId: string; name: string; arguments: unknown }) {

@@ -34,6 +34,7 @@ export type ConnectionEvent = {
   identity?: string;
 };
 export { toolId } from './catalogRepository.js';
+export type ConnectionUnavailable = { connectionId: string; code: string; message: string };
 export class ConnectionService {
   private readonly lifecycle: SessionLifecycle;
   private readonly catalogs: CatalogRepository;
@@ -362,6 +363,8 @@ export class ConnectionService {
         return {
           ...row,
           status,
+          // The connector, not the upstream, is what is down: tools cannot run until it is back.
+          deviceOffline: Boolean(row.deviceId && !this.deps.devices.online(row.deviceId)),
           transport: value.transport,
           source: value.source ?? 'mcp',
           registry: value.registry,
@@ -508,6 +511,52 @@ export class ConnectionService {
       return snapshot;
     await this.wake(ownerId, id);
     return this.bindings.snapshot(context);
+  }
+  /**
+   * Catalog for one connection that never fails the caller: a broken upstream or offline device
+   * falls back to the cached snapshot and reports why, so one connection cannot take down an Agent.
+   */
+  async catalogOrUnavailable(ownerId: string, id: string) {
+    const row = await this.accessible(ownerId, id);
+    // An offline connector cannot answer; do not spend a wake attempt finding that out.
+    if (row.status !== 'stopped' && row.deviceId && !this.deps.devices.online(row.deviceId))
+      return {
+        snapshot: await this.snapshot(ownerId, id).catch(() => undefined),
+        unavailable: await this.unavailable(ownerId, id),
+      };
+    try {
+      const snapshot = await this.catalogForAccess(ownerId, id);
+      // Another identity's runtime may have just failed while this one still looks connected:
+      // confirm against the upstream once, so every page agrees with the connection status.
+      if (row.status === 'error') await this.discover(ownerId, id);
+      return { snapshot: row.status === 'error' ? await this.snapshot(ownerId, id) : snapshot };
+    } catch (error) {
+      if (!(error instanceof AppError)) throw error;
+      const unavailable = await this.unavailable(ownerId, id, error);
+      this.deps.logger.report(`CATALOG_DEGRADED_${unavailable.code}`, ownerId);
+      const snapshot = await this.snapshot(ownerId, id).catch(() => undefined);
+      return { snapshot, unavailable };
+    }
+  }
+  /** Readable reason and next step for a connection whose tools cannot run right now. */
+  async unavailable(ownerId: string, id: string, error?: AppError): Promise<ConnectionUnavailable> {
+    const row = await this.accessible(ownerId, id).catch(() => undefined);
+    const name = row?.name ?? id;
+    const deviceId = row?.deviceId;
+    if (deviceId && !this.deps.devices.online(deviceId)) {
+      const device = await this.deps.devices.owned(ownerId, deviceId).catch(() => undefined);
+      return {
+        connectionId: id,
+        code: 'DEVICE_OFFLINE',
+        message: `「${name}」所在设备${device ? `「${device.name}」` : ''}离线：在那台电脑重新运行安装命令，连接器上线后工具自动恢复`,
+      };
+    }
+    const reason = error?.message ?? row?.error ?? '连接不可用';
+    return {
+      connectionId: id,
+      code: error?.code ?? 'CONNECTION_FAILED',
+      message: `「${name}」暂不可用：${reason}。到「连接」页检查配置后点「重试」`,
+    };
   }
   redact(error: unknown, config: ConnectionInput) {
     return redactConnectionError(error, config);
