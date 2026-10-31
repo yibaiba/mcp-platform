@@ -9,6 +9,8 @@ export async function fixtureMcp(
     instructions?: string;
     toolError?: boolean;
     onRequest?: (request: Request) => void;
+    /** Listed after `echo`; calling one answers like echo. */
+    extraTools?: Record<string, unknown>[];
   } = {},
 ) {
   const app = new Hono();
@@ -44,7 +46,12 @@ export async function fixtureMcp(
 
 export function createFixtureMcpServer(
   onCall: () => void,
-  options: { beforeList?: () => Promise<void>; instructions?: string; toolError?: boolean } = {},
+  options: {
+    beforeList?: () => Promise<void>;
+    instructions?: string;
+    toolError?: boolean;
+    extraTools?: Record<string, unknown>[];
+  } = {},
 ) {
   const server = new Server(
     { name: 'integration-fixture', version: '1' },
@@ -62,6 +69,7 @@ export function createFixtureMcpServer(
             properties: { message: { type: 'string' }, delay: { type: 'number' } },
           },
         },
+        ...((options.extraTools ?? []) as { name: string; inputSchema: { type: 'object' } }[]),
       ],
     };
   });
