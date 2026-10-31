@@ -11,6 +11,8 @@ import { catalogOptions } from './catalogOptions.js';
 import { DEFAULT_REQUEST_TIMEOUT_MS, requestOptions } from './requestOptions.js';
 export * from './requestOptions.js';
 export * from './connectionFields.js';
+export * from './toolSafety.js';
+export * from './keyValueFields.js';
 export * from './toolPrefix.js';
 import { toolPrefix } from './toolPrefix.js';
 export {

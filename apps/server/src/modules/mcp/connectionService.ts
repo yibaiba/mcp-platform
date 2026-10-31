@@ -8,6 +8,8 @@ import {
   connectionInput,
   connectorPresets,
   maskArguments,
+  maskValues,
+  restoreHiddenValues,
   matchesConnectorPreset,
   restoreHiddenArguments,
   type ConnectionInput,
@@ -388,6 +390,9 @@ export class ConnectionService {
           command: value.command,
           args: maskArguments(value.args ?? [], value.sensitiveArguments),
           cwd: value.cwd,
+          // Keys only: every stored value is replaced by the placeholder the edit form saves back.
+          env: maskValues(value.env),
+          headers: maskValues(value.headers),
         };
       }),
     );
@@ -634,6 +639,18 @@ export class ConnectionService {
       } catch (error) {
         throw new AppError('VALIDATION', errorMessage(error));
       }
+    for (const [field, label] of [
+      ['env', '环境变量'],
+      ['headers', '请求头'],
+    ] as const) {
+      const next = patch[field];
+      if (!next || typeof next !== 'object' || Array.isArray(next)) continue;
+      try {
+        patch[field] = restoreHiddenValues(label, old[field], next as Record<string, string>);
+      } catch (error) {
+        throw new AppError('VALIDATION', errorMessage(error));
+      }
+    }
     const config = await this.validate(ownerId, replace ? patch : { ...old, ...patch });
     await this.close(ownerId, id);
     const updated = await this.deps.db
