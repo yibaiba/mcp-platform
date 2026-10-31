@@ -179,7 +179,12 @@ export class ManifestReconciler {
       },
     });
     const outgoing = await this.deps.shares.outgoing(manifest.ownerId, source.objectId);
-    const existing = outgoing.find((grant) => grant.recipientId === recipientId);
+    // An unmapped team-grant copy is not a manual edit: the declared direct grant replaces it.
+    const existing = outgoing.find(
+      (grant) =>
+        grant.recipientId === recipientId &&
+        (grant.teamShareId === null || grant.id === entry.objectId),
+    );
     if (existing && (existing.id !== entry.objectId || existing.version !== entry.revision))
       throw new AppError('MANIFEST_CONFLICT', `共享授权 ${entry.name} 已存在或被人工编辑`, 409);
     const desired = fingerprint({

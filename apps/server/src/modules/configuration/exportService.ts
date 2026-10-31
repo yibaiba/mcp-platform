@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import {
   connections,
   connectionShares,
@@ -145,7 +145,14 @@ export class ConfigExportService {
       .select({ grant: connectionShares, email: user.email })
       .from(connectionShares)
       .innerJoin(user, eq(user.id, connectionShares.recipientId))
-      .where(and(eq(connectionShares.ownerId, ownerId), eq(connectionShares.revoked, false)));
+      .where(
+        and(
+          eq(connectionShares.ownerId, ownerId),
+          eq(connectionShares.revoked, false),
+          // Team-grant copies are not per-recipient declarations; the manifest has no team grant.
+          isNull(connectionShares.teamShareId),
+        ),
+      );
     for (const { grant, email } of outgoing) {
       const recipientRef = `user-${fingerprint(email).slice(0, 16)}`;
       const connection = this.source(sourceNames, grant.connectionId);

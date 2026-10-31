@@ -14,7 +14,23 @@ import { activeUser } from '../users/userAccess.js';
 
 export class ShareAccess {
   constructor(protected readonly db: Database) {}
+  /**
+   * Gives `recipientId` its copy of every active team grant it does not have a row for yet
+   * (accounts created or re-enabled after the team grant). Existing rows win: a direct grant,
+   * or an exclusion (revoked team copy), is never overwritten here.
+   */
+  async joinTeamShares(recipientId: string) {
+    await this.db.execute(sql`
+      insert into "connection_shares"
+        ("connection_id", "owner_id", "recipient_id", "credential_mode", "tool_ids", "content_ids", "team_share_id")
+      select t."connection_id", t."owner_id", u."id", t."credential_mode", t."tool_ids", t."content_ids", t."id"
+      from "connection_team_shares" t
+      join "user" u on u."id" = ${recipientId} and u."enabled" = true
+      where t."revoked" = false and t."owner_id" <> ${recipientId}
+      on conflict ("connection_id", "recipient_id") do nothing`);
+  }
   async grants(recipientId: string) {
+    await this.joinTeamShares(recipientId);
     return this.db
       .select({ grant: connectionShares })
       .from(connectionShares)
@@ -24,6 +40,8 @@ export class ShareAccess {
           eq(connectionShares.recipientId, recipientId),
           eq(connectionShares.revoked, false),
           eq(user.enabled, true),
+          // Disabled recipients are not share audiences (direct or team).
+          sql`exists (select 1 from "user" r where r."id" = ${connectionShares.recipientId} and r."enabled" = true)`,
         ),
       )
       .then((rows) => rows.map(({ grant }) => grant));

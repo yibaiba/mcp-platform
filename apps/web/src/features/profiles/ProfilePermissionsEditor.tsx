@@ -54,14 +54,14 @@ export function ProfilePermissionsEditor({
     ...[...shared].map(([id, entry]) => [id, entry.name] as const),
     ...(connections.data?.map((connection) => [connection.id, connection.name] as const) ?? []),
   ]);
-  // Creating an Agent from a connection starts with that connection's tools checked.
-  const preselected =
-    editing?.toolIds ??
-    (connectionId
-      ? (tools.data ?? [])
-          .filter((tool) => tool.connectionId === connectionId && !tool.unavailable)
-          .map((tool) => tool.id)
-      : []);
+  // Coming from a connection (own or shared), its tools start checked: on a new Agent, and
+  // added to an existing Agent's selection.
+  const fromConnection = connectionId
+    ? (tools.data ?? [])
+        .filter((tool) => tool.connectionId === connectionId && !tool.unavailable)
+        .map((tool) => tool.id)
+    : [];
+  const preselected = [...new Set([...(editing?.toolIds ?? []), ...fromConnection])];
   return (
     <>
       {sources.map(({ name, query }) => (
