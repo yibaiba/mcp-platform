@@ -1,4 +1,4 @@
-import { promoteFirstUser, type Database } from '@platform/db';
+import { hasUsers, promoteFirstUser, removeUser, type Database } from '@platform/db';
 import * as schema from '@platform/db/schema/auth';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
@@ -25,7 +25,9 @@ export function createAuth(options: {
     basePath: '/api/v1/auth',
     secret: options.secret,
     trustedOrigins: [options.webOrigin],
-    emailAndPassword: { enabled: true, disableSignUp: !options.registration },
+    // Sign-up stays reachable so the first account of an empty deployment can always be created;
+    // the user-create hooks below enforce ALLOW_REGISTRATION for every later account.
+    emailAndPassword: { enabled: true, disableSignUp: false },
     user: {
       additionalFields: {
         role: { type: ['admin', 'member'], defaultValue: 'member', input: false },
@@ -39,15 +41,22 @@ export function createAuth(options: {
     databaseHooks: {
       user: {
         create: {
+          // Closed registration: refuse early once any account exists. The empty-deployment
+          // race is settled in `after`.
           before: async () => {
-            if (!options.registration)
+            if (!options.registration && (await hasUsers(options.db)))
               throw new APIError('FORBIDDEN', { message: '账号注册已关闭' });
           },
           // Runs after the insert commits: the first account of an empty deployment becomes
           // administrator; any later account (or any account in a deployment that already
-          // has users) stays a member.
+          // has users) stays a member. With registration closed only that first account is
+          // kept: a concurrent sign-up that lost the race is removed again and refused.
           after: async (created) => {
-            await promoteFirstUser(options.db, created.id);
+            const promoted = await promoteFirstUser(options.db, created.id);
+            if (!options.registration && !promoted) {
+              await removeUser(options.db, created.id);
+              throw new APIError('FORBIDDEN', { message: '账号注册已关闭' });
+            }
           },
         },
       },
@@ -64,10 +73,10 @@ export function createAuth(options: {
     },
     socialProviders: {
       ...(options.providers?.google
-        ? { google: { ...options.providers.google, disableSignUp: !options.registration } }
+        ? { google: { ...options.providers.google, disableSignUp: false } }
         : {}),
       ...(options.providers?.github
-        ? { github: { ...options.providers.github, disableSignUp: !options.registration } }
+        ? { github: { ...options.providers.github, disableSignUp: false } }
         : {}),
     },
     plugins: [
@@ -76,7 +85,7 @@ export function createAuth(options: {
           ? [
               {
                 ...options.providers.oidc,
-                disableSignUp: !options.registration,
+                disableSignUp: false,
                 providerId: 'oidc',
                 scopes: ['openid', 'profile', 'email'],
                 pkce: true,

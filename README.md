@@ -13,11 +13,9 @@ git clone https://github.com/yibaiba/mcp-platform.git
 cd mcp-platform
 corepack pnpm@10.12.4 install --frozen-lockfile
 cp .env.example .env
-node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
-node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 ```
 
-把第一次输出填入 `.env` 的 `BETTER_AUTH_SECRET`，第二次输出填入 `ENCRYPTION_KEY`；再独立运行一次 Base64 生成命令，将新输出填入必填的 `DEVICE_AUTH_ENCRYPTION_KEY`，分别保护和备份两把加密密钥。填写真实 `DATABASE_URL`。第一次注册时临时设置 `ALLOW_REGISTRATION=true`；创建个人账号后改回 `false` 并重启服务。全新部署里第一个注册的账号自动成为管理员（已有用户的部署升级后不改动任何角色）；之后的账号是普通用户，可由管理员在“用户管理”里调整，或在服务器上用 `pnpm user:role <邮箱> admin|member` 修改。不会生成默认管理员或共享密码。规则见 [用户与角色](docs/users-and-observability.md#第一个账号自动成为管理员)。
+`.env` 里只需要填写真实的 `DATABASE_URL`。`BETTER_AUTH_SECRET`、`ENCRYPTION_KEY`、`DEVICE_AUTH_ENCRYPTION_KEY` 和 `PI_MCP_ADAPTER_OAUTH_FILE_KEY` 留空时，第一次启动会随机生成并保存在 `DATA_DIR/secrets/`（权限 0600），之后一直沿用；已经填写的值永远优先，不会被覆盖。请把这个目录和数据库一起备份，规则见[部署说明](docs/deployment.md#密钥)。空数据库的第一个注册总是放行（即使 `ALLOW_REGISTRATION=false`），这个账号自动成为管理员（已有用户的部署升级后不改动任何角色）；之后的注册按 `ALLOW_REGISTRATION` 处理，之后的账号是普通用户，可由管理员在“用户管理”里调整，或在服务器上用 `pnpm user:role <邮箱> admin|member` 修改。不会生成默认管理员或共享密码。规则见 [用户与角色](docs/users-and-observability.md#第一个账号自动成为管理员)。
 
 ```sh
 pnpm db:migrate
@@ -41,7 +39,7 @@ MCP `tools/list` 默认给出可读、稳定的工具名：`连接名slug__工�
 
 开发启动从仓库根目录 `.env` 读取配置，不依赖工作目录。`pnpm build` 验证后端编译并产出前端静态文件，生产使用 `NODE_ENV=production pnpm start`，由后端在 4300 同时提供网页、API、MCP、WebSocket 和 Apps。后端使用 `tsx` 源码入口，以支持按需加载内置 Pi 运行时；不要直接运行 `apps/server/dist`。
 
-直接部署使用 `docker-compose.yml` 和 `.env.docker.example`，从 `ghcr.io/yibaiba/mcp-platform` 拉取本仓库发布的应用镜像，同时启动 PostgreSQL，仅映射应用端口 4300。源码构建使用 `compose.yaml`，构建同一个应用镜像，通过 `DATABASE_URL` 连接外部 PostgreSQL。启动、镜像发布和备份步骤见[部署说明](docs/deployment.md)。
+直接部署只需 `docker-compose.yml`：`docker compose -f docker-compose.yml up -d` 从 `ghcr.io/yibaiba/mcp-platform` 拉取本仓库发布的应用镜像，同时启动 PostgreSQL、执行迁移，仅映射应用端口 4300；数据库密码和应用密钥自动生成并保存在数据卷里，`.env.docker.example` 列出可选设置。源码构建使用 `compose.yaml`，构建同一个应用镜像，通过 `DATABASE_URL` 连接外部 PostgreSQL。启动、镜像发布和备份步骤见[部署说明](docs/deployment.md)。
 
 服务端默认对 MCP 入口（按密钥、用户和地址）和登录、OAuth 端点（按地址）限流，超限返回 429 和 `Retry-After`；阈值、反向代理设置和多实例局限见[部署说明](docs/deployment.md#请求限流)。
 

@@ -2,7 +2,17 @@
 
 页面右上角的“使用指南”可以随时打开。概览和“连接”页会根据已保存的连接、Agent 权限和有效接入密钥提示下一步；密钥已生成不代表客户端已经接通。
 
-全新部署里第一个注册的账号自动成为管理员，之后注册的账号是普通用户；自己的角色显示在左下角账号菜单和“个人账号”页。
+## 0. 部署并创建管理员账号
+
+Docker 一条命令即可启动，不需要手填密钥或数据库密码：
+
+```sh
+docker compose -f docker-compose.yml up -d
+```
+
+不用 Docker 时只需要一个数据库地址：`.env` 写 `DATABASE_URL`，然后 `pnpm db:migrate` 和 `NODE_ENV=production pnpm start`。缺少的密钥在第一次启动时自动生成并保存在 `DATA_DIR/secrets/`，已经填写的值不会被覆盖；请和数据库一起备份。从其他机器访问前设置 `PUBLIC_URL`。详见[部署说明](deployment.md)。
+
+打开平台页面，全新部署会直接显示“创建管理员账号”：即使 `ALLOW_REGISTRATION=false`，第一个账号也总能注册，并自动成为管理员。之后的注册按 `ALLOW_REGISTRATION` 处理，之后注册的账号是普通用户；自己的角色显示在左下角账号菜单和“个人账号”页。
 
 ## 1. 添加连接
 

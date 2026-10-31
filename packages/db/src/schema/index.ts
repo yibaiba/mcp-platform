@@ -19,3 +19,5 @@ export * from './updates.js';
 export * from './library.js';
 
 export * from './bundles.js';
+
+export * from './deployment.js';

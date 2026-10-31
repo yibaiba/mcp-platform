@@ -17,7 +17,14 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { z, ZodError } from 'zod';
 import { desc, eq, sql, and } from 'drizzle-orm';
-import { calls, installations, transfers, oauthGrants, type Database } from '@platform/db';
+import {
+  calls,
+  hasUsers,
+  installations,
+  transfers,
+  oauthGrants,
+  type Database,
+} from '@platform/db';
 import type { Auth } from '@platform/auth';
 import { platformRoot, type Config } from './config.js';
 import { join } from 'node:path';
@@ -117,12 +124,16 @@ export function createApp(deps: {
     await db.execute(sql`select 1`);
     return c.json({ status: 'ok', piEnabled: config.PI_ENABLED === 'true' });
   });
-  app.get('/api/v1/login-options', (c) =>
-    c.json({
-      registration: config.ALLOW_REGISTRATION === 'true',
+  // `firstAccount`: nobody has signed up yet, so sign-up is open regardless of
+  // ALLOW_REGISTRATION and that account becomes administrator.
+  app.get('/api/v1/login-options', async (c) => {
+    const firstAccount = !(await hasUsers(db));
+    return c.json({
+      registration: firstAccount || config.ALLOW_REGISTRATION === 'true',
+      firstAccount,
       providers: providerList(config.AUTH_PROVIDERS),
-    }),
-  );
+    });
+  });
   app.on(['GET', 'POST'], '/api/v1/auth/*', async (c) => {
     if (!c.req.path.endsWith('/sign-out')) {
       const session = await auth.api.getSession({ headers: c.req.raw.headers });

@@ -10,14 +10,18 @@ import { api } from '../../lib/api.js';
 import { Action, Feedback } from './Controls.js';
 export type LoginOptions = {
   registration: boolean;
+  /** No account exists yet: the first sign-up is always open and becomes administrator. */
+  firstAccount?: boolean;
   providers: { id: string; name: string; kind: string }[];
 };
 export function AuthScreen() {
-  const [register, setRegister] = useState(false);
+  const [chosen, setRegister] = useState(false);
   const options = useQuery({
     queryKey: ['login-options'],
     queryFn: () => api<LoginOptions>('/login-options'),
   });
+  const firstAccount = options.data?.firstAccount === true;
+  const register = firstAccount || chosen;
   return (
     <main className="auth-screen">
       <div className="auth-brand">
@@ -27,7 +31,8 @@ export function AuthScreen() {
         </span>
       </div>
       <Card className="auth-card">
-        <h1>{register ? '注册' : '登录'}</h1>
+        <h1>{firstAccount ? '创建管理员账号' : register ? '注册' : '登录'}</h1>
+        {firstAccount ? <p>这是第一个账号，注册后自动成为管理员。</p> : null}
         <Form
           label={register ? '注册' : '登录'}
           successLabel={register ? '已注册' : '已登录'}
@@ -83,9 +88,9 @@ export function AuthScreen() {
             使用 {provider.name} 登录
           </Action>
         ))}
-        {options.data?.registration ? (
-          <Button variant="ghost" onClick={() => setRegister(!register)}>
-            {register ? '去登录' : '注册'}
+        {options.data?.registration && !firstAccount ? (
+          <Button variant="ghost" onClick={() => setRegister(!chosen)}>
+            {chosen ? '去登录' : '注册'}
           </Button>
         ) : null}
         {options.data?.registration === false ? <small>注册已关闭，请联系管理员</small> : null}

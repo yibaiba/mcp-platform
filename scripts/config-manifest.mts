@@ -2,8 +2,9 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { config as loadEnv } from 'dotenv';
 import { eq } from 'drizzle-orm';
-import { createDatabase, user } from '../packages/db/src/index.js';
-import { envSchema, platformRoot } from '../apps/server/src/config.js';
+import { user } from '../packages/db/src/index.js';
+import { platformRoot } from '../apps/server/src/config.js';
+import { loadConfig } from '../apps/server/src/bootstrap.js';
 import { createServices } from '../apps/server/src/services.js';
 loadEnv({ path: resolve(platformRoot, '.env'), quiet: true });
 const [action, email, fileOrName] = process.argv.slice(2);
@@ -11,9 +12,7 @@ if (!['preview', 'apply', 'status', 'export'].includes(action ?? '') || !email |
   throw new Error(
     'Usage: pnpm config:manifest <preview|apply|status|export> <owner-email> <JSON-file|manifest-name>',
   );
-const parsed = envSchema.parse(process.env);
-const config = { ...parsed, DATA_DIR: resolve(platformRoot, parsed.DATA_DIR) };
-const { db, pool } = createDatabase(config.DATABASE_URL);
+const { config, db, pool } = await loadConfig();
 const services = createServices(db, config);
 try {
   const [owner] = await db.select().from(user).where(eq(user.email, email.trim().toLowerCase()));

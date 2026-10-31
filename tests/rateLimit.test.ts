@@ -219,4 +219,5 @@ test('defaults do not get in the way of a busy client: tools/list plus 300 paral
   } finally {
     await client.close();
   }
-});
+  // 300 real calls through the gateway: ~7 s alone, slower while the full suite runs in parallel.
+}, 60_000);

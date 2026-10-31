@@ -1,16 +1,29 @@
+# Source build against an external PostgreSQL: only DATABASE_URL is required.
+# `docker compose up -d --build` builds, migrates (one-shot `migrate`) and starts the server;
+# unset keys are generated into the `files` volume on first start. See docs/deployment.md.
 name: mcp-platform
 services:
+  migrate:
+    build:
+      context: .
+      target: app
+    command: [pnpm, db:migrate]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to an external PostgreSQL database}
+    restart: 'no'
   server:
     build:
       context: .
       target: app
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to an external PostgreSQL database}
-      PUBLIC_URL: ${PUBLIC_URL:?Set PUBLIC_URL}
-      WEB_ORIGIN: ${WEB_ORIGIN:?Set WEB_ORIGIN}
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY}
-      DEVICE_AUTH_ENCRYPTION_KEY: ${DEVICE_AUTH_ENCRYPTION_KEY:?Set DEVICE_AUTH_ENCRYPTION_KEY}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:4300}
+      WEB_ORIGIN: ${WEB_ORIGIN:-}
+      # Empty: generated on first start into /app/.data/secrets (mode 0600) and reused.
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      DEVICE_AUTH_ENCRYPTION_KEY: ${DEVICE_AUTH_ENCRYPTION_KEY:-}
+      AUTO_GENERATE_SECRETS: ${AUTO_GENERATE_SECRETS:-}
       CONFIG_MANIFEST_FILE: ${CONFIG_MANIFEST_FILE:-}
       CONFIG_MANIFEST_OWNER: ${CONFIG_MANIFEST_OWNER:-}
       AUTH_PROVIDERS: ${AUTH_PROVIDERS:-}
@@ -37,6 +50,9 @@ services:
       - '4300:4300'
     volumes:
       - files:/app/.data
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     init: true
     restart: unless-stopped
 volumes:

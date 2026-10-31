@@ -1,29 +1,65 @@
 # Standalone deployment of the unified image; no source checkout or build required.
+# `docker compose -f docker-compose.yml up -d` is enough: the database password and the
+# application keys are generated on first start and kept in volumes; values set in `.env`
+# or the environment always win. See docs/deployment.md.
 name: mcp-platform
+x-platform-image: &platform-image ${PLATFORM_IMAGE_PREFIX:-ghcr.io/yibaiba/mcp-platform}:${PLATFORM_VERSION:-latest}
 services:
+  # One-shot: writes the bundled database password (explicit POSTGRES_PASSWORD, else the stored
+  # one, else a generated one) into the `secrets` volume with mode 0600.
+  init:
+    image: *platform-image
+    user: root
+    command: [node, scripts/compose-init.mjs]
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes:
+      - secrets:/run/platform-secrets
+    restart: 'no'
   db:
     image: pgvector/pgvector:0.8.1-pg17
     environment:
       POSTGRES_USER: platform
       POSTGRES_DB: platform
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD_FILE: /run/platform-secrets/POSTGRES_PASSWORD
     volumes:
       - postgres:/var/lib/postgresql/data
+      - secrets:/run/platform-secrets:ro
     healthcheck:
       test: [CMD-SHELL, pg_isready -U platform -d platform]
       interval: 5s
       timeout: 3s
       retries: 12
+    depends_on:
+      init:
+        condition: service_completed_successfully
     restart: unless-stopped
-  server:
-    image: ${PLATFORM_IMAGE_PREFIX:-ghcr.io/yibaiba/mcp-platform}:${PLATFORM_VERSION:?Set PLATFORM_VERSION to a published image version}
+  # One-shot: applies database migrations (idempotent) before the server starts.
+  migrate:
+    image: *platform-image
+    command: [pnpm, db:migrate]
     environment:
-      DATABASE_URL: postgresql://platform:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@db:5432/platform
-      PUBLIC_URL: ${PUBLIC_URL:?Set PUBLIC_URL}
-      WEB_ORIGIN: ${WEB_ORIGIN:?Set WEB_ORIGIN}
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET}
-      DEVICE_AUTH_ENCRYPTION_KEY: ${DEVICE_AUTH_ENCRYPTION_KEY:?set DEVICE_AUTH_ENCRYPTION_KEY}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY}
+      DATABASE_URL: postgresql://platform:${POSTGRES_PASSWORD:-}@db:5432/platform
+      DATABASE_PASSWORD_FILE: /run/platform-secrets/POSTGRES_PASSWORD
+    volumes:
+      - secrets:/run/platform-secrets:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+  server:
+    image: *platform-image
+    environment:
+      # Without a password here the server reads it from DATABASE_PASSWORD_FILE.
+      DATABASE_URL: postgresql://platform:${POSTGRES_PASSWORD:-}@db:5432/platform
+      DATABASE_PASSWORD_FILE: /run/platform-secrets/POSTGRES_PASSWORD
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:4300}
+      WEB_ORIGIN: ${WEB_ORIGIN:-}
+      # Empty: generated on first start into /app/.data/secrets (mode 0600) and reused.
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+      DEVICE_AUTH_ENCRYPTION_KEY: ${DEVICE_AUTH_ENCRYPTION_KEY:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      AUTO_GENERATE_SECRETS: ${AUTO_GENERATE_SECRETS:-}
       CONFIG_MANIFEST_FILE: ${CONFIG_MANIFEST_FILE:-}
       CONFIG_MANIFEST_OWNER: ${CONFIG_MANIFEST_OWNER:-}
       AUTH_PROVIDERS: ${AUTH_PROVIDERS:-}
@@ -50,11 +86,15 @@ services:
       - '4300:4300'
     volumes:
       - files:/app/.data
+      - secrets:/run/platform-secrets:ro
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     init: true
     restart: unless-stopped
 volumes:
   postgres:
   files:
+  secrets:

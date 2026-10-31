@@ -200,8 +200,10 @@ test('disable interrupts a real in-flight call but does not affect another accou
 });
 
 test('login discovery returns only configured provider metadata', async () => {
+  // Accounts already exist in this database, so this is not the first-account sign-up.
   expect(await (await h.app.request('/api/v1/login-options')).json()).toEqual({
     registration: true,
+    firstAccount: false,
     providers: [],
   });
 });
