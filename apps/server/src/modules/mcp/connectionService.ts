@@ -390,12 +390,18 @@ export class ConnectionService {
           command: value.command,
           args: maskArguments(value.args ?? [], value.sensitiveArguments),
           cwd: value.cwd,
-          // Keys only: every stored value is replaced by the placeholder the edit form saves back.
-          env: maskValues(value.env),
-          headers: maskValues(value.headers),
         };
       }),
     );
+  }
+  /**
+   * Env and header keys for the edit form, every value replaced by the placeholder that PATCH
+   * saves back. Kept out of the connection list, which never names env or header keys.
+   */
+  async keyValues(ownerId: string, id: string) {
+    const row = await this.owned(ownerId, id);
+    const value = this.deps.vault.open<ConnectionInput>(row.config, `${ownerId}:${id}`);
+    return { env: maskValues(value.env), headers: maskValues(value.headers) };
   }
   async lease(ownerId: string, id: string) {
     const context = await this.context(ownerId, id);

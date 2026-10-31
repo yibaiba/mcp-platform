@@ -94,16 +94,23 @@ test('the share catalog and the Agent tool list carry annotations; safety is der
   ).toEqual(safety);
 });
 
-test('the connection view lists env and header keys with every value hidden', async () => {
+test('env and header keys come from a dedicated endpoint with every value hidden; the list names none', async () => {
   const connection = await create();
-  const response = await admin.request(`/connections/${connection.id}`);
+  const response = await admin.request(`/connections/${connection.id}/key-values`);
+  expect(response.status).toBe(200);
   const text = await response.text();
-  expect(text).not.toContain(SECRET);
-  expect(text).not.toContain(ENV_SECRET);
-  expect(text).not.toContain('trace-1');
-  const view = JSON.parse(text) as { headers: unknown; env: unknown };
-  expect(view.headers).toEqual({ Authorization: hiddenValue, 'X-Trace': hiddenValue });
-  expect(view.env).toEqual({ API_TOKEN: hiddenValue });
+  for (const value of [SECRET, ENV_SECRET, 'trace-1']) expect(text).not.toContain(value);
+  expect(JSON.parse(text)).toEqual({
+    headers: { Authorization: hiddenValue, 'X-Trace': hiddenValue },
+    env: { API_TOKEN: hiddenValue },
+  });
+  for (const path of ['/connections', `/connections/${connection.id}`]) {
+    const listed = await (await admin.request(path)).text();
+    for (const value of [SECRET, ENV_SECRET, 'API_TOKEN', 'X-Trace', hiddenValue])
+      expect(listed).not.toContain(value);
+  }
+  // Another account cannot read the keys.
+  expect((await member.request(`/connections/${connection.id}/key-values`)).status).toBe(404);
 });
 
 test('saving placeholders keeps stored values; changed and added rows are saved; untouched maps stay as they were', async () => {

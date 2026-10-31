@@ -103,9 +103,6 @@ export type Connection = {
   /** Sensitive arguments come back as `hiddenArgument`; saving the placeholder keeps the value. */
   args?: string[];
   cwd?: string;
-  /** Stored env / header keys; every value is `hiddenValue` (saving it back keeps the value). */
-  env?: Record<string, string>;
-  headers?: Record<string, string>;
   protocolVersion?: string | null;
   capabilities?: Record<string, unknown>;
 };
