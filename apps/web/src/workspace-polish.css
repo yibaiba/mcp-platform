@@ -746,3 +746,19 @@ textarea:disabled {
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* Account page: account + role summary */
+.account-role-summary {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 16px;
+  align-items: center;
+  margin: 0 0 8px;
+}
+.account-role-summary dt {
+  color: var(--muted-foreground);
+}
+.account-role-summary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

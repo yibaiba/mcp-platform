@@ -279,6 +279,20 @@ code {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.account-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.account-title strong {
+  min-width: 0;
+}
+.account-role {
+  height: 18px;
+  padding: 0 6px;
+  font-size: 11px;
+}
 .account > svg {
   color: var(--muted-foreground);
 }

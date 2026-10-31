@@ -17,7 +17,7 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 ```
 
-把第一次输出填入 `.env` 的 `BETTER_AUTH_SECRET`，第二次输出填入 `ENCRYPTION_KEY`；再独立运行一次 Base64 生成命令，将新输出填入必填的 `DEVICE_AUTH_ENCRYPTION_KEY`，分别保护和备份两把加密密钥。填写真实 `DATABASE_URL`。第一次注册时临时设置 `ALLOW_REGISTRATION=true`；创建个人账号后改回 `false` 并重启服务。不会生成默认管理员或共享密码。
+把第一次输出填入 `.env` 的 `BETTER_AUTH_SECRET`，第二次输出填入 `ENCRYPTION_KEY`；再独立运行一次 Base64 生成命令，将新输出填入必填的 `DEVICE_AUTH_ENCRYPTION_KEY`，分别保护和备份两把加密密钥。填写真实 `DATABASE_URL`。第一次注册时临时设置 `ALLOW_REGISTRATION=true`；创建个人账号后改回 `false` 并重启服务。全新部署里第一个注册的账号自动成为管理员（已有用户的部署升级后不改动任何角色）；之后的账号是普通用户，可由管理员在“用户管理”里调整，或在服务器上用 `pnpm user:role <邮箱> admin|member` 修改。不会生成默认管理员或共享密码。规则见 [用户与角色](docs/users-and-observability.md#第一个账号自动成为管理员)。
 
 ```sh
 pnpm db:migrate

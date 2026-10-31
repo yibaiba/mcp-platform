@@ -41,6 +41,7 @@ import {
 } from '../../components/shared/Controls.js';
 import { SelectItem } from '../../components/ui/select.js';
 import { SelectControl } from '../../components/shared/SelectControl.js';
+import { roleLabel } from '../../lib/me.js';
 type User = { id: string; name: string; email: string; role: 'admin' | 'member'; enabled: boolean };
 
 function UserEditor({ user, onSaved }: { user?: User; onSaved: () => void }) {
@@ -162,7 +163,7 @@ export default function UsersPage() {
                   <TableCell className="max-w-64 truncate text-muted-foreground">
                     {user.email}
                   </TableCell>
-                  <TableCell>{user.role === 'admin' ? '管理员' : '普通用户'}</TableCell>
+                  <TableCell>{roleLabel[user.role]}</TableCell>
                   <TableCell>
                     <Badge
                       variant="outline"
