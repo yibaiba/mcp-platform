@@ -71,11 +71,17 @@ export default function ProfilesPage() {
     setDrawer({ kind: 'create' });
     void navigate({ hash: '', replace: true, search: (previous) => previous });
   }, [hash, navigate]);
-  if (workspace)
-    return <WorkspacePage profileId={workspace} onBack={() => void navigate({ search: {} })} />;
   const drawerProfile = drawer && 'profile' in drawer ? drawer.profile : undefined;
   const source = connections.data?.find((connection) => connection.id === connectionId);
-  return (
+  // Agent 详情 shares this page's drawers so 编辑权限 / 接入客户端 open in place.
+  const list = workspace ? (
+    <WorkspacePage
+      profileId={workspace}
+      onBack={() => void navigate({ search: {} })}
+      onEdit={(profile) => setDrawer({ kind: 'edit', profile })}
+      onAccess={(profile) => setDrawer({ kind: 'access', profile })}
+    />
+  ) : (
     <>
       <PageHeader
         title="Agent"
@@ -125,16 +131,21 @@ export default function ProfilesPage() {
                         : activeKeys
                           ? `${activeKeys} 个密钥`
                           : '未生成密钥'}
-                    {profile.deploymentState !== 'ready' ? ' · 配置模板待处理' : ''}
+                    {profile.deploymentState !== 'ready' ? ' · 批量配置待处理' : ''}
                   </small>
                   <ChevronRight size={16} aria-hidden="true" className="profile-chevron" />
                 </button>
-                <Button
-                  variant="outline"
-                  onClick={() => setDrawer({ kind: connectionId ? 'edit' : 'access', profile })}
-                >
-                  {connectionId ? '分配权限' : '接入'}
-                </Button>
+                <div className="profile-actions">
+                  <Button
+                    variant={connectionId ? 'default' : 'outline'}
+                    onClick={() => setDrawer({ kind: 'edit', profile })}
+                  >
+                    {connectionId ? '分配权限' : '编辑权限'}
+                  </Button>
+                  <Button variant="outline" onClick={() => setDrawer({ kind: 'access', profile })}>
+                    接入客户端
+                  </Button>
+                </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={<Button variant="ghost" size="icon" />}
@@ -143,11 +154,8 @@ export default function ProfilesPage() {
                     <MoreHorizontal aria-hidden="true" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="min-w-40">
-                    <DropdownMenuItem onClick={() => setDrawer({ kind: 'edit', profile })}>
-                      编辑权限
-                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setDrawer({ kind: 'catalog', profile })}>
-                      目录展示
+                      工具名称与描述
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setDrawer({ kind: 'discovery', profile })}>
                       智能发现
@@ -156,7 +164,7 @@ export default function ProfilesPage() {
                     <DropdownMenuItem
                       onClick={() => void navigate({ search: { workspace: profile.id } })}
                     >
-                      打开工作空间
+                      Agent 详情
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -177,6 +185,11 @@ export default function ProfilesPage() {
           </Empty>
         ) : null}
       </Card>
+    </>
+  );
+  return (
+    <>
+      {list}
       <Sheet
         open={Boolean(drawer)}
         onOpenChange={(open) => {
@@ -191,9 +204,9 @@ export default function ProfilesPage() {
                 : drawer?.kind === 'edit'
                   ? `编辑：${drawer.profile.name}`
                   : drawer?.kind === 'access'
-                    ? `接入 ${drawer.profile.name}`
+                    ? `接入客户端 · ${drawer.profile.name}`
                     : drawer?.kind === 'catalog'
-                      ? `目录展示 · ${drawer.profile.name}`
+                      ? `工具名称与描述 · ${drawer.profile.name}`
                       : drawer?.kind === 'discovery'
                         ? `智能发现 · ${drawer.profile.name}`
                         : ''}

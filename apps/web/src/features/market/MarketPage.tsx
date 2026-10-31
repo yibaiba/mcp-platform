@@ -163,7 +163,7 @@ function Installation({ detail }: { detail: Detail }) {
   return (
     <>
       <Feedback error={devices.error} />
-      <Field label="运行方式">
+      <Field label="连接方式">
         <SelectControl
           value={String(choiceIndex)}
           onValueChange={(value) => {
@@ -222,7 +222,7 @@ function Installation({ detail }: { detail: Detail }) {
                 defaultValue={detail.server.title ?? detail.server.name}
               />
             </Field>
-            <Field label="执行位置">
+            <Field label="运行位置">
               <SelectControl
                 value={adapter}
                 onValueChange={(value) => {

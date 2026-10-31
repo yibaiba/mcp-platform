@@ -52,9 +52,9 @@ export default function SshAccesses() {
             </div>
             <span>隧道状态未上报</span>
           </div>
-          <p>实际 SSH 状态请查看设备上的 connection.log；以下是平台 MCP 连接状态。</p>
+          <p>实际 SSH 状态请查看设备上的 connection.log；以下是平台连接状态。</p>
           {item.bindings.length === 0 ? (
-            <p role="alert">原 MCP 连接已删除，请编辑并绑定新连接。</p>
+            <p role="alert">原连接已删除，请编辑并绑定新连接。</p>
           ) : null}
           {item.services.map((service) => (
             <div key={service.connectionId} className="row">
@@ -103,9 +103,7 @@ export default function SshAccesses() {
           </div>
           {deleting === item.id ? (
             <div role="group" aria-label="确认删除 SSH 接入">
-              <p>
-                删除只移除平台记录。请在设备上停止隧道或卸载启动任务；SSH 密钥和 MCP 连接仍保留。
-              </p>
+              <p>删除只移除平台记录。请在设备上停止隧道或卸载启动任务；SSH 密钥和连接仍保留。</p>
               <Action
                 danger
                 confirmed

@@ -7,11 +7,14 @@ export function RequestableSettings({
   tools,
   content,
   artifacts,
+  connectionName,
 }: {
   profile: Profile;
   tools: Tool[];
   content: ContentEntry[];
   artifacts: Artifact[];
+  /** Readable source shown under each tool/content row instead of its hash id. */
+  connectionName: (id: string) => string;
 }) {
   return (
     <Form
@@ -31,7 +34,7 @@ export function RequestableSettings({
         })
       }
     >
-      <p>以下能力仅能查看申请目录并申请，批准前不可执行或读取。Skill 版本始终使用长期授权。</p>
+      <p>以下能力 Agent 只能看到并申请，批准前不能执行或读取。Skill 版本始终使用长期授权。</p>
       {(
         [
           ['toolIds', tools],
@@ -41,11 +44,7 @@ export function RequestableSettings({
       ).map(([kind, rows]) => (
         <fieldset key={kind}>
           <legend>
-            {kind === 'toolIds'
-              ? '工具'
-              : kind === 'contentIds'
-                ? 'Prompts / Resources / 模板'
-                : '产物'}
+            {kind === 'toolIds' ? '工具' : kind === 'contentIds' ? '提示词、资源与模板' : '文件'}
           </legend>
           {rows.map((row) => (
             <CheckChoice
@@ -56,7 +55,7 @@ export function RequestableSettings({
             >
               <span>
                 {row.name}
-                <small>{row.id}</small>
+                {'connectionId' in row ? <small>{connectionName(row.connectionId)}</small> : null}
               </span>
             </CheckChoice>
           ))}

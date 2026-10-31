@@ -24,7 +24,7 @@ export function BundlePanel({
   const [review, setReview] = useState<{ input: object; preview: unknown }>();
   const [result, setResult] = useState<unknown>();
   return (
-    <Disclosure defaultOpen={defaultOpen} title="导入 MCPB 扩展包">
+    <Disclosure defaultOpen={defaultOpen} title="导入扩展包（.mcpb）">
       <p>
         上传和预览不执行代码。安装会在所选位置启动 MCP
         并验证连接；依赖必须已随包提供或在目标环境可用。
@@ -83,16 +83,16 @@ export function BundlePanel({
               });
             }}
           >
-            <Field label="执行位置">
+            <Field label="运行位置">
               <SelectControl
                 key={hostStdio ? 'host' : 'device'}
                 name="adapter"
                 defaultValue={hostStdio ? 'direct' : 'device'}
               >
                 {/* MCPB always runs stdio: platform targets are admin-only behind PLATFORM_STDIO_ENABLED. */}
-                {hostStdio ? <SelectItem value="direct">平台直连</SelectItem> : null}
+                {hostStdio ? <SelectItem value="direct">平台服务器</SelectItem> : null}
                 {hostStdio ? <SelectItem value="pi">平台 Pi 桥接</SelectItem> : null}
-                <SelectItem value="device">设备连接器</SelectItem>
+                <SelectItem value="device">我的设备（设备连接器）</SelectItem>
               </SelectControl>
             </Field>
             <Field label="目标设备（设备执行时必选）">

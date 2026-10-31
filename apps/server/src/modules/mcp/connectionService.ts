@@ -265,6 +265,7 @@ export class ConnectionService {
             id: input.id,
             ownerId,
             name: config.name,
+            toolPrefix: config.toolPrefix ?? null,
             adapter: config.adapter,
             deviceId: config.deviceId,
             config: this.deps.vault.seal(config, `${ownerId}:${input.id}`),
@@ -285,6 +286,7 @@ export class ConnectionService {
         id,
         ownerId,
         name: config.name,
+        toolPrefix: config.toolPrefix ?? null,
         adapter: config.adapter,
         deviceId: config.deviceId,
         config: this.deps.vault.seal(config, `${ownerId}:${id}`),
@@ -636,6 +638,7 @@ export class ConnectionService {
           .set({
             revision: row.revision + 1,
             name: config.name,
+            toolPrefix: config.toolPrefix ?? null,
             adapter: config.adapter,
             deviceId: config.deviceId ?? null,
             config: this.deps.vault.seal(config, `${ownerId}:${id}`),

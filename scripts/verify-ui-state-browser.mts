@@ -63,9 +63,9 @@ try {
   await page.getByRole('dialog').waitFor({ state: 'detached' });
   await page
     .getByRole('navigation', { name: 'Agent子页面' })
-    .getByRole('link', { name: '内容库', exact: true })
+    .getByRole('link', { name: '提示词与资源', exact: true })
     .click();
-  await page.locator('.page-tab[aria-current="page"]', { hasText: '内容库' }).waitFor();
+  await page.locator('.page-tab[aria-current="page"]', { hasText: '提示词与资源' }).waitFor();
   assert.ok(
     (await page.evaluate(() => document.documentElement.scrollWidth)) <= 390,
     'tabs must scroll inside their own row',

@@ -46,6 +46,8 @@ export type Device = {
   services: { id: string; status: string; error?: string }[];
 };
 export type Connection = {
+  /** User-set English tool-name prefix; null/absent uses the name-derived one. */
+  toolPrefix?: string | null;
   presetId?: string;
   revision: number;
   identityMode?: string;
@@ -98,6 +100,8 @@ export type Tool = {
   id: string;
   name: string;
   connectionId: string;
+  /** The name MCP clients see in tools/list (`prefix__tool` by default). */
+  exposedName?: string;
   /** Present when the tool's connection or device is down; Agents do not see it in tools/list. */
   unavailable?: { code: string; message: string };
   definition: {

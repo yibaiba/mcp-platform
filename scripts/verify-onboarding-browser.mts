@@ -95,7 +95,7 @@ async function flow() {
   assert.equal(issued, 0);
   await page.unroute(`**/api/v1/profiles/${existing.id}`);
   await edit.getByRole('button', { name: '保存', exact: true }).click();
-  const access = page.getByRole('dialog', { name: `接入 ${existing.name}`, exact: true });
+  const access = page.getByRole('dialog', { name: `接入客户端 · ${existing.name}`, exact: true });
   await access.getByRole('status').filter({ hasText: '权限已保存' }).waitFor();
   await page.waitForFunction(() => document.activeElement?.textContent === '接入客户端');
   const saved = await h.services.profiles.owned(account.ownerId, existing.id);
@@ -131,17 +131,19 @@ async function flow() {
   await page.goto(`${h.baseURL}/profiles?connectionId=${source.id}`);
   await page.getByRole('button', { name: '新建 Agent', exact: true }).click();
   const create = page.getByRole('dialog', { name: '新建 Agent', exact: true });
-  const name = create.getByLabel('配置名称', { exact: true });
+  const name = create.getByLabel('Agent 名称', { exact: true });
   await name.waitFor();
   assert.equal(await name.inputValue(), 'Setup service Agent');
-  assert.equal(await create.locator('input[name="toolId"]:checked').count(), 0);
+  // Creating from a connection starts with exactly that connection's tools checked.
+  assert.equal(await create.locator('input[name="toolId"]:checked').count(), 1);
+  assert.equal(await create.locator(`input[name="toolId"][value="${tool!.id}"]`).isChecked(), true);
   await name.fill('New setup Agent');
   await create.getByRole('checkbox', { name: /echo Setup service/ }).check();
   await create.getByRole('button', { name: '创建', exact: true }).click();
-  await page.getByRole('dialog', { name: '接入 New setup Agent', exact: true }).waitFor();
+  await page.getByRole('dialog', { name: '接入客户端 · New setup Agent', exact: true }).waitFor();
   assert.equal(issued, 1);
   await page
-    .getByRole('dialog', { name: '接入 New setup Agent', exact: true })
+    .getByRole('dialog', { name: '接入客户端 · New setup Agent', exact: true })
     .getByRole('button', { name: '关闭', exact: true })
     .click();
   for (let index = 0; index < 2; index++) {
@@ -235,7 +237,7 @@ async function settings() {
   await row.getByText('等待账号授权', { exact: true }).first().waitFor();
   await row.getByRole('button', { name: '授权与账号', exact: true }).waitFor();
   await row.getByText('OAuth authorization required', { exact: true }).waitFor();
-  await row.getByText('打开“授权与账号”完成授权，再连接读取工具目录。', { exact: true }).waitFor();
+  await row.getByText('打开“授权与账号”完成授权，再连接读取工具列表。', { exact: true }).waitFor();
   const unavailable = await fixtureMcp();
   const unavailableUrl = unavailable.url;
   await unavailable.close();

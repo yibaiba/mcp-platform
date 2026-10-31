@@ -63,7 +63,7 @@ export function OpenApiPanel({ defaultOpen = false }: { defaultOpen?: boolean })
             onChange={() => setPreview(undefined)}
           />
         </Field>
-        <Field label="或已上传的文档产物 ID">
+        <Field label="或已上传的文档文件 ID">
           <Input name="artifactId" onChange={() => setPreview(undefined)} />
         </Field>
         <Field

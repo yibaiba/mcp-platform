@@ -1,6 +1,6 @@
 import type { CatalogOptions } from '@platform/contracts';
 import { AppError } from '../../shared/errors.js';
-import { readableToolNames } from './toolNames.js';
+import { type ConnectionLabel, readableToolNames } from './toolNames.js';
 
 export type CatalogTool = {
   id: string;
@@ -93,7 +93,7 @@ function exposedName(
 export function projectTools<T extends CatalogTool>(
   tools: readonly T[],
   config: CatalogOptions,
-  connectionNames?: ReadonlyMap<string, string>,
+  connectionNames?: ReadonlyMap<string, ConnectionLabel>,
   /** The full set names are resolved against (defaults to `tools`) so one row matches its listing. */
   universe: readonly CatalogTool[] = tools,
 ): ProjectedTool<T>[] {
@@ -132,11 +132,7 @@ export function projectTools<T extends CatalogTool>(
 export function assertVisibleArguments(tool: ProjectedTool, args: Record<string, unknown>) {
   const hidden = tool.hiddenParameters.filter((key) => Object.hasOwn(args, key));
   if (hidden.length)
-    throw new AppError(
-      'HIDDEN_PARAMETER',
-      `该 Profile 禁止传入隐藏参数：${hidden.join(', ')}`,
-      400,
-    );
+    throw new AppError('HIDDEN_PARAMETER', `该 Agent 禁止传入隐藏参数：${hidden.join(', ')}`, 400);
 }
 export function projectContent<T extends { id: string; definition: Record<string, unknown> }>(
   entries: readonly T[],

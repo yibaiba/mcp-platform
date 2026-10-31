@@ -70,7 +70,10 @@ export function ConnectionItem({
       const result = await operation.action();
       if (operation.inspect)
         onInspect({ title: `${connection.name} · ${operation.label}`, result });
-      else setMessage(operation.label === '更新目录' ? '目录已更新' : `${operation.label}已完成`);
+      else
+        setMessage(
+          operation.label === '刷新工具列表' ? '工具列表已刷新' : `${operation.label}已完成`,
+        );
     } catch (error) {
       setFailure({
         label: operation.label,
@@ -121,7 +124,7 @@ export function ConnectionItem({
               <span
                 tabIndex={0}
                 className="inline-flex text-subtle-foreground"
-                aria-label={`执行位置：${executionLocation(connection, devices)}，${identity}`}
+                aria-label={`运行位置：${executionLocation(connection, devices)}，${identity}`}
               >
                 <Info size={14} aria-hidden="true" />
               </span>
@@ -154,7 +157,7 @@ export function ConnectionItem({
             <Button
               variant="outline"
               disabled={Boolean(busy)}
-              onClick={() => perform('discover', '更新目录')}
+              onClick={() => perform('discover', '刷新工具列表')}
             >
               {busy ? (
                 <LoaderCircle
@@ -194,8 +197,8 @@ export function ConnectionItem({
               <DropdownMenuItem onClick={() => onEdit(connection)}>
                 <Settings2 /> 编辑连接
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => perform('discover', '更新目录')}>
-                刷新工具目录
+              <DropdownMenuItem onClick={() => perform('discover', '刷新工具列表')}>
+                刷新工具列表
               </DropdownMenuItem>
               {supportsAuthorization && !needsAuthorization ? (
                 <DropdownMenuItem onClick={() => setAuthorizationOpen(true)}>
@@ -245,7 +248,7 @@ export function ConnectionItem({
         failureLabel={failure?.label}
         busy={Boolean(busy)}
         onEdit={() => onEdit(connection)}
-        onRetry={() => perform('discover', '更新目录')}
+        onRetry={() => perform('discover', '刷新工具列表')}
       />
       {notice && !notice.error ? (
         <p className="mt-2 text-xs">

@@ -12,6 +12,7 @@ import { parseArgumentLines } from '@platform/contracts';
 import { parseJsonObject } from './jsonField.js';
 import { ArgumentsField } from './ArgumentsField.js';
 import { connectNow, type ConnectOutcome } from './connectNow.js';
+import { ToolPrefixField } from './ToolPrefixField.js';
 
 const idOf = (value: unknown) =>
   value && typeof value === 'object' && 'id' in value && typeof value.id === 'string'
@@ -35,6 +36,8 @@ export function ConnectionForm({
   const [adapter, setAdapter] = useState(initialDeviceId ? 'device' : 'direct');
   const [transport, setTransport] = useState(initialDeviceId ? 'stdio' : 'http');
   const [mode, setMode] = useState('existing');
+  // What the tool-prefix suggestion is based on, kept in sync while the user types.
+  const [draft, setDraft] = useState({ name: '', url: '', command: '', args: '' });
   // Platform-host stdio is admin-only behind PLATFORM_STDIO_ENABLED; the server enforces it too.
   const hostStdio = Boolean(useMe().data?.hostStdio);
   const stdioAllowed = adapter === 'device' || hostStdio;
@@ -45,6 +48,7 @@ export function ConnectionForm({
     const config = {
       ...extra,
       name: value(data, 'name'),
+      toolPrefix: value(data, 'toolPrefix') || undefined,
       adapter,
       transport,
       mode: transport === 'stdio' ? 'managed' : mode,
@@ -62,12 +66,18 @@ export function ConnectionForm({
   }
   return (
     <Form label={onConnected ? '保存并连接' : '保存连接'} submit={submit}>
-      <div className="form-grid">
+      <div
+        className="form-grid"
+        onChange={(event) => {
+          const target = event.target as HTMLInputElement;
+          if (target.name in draft) setDraft((old) => ({ ...old, [target.name]: target.value }));
+        }}
+      >
         <Field label="连接名称">
           <Input name="name" placeholder="例如：文档搜索" required />
         </Field>
         {initialDeviceId ? null : (
-          <Field label="执行适配器">
+          <Field label="运行位置">
             <SelectControl
               value={adapter}
               onValueChange={(next) => {
@@ -76,15 +86,15 @@ export function ConnectionForm({
                 setMode('existing');
               }}
             >
-              <SelectItem value="direct">平台直连</SelectItem>
-              <SelectItem value="device">设备连接器</SelectItem>
-              <SelectItem value="pi">Pi 桥接（无需模型）</SelectItem>
+              <SelectItem value="direct">平台服务器</SelectItem>
+              <SelectItem value="device">我的设备（设备连接器）</SelectItem>
+              <SelectItem value="pi">Pi 桥接（高级，无需模型）</SelectItem>
             </SelectControl>
           </Field>
         )}
         {adapter === 'device' ? (
           activeDevices.length ? (
-            <Field label="执行设备">
+            <Field label="运行在哪台设备">
               <SelectControl
                 name="deviceId"
                 defaultValue={initialDeviceId ?? activeDevices[0]?.id}
@@ -105,7 +115,7 @@ export function ConnectionForm({
           )
         ) : null}
         {adapter === 'device' ? (
-          <Field label="运行方式">
+          <Field label="连接方式">
             <SelectControl
               value={transport === 'stdio' ? 'stdio' : mode === 'managed' ? 'managed' : 'existing'}
               onValueChange={(next) => {
@@ -119,11 +129,14 @@ export function ConnectionForm({
             </SelectControl>
           </Field>
         ) : (
-          <Field label="传输协议" hint={'远程服务支持 HTTP/HTTPS；本地进程使用 stdio。'}>
+          <Field
+            label="连接方式"
+            hint={'远程地址：服务已在网上运行；本地命令：由平台启动一个进程。'}
+          >
             <SelectControl value={transport} onValueChange={setTransport}>
-              <SelectItem value="http">Streamable HTTP</SelectItem>
-              <SelectItem value="sse">HTTP + SSE（旧版兼容）</SelectItem>
-              {stdioAllowed ? <SelectItem value="stdio">stdio（本地进程）</SelectItem> : null}
+              <SelectItem value="http">远程地址（Streamable HTTP）</SelectItem>
+              <SelectItem value="sse">远程地址（HTTP + SSE，旧版）</SelectItem>
+              {stdioAllowed ? <SelectItem value="stdio">本地命令（stdio）</SelectItem> : null}
             </SelectControl>
           </Field>
         )}
@@ -146,7 +159,7 @@ export function ConnectionForm({
               hint={
                 adapter === 'device'
                   ? '命令在所选设备上运行；该设备必须已安装程序。'
-                  : '命令在平台主机上运行；Docker 部署时在 server 容器内运行，程序需预先安装。'
+                  : '命令在平台服务器上运行；Docker 部署时在 server 容器内运行，程序需预先安装。'
               }
             >
               <Input name="command" placeholder="npx / uvx / 可执行文件路径" required />
@@ -155,6 +168,14 @@ export function ConnectionForm({
           </>
         ) : null}
       </div>
+      <ToolPrefixField
+        source={{
+          name: draft.name,
+          url: transport !== 'stdio' ? draft.url : undefined,
+          command: needsCommand ? draft.command : undefined,
+          args: needsCommand ? parseArgumentLines(draft.args) : undefined,
+        }}
+      />
       <Disclosure
         title={
           transport === 'stdio'

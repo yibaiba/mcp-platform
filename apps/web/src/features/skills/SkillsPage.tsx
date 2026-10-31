@@ -192,7 +192,7 @@ export default function SkillsPage() {
                     ))}
                   </SelectControl>
                 </Field>
-                <Field label="Agent 配置">
+                <Field label="Agent">
                   <SelectControl name="profileId" required>
                     <SelectItem value="">选择配置</SelectItem>
                     {profiles.data?.map((p) => (

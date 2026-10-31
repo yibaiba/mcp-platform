@@ -167,7 +167,7 @@ export default function ActivityPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>状态</TableHead>
-                <TableHead>工具 / 执行位置</TableHead>
+                <TableHead>工具 / 运行位置</TableHead>
                 <TableHead>开始</TableHead>
                 <TableHead>耗时</TableHead>
                 <TableHead>

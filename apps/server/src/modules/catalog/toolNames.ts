@@ -1,30 +1,22 @@
+import { connectionToolPrefix, toolNameSlug } from '@platform/contracts';
 import { digest } from '../../shared/crypto.js';
 
 /** External MCP tool names: `[A-Za-z0-9_-]`, at most 48 characters, readable and deterministic. */
 export const TOOL_NAME_MAX = 48;
 /** Names exposed before readable naming; still accepted by tools/call, never listed. */
 export const legacyToolName = /^t_[0-9a-f]{64}$/;
-const CONNECTION_MAX = 20;
 const SUFFIX = 6;
 
-function slug(value: string) {
-  return value
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^A-Za-z0-9_-]+/g, '_')
-    .replace(/_{2,}/g, '_')
-    .replace(/^[_-]+|[_-]+$/g, '');
-}
+const slug = toolNameSlug;
 function trimEnd(value: string) {
   return value.replace(/[_-]+$/, '');
 }
-function connectionSlug(connectionId: string, connectionName: string | undefined) {
-  const value = trimEnd(
-    slug(connectionName ?? '')
-      .toLowerCase()
-      .slice(0, CONNECTION_MAX),
-  );
-  return value || `c${connectionId.replace(/-/g, '').slice(0, SUFFIX)}`;
+/** A connection's display name, optionally with the user-set English prefix (see `toolPrefix`). */
+export type ConnectionLabel = string | { name: string; prefix?: string | null };
+function connectionSlug(connectionId: string, label: ConnectionLabel | undefined) {
+  return typeof label === 'object'
+    ? connectionToolPrefix(connectionId, label.name, label.prefix)
+    : connectionToolPrefix(connectionId, label);
 }
 function toolSlug(name: string) {
   return slug(name) || `t${digest(name).slice(0, SUFFIX)}`;
@@ -36,14 +28,14 @@ function suffixed(base: string, id: string, length: number) {
 }
 
 /**
- * `connslug__toolname`. The connection slug comes from the connection name (ASCII-folded,
- * lowercase, ≤20) and falls back to the connection id prefix; too-long names are truncated with a
+ * `connslug__toolname`. The connection slug is the user-set English prefix when present, else the
+ * connection name (ASCII-folded, lowercase, ≤20), falling back to the connection id prefix; too-long names are truncated with a
  * hash suffix. Collisions resolve in ascending stable tool id order: the first keeps the plain
  * name, later ones get a hash suffix of their tool id. Same input set → same names.
  */
 export function readableToolNames(
   tools: readonly { id: string; connectionId: string; name: string }[],
-  connectionNames: ReadonlyMap<string, string> | undefined,
+  connectionNames: ReadonlyMap<string, ConnectionLabel> | undefined,
   taken: ReadonlySet<string>,
 ) {
   const used = new Set(taken);

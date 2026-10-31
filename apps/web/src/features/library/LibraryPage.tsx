@@ -98,7 +98,7 @@ export default function LibraryPage() {
                     title: `删除“${item.name}”？`,
                     confirmLabel: '确认删除',
                     description:
-                      '此内容及其 Agent 配置授权将被移除，后续无法通过这些授权使用。此操作无法撤销。',
+                      '此内容及其 Agent 授权将被移除，后续无法通过这些授权使用。此操作无法撤销。',
                   }}
                   action={async () => {
                     await api(`${path}/${item.id}`, {

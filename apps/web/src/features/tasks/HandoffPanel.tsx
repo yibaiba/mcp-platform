@@ -38,7 +38,7 @@ export function HandoffPanel({ taskId, artifacts }: { taskId: string; artifacts:
   return (
     <Card className="panel padded">
       <h2>主动交接</h2>
-      <p>由你编写摘要并选择产物。预览后提交记录，执行需单独点击。</p>
+      <p>由你编写摘要并选择文件。预览后提交记录，执行需单独点击。</p>
       <Feedback error={profiles.error ?? keys.error ?? grants.error ?? handoffs.error} />
       <div onChange={() => setPreview(undefined)}>
         <Form
@@ -84,7 +84,7 @@ export function HandoffPanel({ taskId, artifacts }: { taskId: string; artifacts:
             <Textarea name="summary" required rows={4} />
           </Field>
           <fieldset>
-            <legend>选定源任务产物</legend>
+            <legend>选定源任务文件</legend>
             {artifacts.map((a) => (
               <CheckChoice key={a.id} name="artifact" value={a.id}>
                 <span>

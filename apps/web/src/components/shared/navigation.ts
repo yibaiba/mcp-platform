@@ -40,7 +40,7 @@ export const sections: Section[] = [
     tabs: [
       { to: '/connections', label: '我的连接' },
       { to: '/market', label: '市场' },
-      { to: '/authorizations', label: '上游授权' },
+      { to: '/authorizations', label: '服务授权' },
     ],
   },
   {
@@ -61,10 +61,10 @@ export const sections: Section[] = [
     match: ['/profiles', '/library', '/skills', '/artifacts', '/configuration'],
     tabs: [
       { to: '/profiles', label: 'Agent' },
-      { to: '/library', label: '内容库' },
+      { to: '/library', label: '提示词与资源' },
       { to: '/skills', label: 'Skills' },
-      { to: '/artifacts', label: '产物' },
-      { to: '/configuration', label: '配置模板' },
+      { to: '/artifacts', label: '文件' },
+      { to: '/configuration', label: '批量配置' },
     ],
   },
   {

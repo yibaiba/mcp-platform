@@ -46,7 +46,7 @@ export function ConnectionShares({ connectionId }: { connectionId: string }) {
             {grant.revoked
               ? '已撤销'
               : grant.credentialMode === 'owner'
-                ? '所有者凭证'
+                ? '用我的账号凭证'
                 : '独立授权'}
           </span>
           <Button variant="outline" onClick={() => setEditing(grant)}>
@@ -95,7 +95,7 @@ export function ConnectionShares({ connectionId }: { connectionId: string }) {
         </Field>
         <Field
           label="凭证使用方式"
-          hint="选择所有者凭证即明确允许接收者以你的上游身份使用所选能力，包括来源设备上的服务。"
+          hint="选择“用我的账号凭证”即明确允许接收者以你的上游身份使用所选能力，包括来源设备上的服务。"
         >
           <SelectControl
             name="credentialMode"

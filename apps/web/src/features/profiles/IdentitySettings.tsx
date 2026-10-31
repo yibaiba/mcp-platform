@@ -10,9 +10,12 @@ import { AuthorizationBindings } from '../connections/AuthorizationBindings.js';
 export function IdentitySettings({
   profile,
   connection,
+  location,
 }: {
   profile: Profile;
   connection: Connection;
+  /** Readable place it runs (device name or 平台服务器). */
+  location: string;
 }) {
   const [impact, setImpact] = useState<unknown>();
   const [result, setResult] = useState<unknown>();
@@ -33,9 +36,7 @@ export function IdentitySettings({
   return (
     <section className="connection-row">
       <h3>{connection.name}</h3>
-      <p>
-        执行位置：{connection.deviceId ?? '平台主机'} · {connection.adapter} · {connection.status}
-      </p>
+      <p>运行位置：{location}</p>
       <Feedback error={context.error} />
       <Form
         label="保存身份选择"

@@ -44,7 +44,7 @@ export function BundleHistory() {
       <Feedback error={query.error} />
       <Action action={() => query.refetch()}>刷新安装记录</Action>
       <p>
-        刷新页面后可在此查看结果。卸载会关闭连接并移除其 Profile
+        刷新页面后可在此查看结果。卸载会关闭连接并移除其 Agent
         授权；清理只删除平台文件，设备上的包文件仍保留。
       </p>
       {query.data?.packages.map((pkg) => (
@@ -87,7 +87,7 @@ export function BundleHistory() {
                 <details className="technical-details">
                   <summary>安装技术详情</summary>
                   <p>
-                    操作 {op.id} · {op.destination ?? '旧记录未保存执行位置'}
+                    操作 {op.id} · {op.destination ?? '旧记录未保存运行位置'}
                   </p>
                 </details>
                 {op.error ? <p role="alert">{op.error}</p> : null}
@@ -98,7 +98,7 @@ export function BundleHistory() {
                       title: `卸载“${pkg.name}”连接？`,
                       confirmLabel: '确认卸载',
                       description:
-                        '将关闭此连接，移除其 Agent 配置授权及依赖此连接的 Skill 授权。包文件会保留，可单独清理。此操作无法撤销。',
+                        '将关闭此连接，移除其 Agent 授权及依赖此连接的 Skill 授权。包文件会保留，可单独清理。此操作无法撤销。',
                     }}
                     action={() =>
                       api(`/bundles/mcpb/operations/${op.id}/uninstall`, { method: 'POST' })

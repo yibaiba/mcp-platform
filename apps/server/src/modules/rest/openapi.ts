@@ -140,7 +140,7 @@ export async function exportOpenApi(
       title: profile.name,
       version: String(profile.revision),
       description:
-        '使用当前 Profile 的 Agent key 或 OAuth access token。所有接口重新检查当前权限；REST 不提供 Apps 渲染宿主。',
+        '使用当前 Agent 的接入密钥或 OAuth access token。所有接口重新检查当前权限；REST 不提供 Apps 渲染宿主。',
     },
     servers: [{ url: input.publicUrl }],
     security: [{ bearerAuth: [] }],

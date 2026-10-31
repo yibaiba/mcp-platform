@@ -65,7 +65,7 @@ export class ProfileService {
     if (previous && !Object.hasOwn(input as object, 'pinnedTools'))
       value.pinnedTools = value.pinnedTools.filter((id) => value.toolIds.includes(id));
     if (value.pinnedTools.some((id) => !value.toolIds.includes(id)))
-      throw new AppError('DISCOVERY_PIN', '钉选工具必须包含在 Profile 的工具授权中');
+      throw new AppError('DISCOVERY_PIN', '钉选工具必须包含在 Agent 的工具授权中');
     if (value.discoveryMode === 'search' && !value.embedding)
       throw new AppError('EMBEDDING_CONFIG', '搜索模式需要独立配置 Embedding 服务');
     if (value.searchOptions.strategy === 'hnsw' && (value.embedding?.dimensions ?? 0) > 2000)
@@ -386,14 +386,14 @@ export class ProfileService {
     const ids = [...new Set([...catalog, ...(universe ?? [])].map((row) => row.connectionId))];
     const names = ids.length
       ? await this.db
-          .select({ id: connections.id, name: connections.name })
+          .select({ id: connections.id, name: connections.name, prefix: connections.toolPrefix })
           .from(connections)
           .where(inArray(connections.id, ids))
       : [];
     return projectTools(
       catalog,
       config,
-      new Map(names.map((row) => [row.id, row.name])),
+      new Map(names.map((row) => [row.id, { name: row.name, prefix: row.prefix }])),
       universe ?? catalog,
     );
   }

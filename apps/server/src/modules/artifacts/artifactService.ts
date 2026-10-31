@@ -99,8 +99,7 @@ export class ArtifactService {
       ownerId,
       connectionId: input.connectionId,
     });
-    if (!scope)
-      throw new AppError('ORIGINAL_SCOPE_REQUIRED', '原文产物需要明确的调用 Profile', 409);
+    if (!scope) throw new AppError('ORIGINAL_SCOPE_REQUIRED', '原文文件需要明确的调用 Agent', 409);
     const access = { ownerId, profileId: scope.profileId };
     return async (value: { name: string; body: ReadableStream<Uint8Array> }) => {
       await this.deps.access.assert(access, 'toolIds', input.toolId);

@@ -49,7 +49,7 @@ export function CallDetail({
       <SheetContent>
         <SheetHeader>
           <SheetTitle>调用详情</SheetTitle>
-          <SheetDescription>身份、执行位置和诊断信息。</SheetDescription>
+          <SheetDescription>身份、运行位置和诊断信息。</SheetDescription>
         </SheetHeader>
         <Feedback error={query.error} />
         {query.isPending ? <ListSkeleton rows={3} /> : null}
@@ -61,9 +61,9 @@ export function CallDetail({
 function CallInformation({ call, names }: { call: Call; names: CallNames }) {
   const rows = [
     ['工具', names.tools.get(call.toolId) ?? call.toolId],
-    ['Agent', call.profileId ? (names.profiles.get(call.profileId) ?? call.profileId) : '管理账号'],
+    ['Agent', call.profileId ? (names.profiles.get(call.profileId) ?? call.profileId) : '我自己'],
     ['连接', names.connections.get(call.connectionId) ?? call.connectionId],
-    ['执行位置', callLocation(call, names)],
+    ['运行位置', callLocation(call, names)],
     ['调用入口', callEntry(call.entry)],
     ['执行阶段', callPhase(call.phase)],
     ['开始时间', date(call.startedAt)],
@@ -94,7 +94,7 @@ function CallInformation({ call, names }: { call: Call; names: CallNames }) {
           查看工具
         </Link>
         {call.profileId ? (
-          <a href={`/profiles?workspace=${encodeURIComponent(call.profileId)}`}>Agent 工作空间</a>
+          <a href={`/profiles?workspace=${encodeURIComponent(call.profileId)}`}>Agent 详情</a>
         ) : null}
         {call.taskId ? (
           <a href={`/tasks?task=${encodeURIComponent(call.taskId)}`}>关联任务</a>

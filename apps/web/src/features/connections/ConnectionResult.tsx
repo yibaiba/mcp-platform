@@ -19,7 +19,7 @@ export function ConnectionResult({ result }: { result: unknown }) {
             打开供应商授权页面（{url.host}，新窗口）
           </a>
           <p className="text-sm text-muted-foreground">
-            在供应商页面确认账号和权限后，将自动返回平台并更新工具目录。
+            在供应商页面确认账号和权限后，将自动返回平台并刷新工具列表。
           </p>
         </div>
       ) : null}

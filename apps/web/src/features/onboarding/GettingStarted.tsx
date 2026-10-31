@@ -11,6 +11,7 @@ import {
 } from '../../components/ui/dialog.js';
 import { Hint } from '../../components/ui/tooltip.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
+import { glossary } from './glossary.js';
 
 export const setupSteps = [
   {
@@ -20,7 +21,7 @@ export const setupSteps = [
     hash: 'connector-catalog',
     action: '选择服务',
     description:
-      '选择 GitHub、Cloudflare 等服务，填写自己的 Token 或发起 OAuth 授权。保存后自动发现工具；自定义连接需要点击“连接”。',
+      '选择 GitHub、Cloudflare 等服务，填写自己的 Token 或发起 OAuth 授权。保存后自动读取工具列表；自定义连接点“保存并连接”即可。',
   },
   {
     title: '为 Agent 选择权限',
@@ -29,7 +30,7 @@ export const setupSteps = [
     hash: 'create-profile',
     action: '配置 Agent',
     description:
-      '连接成功后点击“给 Agent 授权”，选择已有 Agent 或新建，再勾选允许使用的工具。保存后直接进入客户端接入。',
+      '连接成功后点击“给 Agent 授权”，选择已有 Agent 或新建；新建时这个连接的工具已默认勾选。保存后直接进入客户端接入。',
   },
   {
     title: '复制配置到客户端',
@@ -38,7 +39,7 @@ export const setupSteps = [
     hash: 'agent-configurations',
     action: '获取接入配置',
     description:
-      '点击 Agent 旁的“接入”，生成接入密钥后选择客户端并复制配置，再粘贴到客户端的 MCP 设置。密钥只显示一次；请在客户端刷新工具列表确认接通。',
+      '点击 Agent 旁的“接入客户端”，生成接入密钥后选择客户端并复制配置，再粘贴到客户端的 MCP 设置。密钥只显示一次；请在客户端刷新工具列表确认接通。',
   },
 ] as const;
 
@@ -94,7 +95,7 @@ export function GettingStarted({
         <div className="space-y-1 border-t pt-3 text-muted-foreground">
           <Disclosure title="怎么确认可用？">
             <p>
-              到工具目录选择对应 Agent
+              到工具页选择对应 Agent
               身份，再选工具查看参数。点击“执行”会执行真实操作，请先确认参数。
             </p>
             <Link
@@ -102,7 +103,7 @@ export function GettingStarted({
               onClick={() => setOpen(false)}
               className="inline-flex min-h-8 items-center gap-1 text-primary hover:underline"
             >
-              去工具目录 <ArrowUpRight size={14} aria-hidden="true" />
+              去工具页 <ArrowUpRight size={14} aria-hidden="true" />
             </Link>
           </Disclosure>
           <Disclosure title="设备和模型需要配置吗？">
@@ -113,6 +114,19 @@ export function GettingStarted({
           </Disclosure>
           <Disclosure title="想接同一服务的多个账号？">
             <p>在添加连接时再次选择同一服务并分别命名，再为不同 Agent 选择对应连接的工具。</p>
+          </Disclosure>
+          <Disclosure title="术语表：界面里的词是什么意思？">
+            <dl className="glossary-list">
+              {glossary.map((entry) => (
+                <div key={entry.term}>
+                  <dt>{entry.term}</dt>
+                  <dd>
+                    {entry.meaning}
+                    <small>旧称：{entry.was}</small>
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </Disclosure>
         </div>
       </DialogContent>

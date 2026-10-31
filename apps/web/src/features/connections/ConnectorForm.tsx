@@ -29,7 +29,7 @@ export function ConnectorForm({
   const oauthSteps =
     adapter === 'pi'
       ? 'Pi 管理注册、授权与刷新，平台自动接收回调。预注册应用需先登记平台回调地址。'
-      : '保存后展开“上游授权绑定”，查看“授权状态”获取回调地址并填入应用设置，再发起授权。';
+      : '保存后展开“服务授权绑定”，查看“授权状态”获取回调地址并填入应用设置，再发起授权。';
   return (
     <Form
       label={
@@ -63,7 +63,7 @@ export function ConnectorForm({
       {preset.stdio && hostStdio ? (
         <Field
           label="运行方式"
-          hint="远程服务免安装；本地进程由平台主机执行，需要 Node.js / npx 和 npm 网络访问。"
+          hint="远程服务免安装；本地进程由平台服务器执行，需要 Node.js / npx 和 npm 网络访问。"
         >
           <SelectControl
             value={transport}
@@ -77,7 +77,7 @@ export function ConnectorForm({
       {transport === 'stdio' && preset.stdio ? (
         <Field
           label="启动命令"
-          hint={`在平台主机执行；令牌通过 ${preset.stdio.tokenEnv} 环境变量传入，不放入命令参数。`}
+          hint={`在平台服务器执行；令牌通过 ${preset.stdio.tokenEnv} 环境变量传入，不放入命令参数。`}
         >
           <Input value={[preset.stdio.command, ...preset.stdio.args].join(' ')} readOnly />
         </Field>
@@ -91,8 +91,8 @@ export function ConnectorForm({
           value={adapter}
           onValueChange={(method) => setAdapter(method as 'direct' | 'pi')}
         >
-          <SelectItem value="direct">平台直连</SelectItem>
-          <SelectItem value="pi">Pi 桥接（无需模型）</SelectItem>
+          <SelectItem value="direct">平台服务器</SelectItem>
+          <SelectItem value="pi">Pi 桥接（高级，无需模型）</SelectItem>
         </SelectControl>
       </Field>
       <Field label="认证方式" hint={preset.hint}>
@@ -134,7 +134,7 @@ export function ConnectorForm({
           : authentication === 'oauth'
             ? '保存后自动进入供应商授权页，确认权限后自动返回并发现工具。'
             : '保存后自动连接并发现工具。'}{' '}
-        Agent 的身份与工具权限在工作空间中单独配置。
+        Agent 的身份与工具权限在 Agent 详情中单独配置。
       </p>
     </Form>
   );

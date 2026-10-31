@@ -43,7 +43,7 @@ export default function ArtifactsPage() {
     <>
       <PageHeader
         title="Agent"
-        info="使用产物 ID 传递文件，上传与接收均校验 SHA-256。"
+        info="使用文件 ID 传递文件，上传与接收均校验 SHA-256。"
         actions={
           <>
             <Button variant="outline" onClick={() => open('transfer')}>
@@ -51,7 +51,7 @@ export default function ArtifactsPage() {
             </Button>
             <Button onClick={() => open('upload')}>
               <Upload aria-hidden="true" />
-              上传产物
+              上传文件
             </Button>
           </>
         }
@@ -81,10 +81,10 @@ export default function ArtifactsPage() {
         ) : artifacts.isSuccess ? (
           <Empty
             icon={FolderOpen}
-            title="还没有产物"
+            title="还没有文件"
             action={
               <Button variant="outline" onClick={() => open('upload')}>
-                上传产物
+                上传文件
               </Button>
             }
           />
@@ -98,7 +98,7 @@ export default function ArtifactsPage() {
       >
         <SheetContent>
           <SheetHeader>
-            <SheetTitle>{drawer === 'transfer' ? '设备间交接' : '上传产物'}</SheetTitle>
+            <SheetTitle>{drawer === 'transfer' ? '设备间交接' : '上传文件'}</SheetTitle>
             <SheetDescription>
               {drawer === 'transfer'
                 ? '本地目录名称需匹配 connector.json 中的 artifactRoots。'
@@ -152,7 +152,7 @@ export default function ArtifactsPage() {
             >
               <Field label="传输方向">
                 <SelectControl value={direction} onValueChange={setDirection}>
-                  <SelectItem value="receive">设备接收平台产物</SelectItem>
+                  <SelectItem value="receive">设备接收平台文件</SelectItem>
                   <SelectItem value="send">设备上传本地文件</SelectItem>
                 </SelectControl>
               </Field>
@@ -169,9 +169,9 @@ export default function ArtifactsPage() {
                 </SelectControl>
               </Field>
               {direction === 'receive' ? (
-                <Field label="产物">
+                <Field label="文件">
                   <SelectControl name="artifactId" required>
-                    <SelectItem value="">选择产物</SelectItem>
+                    <SelectItem value="">选择文件</SelectItem>
                     {artifacts.data?.map((a) => (
                       <SelectItem key={a.id} value={a.id}>
                         {a.name} · {a.id.slice(0, 8)}

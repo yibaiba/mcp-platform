@@ -31,11 +31,11 @@ export function AuthorizationBindings({
   const endpoint =
     source === 'openapi' ? `${root}/openapi/oauth/${encodeURIComponent(scheme)}` : `${root}/oauth`;
   return (
-    <Disclosure title="上游授权绑定" defaultOpen={defaultOpen}>
+    <Disclosure title="服务授权绑定" defaultOpen={defaultOpen}>
       <Feedback error={bindings.error} />
       <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
         选择要管理的授权身份。供应商页面确认后自动返回，无需复制回调地址；Agent 专属身份在对应 Agent
-        的工作空间中配置。
+        的详情页中配置。
       </p>
       <Field label="授权归属">
         <SelectControl

@@ -223,9 +223,9 @@ export default function ConnectionsPage() {
                 </SelectItem>
               ))}
           </SelectControl>
-          <SelectControl aria-label="执行位置" value={location} onValueChange={setLocation}>
+          <SelectControl aria-label="运行位置" value={location} onValueChange={setLocation}>
             <SelectItem value="">全部位置</SelectItem>
-            <SelectItem value="direct">平台直连</SelectItem>
+            <SelectItem value="direct">平台服务器</SelectItem>
             <SelectItem value="pi">平台 Pi</SelectItem>
             <SelectItem value="device">设备</SelectItem>
           </SelectControl>

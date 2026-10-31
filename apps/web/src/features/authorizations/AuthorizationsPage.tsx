@@ -95,7 +95,7 @@ export default function AuthorizationsPage() {
               </Disclosure>
             </div>
           ))}
-        {!connections.data?.length ? <Empty>先添加一个 MCP 连接。</Empty> : null}
+        {!connections.data?.length ? <Empty>先添加一个连接。</Empty> : null}
       </Card>
       {result ? (
         <Card className="panel padded">

@@ -24,7 +24,7 @@ export class SearchIndexManager {
     await this.deps.profiles.access!.assertSubject({ ownerId, profileId });
     const profile = await this.deps.profiles.owned(ownerId, profileId);
     if (profile.discoveryMode !== 'search' || !profile.embedding)
-      throw new AppError('DISCOVERY_DISABLED', '该 Profile 尚未启用语义搜索和 Embedding 配置', 409);
+      throw new AppError('DISCOVERY_DISABLED', '该 Agent 尚未启用语义搜索和 Embedding 配置', 409);
     return profile;
   }
   private async candidate(ownerId: string, profileId: string) {

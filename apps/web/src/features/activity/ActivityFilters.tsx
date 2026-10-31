@@ -90,8 +90,8 @@ export function ActivityFilters({
             </Field>
           ))}
           <NamedFilter
-            label="执行设备"
-            all="全部设备与平台主机"
+            label="运行在哪台设备"
+            all="全部设备与平台服务器"
             value={values.deviceId}
             options={options.devices}
             onChange={(deviceId) => onChange({ deviceId })}

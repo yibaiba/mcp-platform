@@ -28,10 +28,10 @@ export function LocalBundles({ api }: { api: ManagementApi }) {
   }, [api]);
   return (
     <section>
-      <h2>本机 MCPB 扩展包</h2>
+      <h2>本机扩展包（.mcpb）</h2>
       <p>
         配置加密保存在本机。保存后可在本机资源中选择同步，再到平台授权给
-        Profile；也可复制客户端配置直接使用。安装不启动服务。
+        Agent；也可复制客户端配置直接使用。安装不启动服务。
       </p>
       <Feedback error={error} />
       <Form

@@ -14,6 +14,7 @@ import {
 } from '../../lib/api.js';
 import { ContentGrants } from './ContentGrants.js';
 import { ToolGrants } from './ToolGrants.js';
+import { useConnectionNames } from '../connections/useConnectionNames.js';
 
 export function ProfilePermissionsEditor({
   editing,
@@ -39,17 +40,28 @@ export function ProfilePermissionsEditor({
     queryFn: () => api<{ id: string; name: string }[]>('/artifacts'),
   });
   const sources = [
-    { name: '工具目录', query: tools },
-    { name: '内容目录', query: catalog },
-    { name: '连接目录', query: connections },
-    { name: 'Skill 目录', query: skills },
-    { name: '产物目录', query: artifacts },
+    { name: '工具列表', query: tools },
+    { name: '提示词与资源列表', query: catalog },
+    { name: '连接列表', query: connections },
+    { name: 'Skill 列表', query: skills },
+    { name: '文件列表', query: artifacts },
   ];
+  const shared = useConnectionNames().names;
   const ready = sources.every(({ query }) => query.isSuccess && !query.isFetching);
   const loaded = sources.every(({ query }) => query.data !== undefined);
-  const connectionNames = new Map(
-    connections.data?.map((connection) => [connection.id, connection.name]),
-  );
+  // Own and shared connections, so a shared connection is named rather than shown as an id.
+  const connectionNames = new Map([
+    ...[...shared].map(([id, entry]) => [id, entry.name] as const),
+    ...(connections.data?.map((connection) => [connection.id, connection.name] as const) ?? []),
+  ]);
+  // Creating an Agent from a connection starts with that connection's tools checked.
+  const preselected =
+    editing?.toolIds ??
+    (connectionId
+      ? (tools.data ?? [])
+          .filter((tool) => tool.connectionId === connectionId && !tool.unavailable)
+          .map((tool) => tool.id)
+      : []);
   return (
     <>
       {sources.map(({ name, query }) => (
@@ -62,7 +74,7 @@ export function ProfilePermissionsEditor({
       ))}
       {!ready ? (
         <p role="status">
-          授权目录尚未完整加载，暂时无法编辑或保存。请等待加载完成，或重试失败项。
+          可授权的内容尚未完整加载，暂时无法编辑或保存。请等待加载完成，或重试失败项。
         </p>
       ) : null}
       {!loaded && sources.some(({ query }) => query.isPending) ? <ListSkeleton rows={3} /> : null}
@@ -87,7 +99,7 @@ export function ProfilePermissionsEditor({
             onSaved(saved);
           }}
         >
-          <Field label="配置名称">
+          <Field label="Agent 名称">
             <Input
               name="name"
               required
@@ -100,14 +112,15 @@ export function ProfilePermissionsEditor({
               placeholder="例如：Claude Code"
             />
           </Field>
-          <Field label="Agent 说明" hint="按授权服务的稳定顺序追加上游服务说明，并标记来源。">
+          <Field label="Agent 说明" hint="会按固定顺序附上各连接自带的说明，并标明来源。">
             <Textarea name="instructions" defaultValue={editing?.instructions ?? ''} />
           </Field>
           <ToolGrants
             tools={tools.data ?? []}
-            selected={editing?.toolIds ?? []}
+            selected={preselected}
             connectionNames={connectionNames}
             connectionId={connectionId}
+            creating={!editing}
           />
           <ContentGrants
             entries={catalog.data ?? []}
@@ -132,7 +145,7 @@ export function ProfilePermissionsEditor({
             {!skills.data?.length ? <small>还没有 Skill。</small> : null}
           </fieldset>
           <fieldset>
-            <legend>允许下载的产物</legend>
+            <legend>允许下载的文件</legend>
             {artifacts.data?.map((artifact) => (
               <CheckChoice
                 key={artifact.id}
@@ -143,7 +156,7 @@ export function ProfilePermissionsEditor({
                 <span>{artifact.name}</span>
               </CheckChoice>
             ))}
-            {!artifacts.data?.length ? <small>还没有产物。</small> : null}
+            {!artifacts.data?.length ? <small>还没有文件。</small> : null}
           </fieldset>
         </Form>
       ) : null}

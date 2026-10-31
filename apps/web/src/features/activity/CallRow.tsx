@@ -25,7 +25,7 @@ export function CallRow({
           {callLocation(call, names)}
         </div>
         <div className="text-muted-foreground">
-          {call.profileId ? (names.profiles.get(call.profileId) ?? call.profileId) : '管理账号'} ·{' '}
+          {call.profileId ? (names.profiles.get(call.profileId) ?? call.profileId) : '我自己'} ·{' '}
           {callPhase(call.phase)}
         </div>
       </TableCell>

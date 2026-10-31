@@ -75,10 +75,10 @@ export function ConnectionStatusMessage({
       {!error && connection.status !== 'connected' ? (
         <p role="status" className="mt-2 text-xs text-muted-foreground">
           {connection.status === 'waiting_authorization'
-            ? '等待完成账号授权，尚未读取工具目录。'
+            ? '等待完成账号授权，尚未读取工具列表。'
             : connection.status === 'stopped'
-              ? '连接已停止；可手动连接，读取工具目录。'
-              : '连接配置已保存，尚未连接；点「连接」读取工具目录。'}
+              ? '连接已停止；可手动连接，读取工具列表。'
+              : '连接配置已保存，尚未连接；点「连接」读取工具列表。'}
         </p>
       ) : null}
     </>

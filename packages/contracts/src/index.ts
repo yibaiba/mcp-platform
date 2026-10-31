@@ -11,6 +11,8 @@ import { catalogOptions } from './catalogOptions.js';
 import { DEFAULT_REQUEST_TIMEOUT_MS, requestOptions } from './requestOptions.js';
 export * from './requestOptions.js';
 export * from './connectionFields.js';
+export * from './toolPrefix.js';
+import { toolPrefix } from './toolPrefix.js';
 export {
   clientPresets,
   clientAuthModes,
@@ -58,6 +60,11 @@ export const connectionInput = z
       .strict()
       .optional(),
     name: z.string().trim().min(1),
+    /** Optional English identifier used as the tool-name prefix (`prefix__tool`); empty clears it. */
+    toolPrefix: z.preprocess(
+      (v) => (typeof v === 'string' && !v.trim() ? undefined : v),
+      toolPrefix.optional(),
+    ),
     connectTimeoutMs: z.number().int().positive().default(CALL_TIMEOUT_MS),
     requestOptions: requestOptions.default({
       timeoutMs: CALL_TIMEOUT_MS,

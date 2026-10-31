@@ -24,7 +24,7 @@ export function ContentCatalog({
   const [selected, setSelected] = useState<ContentEntry>();
   const [result, setResult] = useState<unknown>();
   return (
-    <section className="space-y-4" aria-label="Prompts 与 Resources">
+    <section className="space-y-4" aria-label="提示词与资源">
       <Feedback error={catalog.error} />
       <div className="tool-layout">
         <Card className="panel">
@@ -51,7 +51,7 @@ export function ContentCatalog({
               </Button>
             ))
           ) : (
-            <Empty title="上游没有提供 Prompts 或 Resources" />
+            <Empty title="这个连接没有提供提示词或资源" />
           )}
         </Card>
         <Card className="panel padded">

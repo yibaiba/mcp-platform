@@ -43,7 +43,7 @@ export function IncomingShares({ devices }: { devices: Device[] }) {
           <p>
             {share.credentialMode === 'owner'
               ? '所有者已允许使用其凭证或设备服务。'
-              : '使用你自己的凭证和执行位置。'}{' '}
+              : '使用你自己的凭证和运行位置。'}{' '}
             仅能使用所有者授权的工具和内容。
           </p>
           {share.pendingReason && <p role="status">{share.pendingReason}</p>}
@@ -64,7 +64,7 @@ export function IncomingShares({ devices }: { devices: Device[] }) {
               </p>
             ))}
           {share.credentialMode === 'independent' && (
-            <Disclosure title="配置我的身份和执行位置">
+            <Disclosure title="配置我的身份和运行位置">
               <ConnectionForm
                 devices={devices}
                 onSaved={setResult}
@@ -83,7 +83,7 @@ export function IncomingShares({ devices }: { devices: Device[] }) {
                   )
                 }
               >
-                连接 / 刷新目录
+                连接 / 刷新工具列表
               </Action>
               {share.credentialMode === 'independent' &&
                 share.transport !== 'stdio' &&

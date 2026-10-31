@@ -29,10 +29,7 @@ export async function validateCatalogOptions(
         !isDeepStrictEqual(value.catalog.content[id], deps.previous?.content[id]),
     )
   )
-    throw new AppError(
-      'CATALOG_UNKNOWN_REFERENCE',
-      '目录配置只能引用该 Profile 已选或可申请的能力',
-    );
+    throw new AppError('CATALOG_UNKNOWN_REFERENCE', '目录配置只能引用该 Agent 已选或可申请的能力');
   const selectedTools = toolIds.length
     ? await deps.db
         .select()
@@ -64,7 +61,7 @@ export async function validateCatalogOptions(
   )
     throw new AppError(
       'CATALOG_UNKNOWN_REFERENCE',
-      '连接展示前缀只能引用该 Profile 已选或可申请的连接',
+      '连接展示前缀只能引用该 Agent 已选或可申请的连接',
     );
   projectTools(selectedTools, value.catalog);
 }
