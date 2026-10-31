@@ -153,6 +153,14 @@ test('closed registration rejects provider-independent user creation while admin
   });
   try {
     const context = await auth.$context;
+    // An account already exists, so this is not the first-account sign-up (which is always
+    // open on an empty database); the shared test database may be empty at this moment.
+    await h.db.insert(user).values({
+      id: adminId,
+      email: `${adminId}@example.test`,
+      name: 'Admin',
+      role: 'admin',
+    });
     await expect(
       context.internalAdapter.createUser({
         email,
@@ -161,12 +169,6 @@ test('closed registration rejects provider-independent user creation while admin
       }),
     ).rejects.toThrow('账号注册已关闭');
     expect(await h.db.select().from(user).where(eq(user.email, email))).toHaveLength(0);
-    await h.db.insert(user).values({
-      id: adminId,
-      email: `${adminId}@example.test`,
-      name: 'Admin',
-      role: 'admin',
-    });
     const password = randomUUID();
     const users = new UserService({
       db: h.db,
