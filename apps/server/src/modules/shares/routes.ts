@@ -23,8 +23,18 @@ export function shareRoutes(shares: ShareService) {
     const id = paramId(c, 'shareId');
     if (!grants.some((grant) => grant.id === id))
       throw new AppError('NOT_FOUND', '共享授权不存在', 404);
-    await shares.revoke(owner(c), id);
-    return c.json({ revoked: true });
+    const { fallback } = await shares.revoke(owner(c), id);
+    // fallback 'team': the direct grant is gone but the account remains in the team grant.
+    return c.json({ revoked: true, fallback });
   });
+  app.get('/connections/:id/team-share', async (c) =>
+    c.json(await shares.team(owner(c), paramId(c))),
+  );
+  app.put('/connections/:id/team-share', async (c) =>
+    c.json(await shares.saveTeam(owner(c), paramId(c), await c.req.json())),
+  );
+  app.delete('/connections/:id/team-share', async (c) =>
+    c.json(await shares.revokeTeam(owner(c), paramId(c))),
+  );
   return app;
 }

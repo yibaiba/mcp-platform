@@ -81,12 +81,28 @@ export class InvocationService {
       () => this.execute(input),
     );
   }
+  /** True when the caller once received the tool's connection by share but can no longer use it. */
+  private async sharedAccessEnded(ownerId: string, toolId: string) {
+    const result = await this.deps.db.execute(sql`
+      select 1 from "tools" t
+      join "connection_shares" s on s."connection_id" = t."connection_id" and s."recipient_id" = ${ownerId}
+      where t."id"::text = ${toolId} limit 1`);
+    return result.rows.length > 0;
+  }
   private async execute(input: CallInput): Promise<McpToolResult> {
     const started = performance.now();
     if (input.principal)
       await this.deps.profiles.authenticate(input.principal.profileId, input.principal.token);
     const tool = await this.deps.profiles.tool(input.ownerId, input);
-    if (!tool) throw new AppError('TOOL_FORBIDDEN', '该工具不存在或未授权', 403);
+    if (!tool) {
+      if (await this.sharedAccessEnded(input.ownerId, input.toolId))
+        throw new AppError(
+          'SHARE_ACCESS_ENDED',
+          '该工具来自他人共享的连接，共享已取消、你已不在共享对象内或工具不在共享范围内；Agent 中的授权已失效，请联系连接所有者',
+          403,
+        );
+      throw new AppError('TOOL_FORBIDDEN', '该工具不存在或未授权', 403);
+    }
     assertVisibleArguments(tool, input.arguments);
     const connection = await this.deps.connections.accessible(input.ownerId, tool.connectionId);
     if (connection.status === 'stopped')
