@@ -87,6 +87,19 @@ CLI 仅修改指定账号角色，不输出密码、会话或凭证。可用 `me
 
 管理接口：`GET/PUT /api/v1/connections/:id/shares`，`DELETE .../shares/:shareId`，`GET /api/v1/shares`，`PUT /api/v1/shares/:id/configuration`。授权更新必须携带当前 `version`，冲突返回 409。来源连接的管理仍使用严格所有权校验，未获共享访问保持原有 404 行为。迁移 `0007` 新增共享授权及调用身份列，不重建现有对象或凭证。
 
+### 共享给所有成员（团队共享）
+
+管理员可以在连接的共享抽屉里选择「共享给所有成员」。共享对象是除连接所有者本人以外的所有已启用账号，包括其他管理员；之后新创建或重新启用的账号在首次读取共享时自动加入，停用的账号不在共享对象内，删除账号时其共享随账号一起删除。
+
+- 凭证方式每次共享时选择，默认「成员各自独立授权」。选择「所有成员使用我的凭证」时界面会提示“所有成员都会以你的账号访问上游”；上游看到的是管理员的身份，成员仍看不到也改不了凭证本身。
+- 工具集在共享时固定。上游之后新增的工具不会自动加入，需要管理员更新全员共享。
+- 某个成员同时有单独共享和全员共享时，按单独共享的模式和工具生效。撤销这份单独共享后，该成员回到全员共享（接口返回 `fallback: "team"`，界面会提示）；在列表里撤销某人的全员共享副本，则把这个人排除在外，之后编辑全员共享时排除仍保留，取消后重新共享则清空排除。
+- 取消全员共享、排除某人、停用或删除账号都会立即让对应 Agent 的这些工具失效。调用返回 403 `SHARE_ACCESS_ENDED`（“共享已取消、你已不在共享对象内或工具不在共享范围内”），Agent 列表会标出失效的工具数量。
+
+接收者在「共享给我的连接」里可以直接点「新建 Agent」（默认勾选这个连接的工具）或「加到已有 Agent」（在已有 Agent 的已选工具上加入这些工具）。
+
+管理接口：`GET/PUT/DELETE /api/v1/connections/:id/team-share`，仅管理员可写；`PUT` 在已有生效共享时必须携带当前 `version`。迁移 `0026` 新增 `connection_team_shares` 表和 `connection_shares.team_share_id` 列。配置导出不包含全员共享。
+
 ### 进程累计指标
 
 `/metrics` 继续使用独立监控凭据。新增 `platform_calls_total`、`platform_active_calls`、`platform_call_total_duration_seconds`、`platform_call_execution_duration_seconds`、`platform_searches_total`、`platform_search_duration_seconds`。duration 指标为固定桶 histogram；标签仅为有限枚举的入口、适配器、终态和检索策略。
