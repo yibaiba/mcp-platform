@@ -43,6 +43,8 @@ MCP `tools/list` 默认给出可读、稳定的工具名：`连接名slug__工�
 
 服务端默认对 MCP 入口（按密钥、用户和地址）和登录、OAuth 端点（按地址）限流，超限返回 429 和 `Retry-After`；阈值、反向代理设置和多实例局限见[部署说明](docs/deployment.md#请求限流)。
 
+> **注意**：在局域网内让客户端直接访问 4300、不经过反向代理的部署，必须设置 `TRUSTED_PROXIES=none`。默认值 `loopback,private` 会信任内网地址发来的 `X-Forwarded-For`，内网客户端可以伪造这个头绕过按地址的限流。经过同一主机或同一 Docker 网络里的 Nginx/Caddy 时保持默认即可。
+
 目标电脑无需构建项目或预装 `connector`。在设备页复制安装连接命令，自动下载对应系统/架构的二进制并校验后配对；Docker 服务端镜像自带六种安装文件。其他电脑需使用可访问的平台 HTTPS 地址，详见[设备安装说明](docs/connector.md)。
 
 ## 已实现

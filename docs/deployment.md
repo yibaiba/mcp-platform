@@ -58,6 +58,8 @@ docker compose -f docker-compose.yml logs --tail=100 server
 
 ## 请求限流
 
+> **注意**：局域网内直连 4300、不经过反向代理的部署，必须设置 `TRUSTED_PROXIES=none`。默认值 `loopback,private` 会信任来自内网地址的 `X-Forwarded-For`，内网客户端可以伪造这个头，每次换一个地址计数，绕过按地址的限流。详见下面的[客户端地址与反向代理](#客户端地址与反向代理)。
+
 服务端默认开启限流（`RATE_LIMIT_ENABLED=true`），计数保存在单个服务进程的内存里，重启后清零。超过限制时返回 HTTP 429 和 `Retry-After`（秒），等待这段时间后即可继续，被拒绝的请求不计入次数。
 
 | 范围                                                                                        | 变量                            | 默认（次/分钟） | 计数对象                                                    |
