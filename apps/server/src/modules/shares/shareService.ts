@@ -8,7 +8,7 @@ import {
   user,
   type Database,
 } from '@platform/db';
-import { connectionInput, type ConnectionInput } from '@platform/contracts';
+import { connectionInput, toolAnnotations, type ConnectionInput } from '@platform/contracts';
 import { z } from 'zod';
 import type { Vault } from '../../shared/crypto.js';
 import { AppError, requireValue } from '../../shared/errors.js';
@@ -73,7 +73,7 @@ export class ShareService extends ShareAccess {
     await this.source(ownerId, id);
     const [toolRows, contentRows] = await Promise.all([
       this.db
-        .select({ id: tools.id, name: tools.name })
+        .select({ id: tools.id, name: tools.name, definition: tools.definition })
         .from(tools)
         .where(eq(tools.connectionId, id)),
       this.db
@@ -81,7 +81,14 @@ export class ShareService extends ShareAccess {
         .from(mcpEntries)
         .where(eq(mcpEntries.connectionId, id)),
     ]);
-    return { tools: toolRows, content: contentRows };
+    // Annotations only: the picker labels tools as read-only / destructive / undeclared.
+    return {
+      tools: toolRows.map(({ definition, ...tool }) => ({
+        ...tool,
+        annotations: toolAnnotations(definition),
+      })),
+      content: contentRows,
+    };
   }
   async incoming(ownerId: string) {
     const grants = await this.grants(ownerId);

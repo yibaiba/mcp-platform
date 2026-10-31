@@ -81,6 +81,12 @@ const groups = requested.length
         '--exclude',
         'tests/stdioSandbox.test.ts',
         '--exclude',
+        'tests/toolFilter.test.ts',
+        '--exclude',
+        'tests/rateLimit.test.ts',
+        '--exclude',
+        'tests/degradedConnections.test.ts',
+        '--exclude',
         'tests/manifests*.test.ts',
         '--exclude',
         'tests/projection.test.ts',
@@ -147,6 +153,8 @@ const groups = requested.length
       ['tests/cliAuth.test.ts'],
       // Real bubblewrap launches (direct and Pi) need their own budget.
       ['tests/stdioSandbox.test.ts'],
+      // The default group was within seconds of its 60-second limit on CI; these two are its slowest.
+      ['tests/toolFilter.test.ts', 'tests/rateLimit.test.ts', 'tests/degradedConnections.test.ts'],
       ['tests/packageUpdates.test.ts', 'tests/platformUpdates.test.ts'],
       ['tests/localManagement.test.ts'],
       ['tests/sshAccess.test.ts'],

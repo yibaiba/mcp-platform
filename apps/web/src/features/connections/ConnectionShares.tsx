@@ -7,6 +7,12 @@ import { SelectControl } from '../../components/shared/SelectControl.js';
 import { SelectItem } from '../../components/ui/select.js';
 import { Input } from '../../components/ui/input.js';
 import { Button } from '../../components/ui/button.js';
+import { toolSafety, type ToolAnnotations } from '@platform/contracts';
+import {
+  SafetyChoice,
+  SafetyToolbar,
+  useToolSelection,
+} from '../../components/shared/ToolSafety.js';
 type Grant = {
   id: string;
   email: string;
@@ -30,7 +36,7 @@ type TeamShare = {
   direct: number;
 } | null;
 type Catalog = {
-  tools: { id: string; name: string }[];
+  tools: { id: string; name: string; annotations?: ToolAnnotations }[];
   content: { id: string; name: string; kind: string }[];
 };
 
@@ -145,16 +151,11 @@ export function ConnectionShares({ connectionId }: { connectionId: string }) {
         </Field>
         <fieldset className="form">
           <legend>允许使用的工具</legend>
-          {catalog.data?.tools.map((tool) => (
-            <CheckChoice
-              key={tool.id}
-              name="tools"
-              value={tool.id}
-              defaultChecked={editing?.toolIds.includes(tool.id)}
-            >
-              {tool.name}
-            </CheckChoice>
-          ))}
+          <ShareToolPicker
+            name="tools"
+            tools={catalog.data?.tools ?? []}
+            initial={editing?.toolIds ?? []}
+          />
           {catalog.data?.tools.length === 0 && <p>目录中尚无工具，请先连接并完成真实发现。</p>}
         </fieldset>
         <fieldset className="form">
@@ -244,16 +245,11 @@ function TeamShareSection({ connectionId, catalog }: { connectionId: string; cat
         )}
         <fieldset className="form">
           <legend>共享的工具</legend>
-          {catalog?.tools.map((tool) => (
-            <CheckChoice
-              key={tool.id}
-              name="team-tools"
-              value={tool.id}
-              defaultChecked={active?.toolIds.includes(tool.id)}
-            >
-              {tool.name}
-            </CheckChoice>
-          ))}
+          <ShareToolPicker
+            name="team-tools"
+            tools={catalog?.tools ?? []}
+            initial={active?.toolIds ?? []}
+          />
           {catalog?.tools.length === 0 && <p>目录中尚无工具，请先连接并完成真实发现。</p>}
         </fieldset>
         {catalog?.content.length ? (
@@ -289,5 +285,27 @@ function TeamShareSection({ connectionId, catalog }: { connectionId: string; cat
         </Action>
       )}
     </section>
+  );
+}
+
+/** The tools of one connection with safety labels; remounts (and resets) with its form. */
+function ShareToolPicker({
+  name,
+  tools,
+  initial,
+}: {
+  name: string;
+  tools: Catalog['tools'];
+  initial: readonly string[];
+}) {
+  const selection = useToolSelection(initial);
+  const labelled = tools.map((tool) => ({ ...tool, safety: toolSafety(tool.annotations) }));
+  return (
+    <>
+      <SafetyToolbar tools={labelled} selection={selection} />
+      {labelled.map((tool) => (
+        <SafetyChoice key={tool.id} tool={tool} name={name} selection={selection} />
+      ))}
+    </>
   );
 }

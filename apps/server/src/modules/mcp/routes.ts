@@ -11,6 +11,7 @@ export function connectionRoutes(service: ConnectionService, changed: () => Prom
   app.get('/:id', async (c) =>
     c.json(requireValue((await service.list(owner(c))).find((row) => row.id === paramId(c)))),
   );
+  app.get('/:id/key-values', async (c) => c.json(await service.keyValues(owner(c), paramId(c))));
   app.post('/', async (c) => c.json(await service.create(owner(c), await c.req.json()), 201));
   app.post('/:id/discover', async (c) =>
     c.json(await service.discover(owner(c), paramId(c), c.req.raw.signal)),

@@ -8,6 +8,8 @@ import {
   connectionInput,
   connectorPresets,
   maskArguments,
+  maskValues,
+  restoreHiddenValues,
   matchesConnectorPreset,
   restoreHiddenArguments,
   type ConnectionInput,
@@ -392,6 +394,15 @@ export class ConnectionService {
       }),
     );
   }
+  /**
+   * Env and header keys for the edit form, every value replaced by the placeholder that PATCH
+   * saves back. Kept out of the connection list, which never names env or header keys.
+   */
+  async keyValues(ownerId: string, id: string) {
+    const row = await this.owned(ownerId, id);
+    const value = this.deps.vault.open<ConnectionInput>(row.config, `${ownerId}:${id}`);
+    return { env: maskValues(value.env), headers: maskValues(value.headers) };
+  }
   async lease(ownerId: string, id: string) {
     const context = await this.context(ownerId, id);
     await this.adapter(ownerId, id);
@@ -634,6 +645,18 @@ export class ConnectionService {
       } catch (error) {
         throw new AppError('VALIDATION', errorMessage(error));
       }
+    for (const [field, label] of [
+      ['env', '环境变量'],
+      ['headers', '请求头'],
+    ] as const) {
+      const next = patch[field];
+      if (!next || typeof next !== 'object' || Array.isArray(next)) continue;
+      try {
+        patch[field] = restoreHiddenValues(label, old[field], next as Record<string, string>);
+      } catch (error) {
+        throw new AppError('VALIDATION', errorMessage(error));
+      }
+    }
     const config = await this.validate(ownerId, replace ? patch : { ...old, ...patch });
     await this.close(ownerId, id);
     const updated = await this.deps.db

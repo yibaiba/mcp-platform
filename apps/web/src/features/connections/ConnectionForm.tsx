@@ -13,6 +13,7 @@ import { parseJsonObject } from './jsonField.js';
 import { ArgumentsField } from './ArgumentsField.js';
 import { connectNow, type ConnectOutcome } from './connectNow.js';
 import { ToolPrefixField } from './ToolPrefixField.js';
+import { KeyValueEditor, readKeyValues } from './KeyValueEditor.js';
 
 const idOf = (value: unknown) =>
   value && typeof value === 'object' && 'id' in value && typeof value.id === 'string'
@@ -46,8 +47,13 @@ export function ConnectionForm({
   const needsCommand = transport === 'stdio' || (adapter === 'device' && mode === 'managed');
   async function submit(data: FormData) {
     const extra = parseJsonObject(value(data, 'advanced'), '高级配置');
+    const env = needsCommand ? readKeyValues(data, 'env') : undefined;
+    const headers = transport !== 'stdio' ? readKeyValues(data, 'headers') : undefined;
     const config = {
       ...extra,
+      // Rows win over the same key pasted into the JSON field.
+      ...(env ? { env: { ...(extra.env as object), ...env } } : {}),
+      ...(headers ? { headers: { ...(extra.headers as object), ...headers } } : {}),
       name: value(data, 'name'),
       toolPrefix: value(data, 'toolPrefix') || undefined,
       adapter,
@@ -181,21 +187,35 @@ export function ConnectionForm({
         }}
       />
       <Disclosure
-        title={
-          transport === 'stdio'
-            ? '高级：环境变量与工作目录（JSON）'
-            : '高级：请求头、环境变量与预注册 OAuth 客户端（JSON）'
-        }
+        title={transport === 'stdio' ? '环境变量' : needsCommand ? '请求头与环境变量' : '请求头'}
       >
+        <div className="grid gap-4">
+          {transport !== 'stdio' ? (
+            <KeyValueEditor
+              kind="headers"
+              name="headers"
+              hint="每次请求都会带上，例如 Authorization。值加密存储，保存后不再显示。"
+            />
+          ) : null}
+          {needsCommand ? (
+            <KeyValueEditor
+              kind="env"
+              name="env"
+              hint="传给启动的进程，例如 API_KEY。值加密存储，保存后不再显示。"
+            />
+          ) : null}
+        </div>
+      </Disclosure>
+      <Disclosure title="高级：其他连接字段（JSON）">
         <Field
-          label="高级配置（JSON）"
+          label="其他连接字段（JSON）"
           hint={
             transport === 'stdio'
-              ? '可选。使用 env 配置进程凭证，cwd 指定执行目录；凭证加密存储'
-              : '可选。支持 headers、env、cwd、oauth；凭证加密存储'
+              ? '可选。例如 cwd 指定执行目录；凭证加密存储。环境变量请用上方表单，这里也写了 env 的话会合并，同名以表单为准。'
+              : '可选。例如 oauth 预注册客户端、cwd；凭证加密存储。请求头和环境变量请用上方表单，这里也写了的话会合并，同名以表单为准。'
           }
         >
-          <Textarea name="advanced" defaultValue={'{\n  "headers": {},\n  "env": {}\n}'} rows={5} />
+          <Textarea name="advanced" defaultValue="{}" rows={4} />
         </Field>
       </Disclosure>
     </Form>

@@ -16,6 +16,7 @@ import { connectNow, type ConnectOutcome } from './connectNow.js';
 import { connectionLocation, connectionNextStep } from './connectionHints.js';
 import { parseJsonObject } from './jsonField.js';
 import { ToolPrefixField } from './ToolPrefixField.js';
+import { KeyValueEditor, readKeyValues } from './KeyValueEditor.js';
 export function ConnectionSettings({
   connection,
   onSaved,
@@ -38,6 +39,17 @@ export function ConnectionSettings({
   const usesCommand =
     connection.transport === 'stdio' ||
     (connection.adapter === 'device' && connection.mode === 'managed');
+  // Stored keys with masked values; the editors mount only once they are known, and send
+  // nothing unless edited, so a failed load cannot change the stored maps.
+  const keyValues = useQuery({
+    queryKey: ['connection-key-values', connection.id, connection.revision],
+    queryFn: () =>
+      api<{ env: Record<string, string>; headers: Record<string, string> }>(
+        `/connections/${connection.id}/key-values`,
+      ),
+    enabled: usesUrl || usesCommand,
+    staleTime: 0,
+  });
   const initialArgs = formatArgumentLines(connection.args ?? []);
   return (
     <>
@@ -94,6 +106,11 @@ export function ConnectionSettings({
             if (value(data, 'cwd') && value(data, 'cwd') !== (connection.cwd ?? ''))
               target.cwd = value(data, 'cwd');
           }
+          // Untouched editors send nothing, so the stored maps stay exactly as they were.
+          const env = usesCommand ? readKeyValues(data, 'env') : undefined;
+          const headers = usesUrl ? readKeyValues(data, 'headers') : undefined;
+          if (env) target.env = env;
+          if (headers) target.headers = headers;
           await api(`/connections/${connection.id}`, {
             method: 'PATCH',
             body: json({
@@ -184,6 +201,44 @@ export function ConnectionSettings({
             </Field>
           </>
         ) : null}
+        {usesUrl || usesCommand ? (
+          <Disclosure title={keyValueTitle(keyValues.data, usesUrl, usesCommand)}>
+            {keyValues.data ? (
+              <div className="grid gap-4">
+                {usesUrl ? (
+                  <KeyValueEditor
+                    kind="headers"
+                    name="headers"
+                    initial={keyValues.data.headers}
+                    hint="已保存的值不会显示；不改就保留原值，点「替换值」可以重新填写。"
+                  />
+                ) : null}
+                {usesCommand ? (
+                  <KeyValueEditor
+                    kind="env"
+                    name="env"
+                    initial={keyValues.data.env}
+                    hint="已保存的值不会显示；不改就保留原值，点「替换值」可以重新填写。"
+                  />
+                ) : null}
+              </div>
+            ) : (
+              <>
+                {/* Same empty fields the editors submit when untouched, so the form's
+                    unsaved-changes snapshot does not change when the keys arrive. */}
+                {usesUrl ? <input type="hidden" name="headers" value="" /> : null}
+                {usesCommand ? <input type="hidden" name="env" value="" /> : null}
+                {keyValues.error ? (
+                  <Feedback error={keyValues.error} />
+                ) : (
+                  <p role="status" className="text-sm text-muted-foreground">
+                    正在读取已保存的项…
+                  </p>
+                )}
+              </>
+            )}
+          </Disclosure>
+        ) : null}
         <Field label="上游身份">
           <SelectControl name="identityMode" defaultValue={connection.identityMode ?? 'shared'}>
             <SelectItem value="shared">继续使用连接账号</SelectItem>
@@ -203,4 +258,16 @@ export function ConnectionSettings({
       </Disclosure>
     </>
   );
+}
+
+function keyValueTitle(
+  data: { env: Record<string, string>; headers: Record<string, string> } | undefined,
+  headers: boolean,
+  env: boolean,
+) {
+  const count = (record?: Record<string, string>) =>
+    data ? ` ${Object.keys(record ?? {}).length} 项` : '';
+  return [headers ? `请求头${count(data?.headers)}` : '', env ? `环境变量${count(data?.env)}` : '']
+    .filter(Boolean)
+    .join(' · ');
 }
