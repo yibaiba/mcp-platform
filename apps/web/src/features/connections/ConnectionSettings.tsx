@@ -222,12 +222,20 @@ export function ConnectionSettings({
                   />
                 ) : null}
               </div>
-            ) : keyValues.error ? (
-              <Feedback error={keyValues.error} />
             ) : (
-              <p role="status" className="text-sm text-muted-foreground">
-                正在读取已保存的项…
-              </p>
+              <>
+                {/* Same empty fields the editors submit when untouched, so the form's
+                    unsaved-changes snapshot does not change when the keys arrive. */}
+                {usesUrl ? <input type="hidden" name="headers" value="" /> : null}
+                {usesCommand ? <input type="hidden" name="env" value="" /> : null}
+                {keyValues.error ? (
+                  <Feedback error={keyValues.error} />
+                ) : (
+                  <p role="status" className="text-sm text-muted-foreground">
+                    正在读取已保存的项…
+                  </p>
+                )}
+              </>
             )}
           </Disclosure>
         ) : null}
