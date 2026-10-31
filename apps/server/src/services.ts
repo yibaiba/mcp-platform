@@ -292,7 +292,7 @@ export function createServices(db: Database, config: Config) {
     secrets,
     logger,
     directory: async (path) => {
-      if (!isAbsolute(path)) throw new DeploymentPending('目录映射必须使用执行位置的绝对路径');
+      if (!isAbsolute(path)) throw new DeploymentPending('目录映射必须使用运行位置上的绝对路径');
       try {
         if ((await stat(path)).isDirectory()) return;
       } catch (error) {

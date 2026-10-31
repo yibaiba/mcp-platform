@@ -181,7 +181,7 @@ export function createDirectAdapter(
         context.config.requestOptions.timeoutMs,
       );
       const tool = catalog.tools.find((tool) => tool.name === input.name);
-      if (!tool) throw new AppError('TOOL_NOT_DISCOVERED', '请先刷新工具目录', 409);
+      if (!tool) throw new AppError('TOOL_NOT_DISCOVERED', '请先刷新工具列表', 409);
       try {
         const result = await current.interactive.call({ ...input, tool });
         return isInputRequiredResult(result) ? result : CallToolResultSchema.parse(result);

@@ -64,7 +64,7 @@ export class UpstreamOAuth {
         fetchFn: this.fetchFor(context),
       });
       if (result !== 'AUTHORIZED')
-        throw new AppError('OAUTH_REQUIRED', '上游授权过期，请重新授权', 401);
+        throw new AppError('OAUTH_REQUIRED', '服务授权已过期，请重新授权', 401);
     }
     const tokens = await provider.tokens();
     return tokens ? { Authorization: `Bearer ${tokens.access_token}` } : {};

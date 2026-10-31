@@ -45,6 +45,16 @@ export type Device = {
   lastSeen: string | null;
   services: { id: string; status: string; error?: string }[];
 };
+/** A connection another account shared with me (`GET /shares`). */
+export type IncomingShare = {
+  id: string;
+  connectionId: string;
+  name: string;
+  credentialMode: 'independent' | 'owner';
+  status: string;
+  error?: string;
+  pendingReason?: string;
+};
 export type Connection = {
   /** User-set English tool-name prefix; null/absent uses the name-derived one. */
   toolPrefix?: string | null;

@@ -85,7 +85,7 @@ export class ShareService extends ShareAccess {
           transport: config?.transport,
           recovery: this.deps.recovery(ownerId, grant.connectionId),
           source: config?.source,
-          pendingReason: pending ? '请配置自己的上游身份、执行位置和本地资源后连接' : null,
+          pendingReason: pending ? '请配置自己的服务账号身份、运行位置和本地资源后连接' : null,
         };
       }),
     );

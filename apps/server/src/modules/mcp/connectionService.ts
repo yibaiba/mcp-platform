@@ -78,7 +78,7 @@ export class ConnectionService {
         const row = await this.accessible(context.ownerId, context.id);
         if (row.status === 'stopped' || row.revision !== context.revision) return;
         if (context.shareId)
-          return this.deps.shares.state(context, 'error', '共享连接暂不可用；请检查身份和执行位置');
+          return this.deps.shares.state(context, 'error', '共享连接暂不可用；请检查身份和运行位置');
         await deps.db
           .update(connections)
           .set({ status: 'error', error: this.redact(error, context.config) })

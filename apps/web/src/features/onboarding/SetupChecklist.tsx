@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { AlertTriangle, Check, ChevronRight, X } from 'lucide-react';
-import { api, type Connection, type Profile } from '../../lib/api.js';
+import { api, type Connection, type IncomingShare, type Profile } from '../../lib/api.js';
 import { Button } from '../../components/ui/button.js';
 import { Feedback } from '../../components/shared/Controls.js';
 import { setupSteps } from './GettingStarted.js';
@@ -28,14 +28,19 @@ export function SetupChecklist() {
     queryKey: ['keys'],
     queryFn: () => api<AccessKey[]>('/profiles/keys/all'),
   });
-  const loaded = connections.isSuccess && profiles.isSuccess && keys.isSuccess;
-  const error = connections.error ?? profiles.error ?? keys.error;
+  const shares = useQuery({
+    queryKey: ['incoming-shares'],
+    queryFn: () => api<IncomingShare[]>('/shares'),
+  });
+  const loaded = connections.isSuccess && profiles.isSuccess && keys.isSuccess && shares.isSuccess;
+  const error = connections.error ?? profiles.error ?? keys.error ?? shares.error;
   if (error) return <Feedback error={error} />;
   if (!loaded) return null;
   const status = setupStatus({
     connections: connections.data,
     profiles: profiles.data,
     keys: keys.data,
+    shared: shares.data,
   });
   const complete = status.steps;
   const done = complete.filter(Boolean).length;

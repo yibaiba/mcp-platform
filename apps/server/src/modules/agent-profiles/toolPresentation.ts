@@ -33,7 +33,7 @@ export async function describeTools<T extends typeof tools.$inferSelect>(input: 
     const location =
       source.adapter === 'device'
         ? (source.deviceName ?? source.deviceId ?? '尚未选择设备')
-        : '平台主机';
+        : '平台服务器';
     const identity = {
       profile: 'Agent 专属身份',
       credential: '按调用凭证隔离',
@@ -46,7 +46,7 @@ export async function describeTools<T extends typeof tools.$inferSelect>(input: 
         title: tool.definition.title ?? `${tool.name} · ${source.name}`,
         description: [
           tool.definition.description,
-          `平台执行上下文：原工具 ${tool.name}；连接 ${source.name}；连接执行位置 ${location}；身份方式 ${identity}。`,
+          `平台执行上下文：原工具 ${tool.name}；连接 ${source.name}；运行位置 ${location}；身份方式 ${identity}。`,
           '上游服务或设备的本地路径不保证在当前客户端可读；跨设备文件请使用已授权产物。',
         ]
           .filter(Boolean)
