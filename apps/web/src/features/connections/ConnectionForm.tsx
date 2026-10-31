@@ -39,7 +39,8 @@ export function ConnectionForm({
   // What the tool-prefix suggestion is based on, kept in sync while the user types.
   const [draft, setDraft] = useState({ name: '', url: '', command: '', args: '' });
   // Platform-host stdio is admin-only behind PLATFORM_STDIO_ENABLED; the server enforces it too.
-  const hostStdio = Boolean(useMe().data?.hostStdio);
+  const me = useMe().data;
+  const hostStdio = Boolean(me?.hostStdio);
   const stdioAllowed = adapter === 'device' || hostStdio;
   const activeDevices = devices.filter((device) => !device.revoked);
   const needsCommand = transport === 'stdio' || (adapter === 'device' && mode === 'managed');
@@ -164,6 +165,9 @@ export function ConnectionForm({
             >
               <Input name="command" placeholder="npx / uvx / 可执行文件路径" required />
             </Field>
+            {adapter !== 'device' && transport === 'stdio' ? (
+              <SandboxNote sandbox={me?.stdioSandbox} />
+            ) : null}
             <ArgumentsField />
           </>
         ) : null}
@@ -195,5 +199,38 @@ export function ConnectionForm({
         </Field>
       </Disclosure>
     </Form>
+  );
+}
+
+/** Where a platform-host stdio command will run: unsandboxed, in bubblewrap, or refused. */
+function SandboxNote({
+  sandbox,
+}: {
+  sandbox?: NonNullable<ReturnType<typeof useMe>['data']>['stdioSandbox'];
+}) {
+  if (!sandbox) return null;
+  if (sandbox.mode === 'off')
+    return (
+      <p className="text-sm text-muted-foreground" data-testid="stdio-sandbox">
+        未启用沙箱（STDIO_SANDBOX=off）：命令以平台服务进程的权限运行，能读写服务能访问的文件。部署时可以开启
+        bubblewrap 沙箱，见部署文档「stdio 沙箱」。
+      </p>
+    );
+  if (sandbox.ready)
+    return (
+      <p className="text-sm text-muted-foreground" data-testid="stdio-sandbox">
+        在 bubblewrap {sandbox.version} 沙箱里运行：根目录只读，看不到平台数据目录和密钥，HOME
+        是这个连接私有的目录；网络照常。
+      </p>
+    );
+  return (
+    <p
+      role="alert"
+      data-testid="stdio-sandbox"
+      className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-sm text-destructive"
+    >
+      已开启 stdio 沙箱，但现在不可用：{sandbox.error}。{sandbox.hint}
+      。这类连接不会启动，也不会在沙箱外运行。
+    </p>
   );
 }

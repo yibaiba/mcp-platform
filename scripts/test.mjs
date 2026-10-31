@@ -79,6 +79,8 @@ const groups = requested.length
         '--exclude',
         'tests/mcpReliability.test.ts',
         '--exclude',
+        'tests/stdioSandbox.test.ts',
+        '--exclude',
         'tests/manifests*.test.ts',
         '--exclude',
         'tests/projection.test.ts',
@@ -143,6 +145,8 @@ const groups = requested.length
         'tests/resultPresentation.test.ts',
       ],
       ['tests/cliAuth.test.ts'],
+      // Real bubblewrap launches (direct and Pi) need their own budget.
+      ['tests/stdioSandbox.test.ts'],
       ['tests/packageUpdates.test.ts', 'tests/platformUpdates.test.ts'],
       ['tests/localManagement.test.ts'],
       ['tests/sshAccess.test.ts'],

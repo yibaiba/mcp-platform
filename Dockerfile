@@ -29,10 +29,13 @@ RUN node scripts/build-connector.mjs --assets-built
 FROM build AS app
 COPY --from=python /usr/local/ /usr/local/
 COPY --from=connector-build /app/connector/bin /app/connector/bin
-RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates libexpat1 libsqlite3-0 libbz2-1.0 libffi8 liblzma5 libncursesw6 libreadline8 libuuid1 zlib1g \
+# bubblewrap: the optional stdio sandbox (STDIO_SANDBOX=bwrap; off by default). Debian's build is
+# not setuid, so it needs user namespaces; see docs/deployment.md for the container options.
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates bubblewrap libexpat1 libsqlite3-0 libbz2-1.0 libffi8 liblzma5 libncursesw6 libreadline8 libuuid1 zlib1g \
     && rm -rf /var/lib/apt/lists/* \
     && python -c 'import sys; assert sys.version_info[:3] == (3, 13, 9)' \
     && uv --version && uvx --version \
+    && bwrap --version \
     && mkdir -p /app/.data/python/cache /app/.data/python/tools /app/.data/python/bin \
     && chown -R node:node /app/.data
 ENV NODE_ENV=production

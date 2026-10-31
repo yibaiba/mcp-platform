@@ -482,7 +482,12 @@ export class ConnectionService {
         );
       }
       // Policy rejections keep their 403 code instead of looking like an upstream failure.
-      if (error instanceof AppError && error.code.startsWith('HOST_STDIO_')) throw error;
+      // So do sandbox refusals (STDIO_SANDBOX_UNAVAILABLE): the process was never started.
+      if (
+        error instanceof AppError &&
+        (error.code.startsWith('HOST_STDIO_') || error.code === 'STDIO_SANDBOX_UNAVAILABLE')
+      )
+        throw error;
       if (offline) throw new AppError('DEVICE_OFFLINE', message, 503);
       throw new AppError('CONNECTION_FAILED', message, 502);
     }
