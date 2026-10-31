@@ -16,6 +16,7 @@ import { connectNow, type ConnectOutcome } from './connectNow.js';
 import { connectionLocation, connectionNextStep } from './connectionHints.js';
 import { parseJsonObject } from './jsonField.js';
 import { ToolPrefixField } from './ToolPrefixField.js';
+import { KeyValueEditor, readKeyValues } from './KeyValueEditor.js';
 export function ConnectionSettings({
   connection,
   onSaved,
@@ -94,6 +95,11 @@ export function ConnectionSettings({
             if (value(data, 'cwd') && value(data, 'cwd') !== (connection.cwd ?? ''))
               target.cwd = value(data, 'cwd');
           }
+          // Untouched editors send nothing, so the stored maps stay exactly as they were.
+          const env = usesCommand ? readKeyValues(data, 'env') : undefined;
+          const headers = usesUrl ? readKeyValues(data, 'headers') : undefined;
+          if (env) target.env = env;
+          if (headers) target.headers = headers;
           await api(`/connections/${connection.id}`, {
             method: 'PATCH',
             body: json({
@@ -184,6 +190,28 @@ export function ConnectionSettings({
             </Field>
           </>
         ) : null}
+        {usesUrl || usesCommand ? (
+          <Disclosure title={keyValueTitle(connection, usesUrl, usesCommand)}>
+            <div className="grid gap-4">
+              {usesUrl ? (
+                <KeyValueEditor
+                  kind="headers"
+                  name="headers"
+                  initial={connection.headers}
+                  hint="已保存的值不会显示；不改就保留原值，点「替换值」可以重新填写。"
+                />
+              ) : null}
+              {usesCommand ? (
+                <KeyValueEditor
+                  kind="env"
+                  name="env"
+                  initial={connection.env}
+                  hint="已保存的值不会显示；不改就保留原值，点「替换值」可以重新填写。"
+                />
+              ) : null}
+            </div>
+          </Disclosure>
+        ) : null}
         <Field label="上游身份">
           <SelectControl name="identityMode" defaultValue={connection.identityMode ?? 'shared'}>
             <SelectItem value="shared">继续使用连接账号</SelectItem>
@@ -203,4 +231,13 @@ export function ConnectionSettings({
       </Disclosure>
     </>
   );
+}
+
+function keyValueTitle(connection: Connection, headers: boolean, env: boolean) {
+  const count = (record?: Record<string, string>) => Object.keys(record ?? {}).length;
+  const parts = [
+    headers ? `请求头 ${count(connection.headers)} 项` : '',
+    env ? `环境变量 ${count(connection.env)} 项` : '',
+  ].filter(Boolean);
+  return parts.join(' · ');
 }

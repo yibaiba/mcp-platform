@@ -130,7 +130,7 @@ export function AdvancedConnectionSettings({ connection }: { connection: Connect
       <Disclosure title="开发者选项：其他连接字段（JSON 增量）">
         <Field
           label="其他连接字段（JSON 增量）"
-          hint="可选。用于 env、headers、oauth 等表单没有的字段；地址、命令和参数请用上方表单。未填写的字段保留原值。"
+          hint="可选。用于 oauth 等表单没有的字段；地址、命令、参数、请求头和环境变量请用上方表单。未填写的字段保留原值。"
         >
           <Textarea name="patch" defaultValue="{}" rows={5} />
         </Field>
