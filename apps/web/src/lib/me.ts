@@ -11,6 +11,11 @@ export type Me = {
   hostStdio: boolean;
   /** Canonical external origin (PUBLIC_URL); use it for every address shown or copied. */
   platformOrigin: string;
+  /** Admins with host stdio on: STDIO_SANDBOX state (off, ready, or why it cannot run). */
+  stdioSandbox?:
+    | { mode: 'off' }
+    | { mode: 'bwrap'; ready: true; version: string; path: string; proc: 'proc' | 'bind' }
+    | { mode: 'bwrap'; ready: false; error: string; hint: string };
 };
 
 export function useMe() {
