@@ -13,6 +13,11 @@ export function createAuth(options: {
   registration: boolean;
   providers?: ProviderConfig;
   fetch?: typeof fetch;
+  /**
+   * Better Auth's built-in limiter. Set explicitly so it no longer depends on NODE_ENV;
+   * `loginPerMinute` caps sign-in and sign-up per client address and path.
+   */
+  rateLimit?: { enabled: boolean; loginPerMinute: number };
 }) {
   return betterAuth({
     database: drizzleAdapter(options.db, { provider: 'pg', schema }),
@@ -81,7 +86,25 @@ export function createAuth(options: {
           : [],
       }),
     ],
+    ...(options.rateLimit
+      ? {
+          rateLimit: {
+            enabled: options.rateLimit.enabled,
+            storage: 'memory' as const,
+            customRules:
+              options.rateLimit.loginPerMinute > 0
+                ? {
+                    '/sign-in/*': { window: 60, max: options.rateLimit.loginPerMinute },
+                    '/sign-up/*': { window: 60, max: options.rateLimit.loginPerMinute },
+                  }
+                : { '/sign-in/*': false as const, '/sign-up/*': false as const },
+          },
+        }
+      : {}),
     advanced: {
+      // The server resolves the client address (trusted proxies only) and passes it in this
+      // header; the raw X-Forwarded-For is client-controlled and is not used.
+      ipAddress: { ipAddressHeaders: [clientIpHeader] },
       defaultCookieAttributes: {
         sameSite: 'lax',
         httpOnly: true,
@@ -91,3 +114,4 @@ export function createAuth(options: {
   });
 }
 export type Auth = ReturnType<typeof createAuth>;
+export const clientIpHeader = 'x-platform-client-ip';

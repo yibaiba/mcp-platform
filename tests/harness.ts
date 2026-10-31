@@ -10,6 +10,7 @@ import { createDatabase, user } from '../packages/db/src/index.js';
 import { eq } from 'drizzle-orm';
 import { envSchema } from '../apps/server/src/config.js';
 import { createApp } from '../apps/server/src/app.js';
+import { createRateLimits } from '../apps/server/src/rateLimits.js';
 import { createServices } from '../apps/server/src/services.js';
 import { attachDeviceSocket } from '../apps/server/src/deviceSocket.js';
 import type { ConnectorFiles } from '../apps/server/src/modules/devices/connectorFiles.js';
@@ -22,6 +23,10 @@ export async function harness(
     providers?: import('../packages/auth/src/providers.js').ProviderConfig;
     /** PLATFORM_STDIO_ENABLED; tests opt into platform-host stdio explicitly (still admin-only). */
     hostStdio?: boolean;
+    /** Extra env settings; request limits are off unless a test sets RATE_LIMIT_ENABLED. */
+    env?: Record<string, string>;
+    /** Limiter with an injectable clock for rate-limit tests. */
+    rateLimiter?: import('../apps/server/src/shared/rateLimit.js').RateLimiter;
   } = {},
 ) {
   if (!process.env.DATABASE_URL)
@@ -43,6 +48,8 @@ export async function harness(
     PUBLIC_URL: 'http://localhost:4300',
     WEB_ORIGIN: options.webOrigin ?? 'http://localhost:4301',
     AUTH_PROVIDERS: options.providers ? JSON.stringify(options.providers) : undefined,
+    RATE_LIMIT_ENABLED: 'false',
+    ...options.env,
   });
   const server = serve({ fetch: (request, env) => app.fetch(request, env), port: 0 });
   await new Promise<void>((resolve) => server.once('listening', resolve));
@@ -57,9 +64,20 @@ export async function harness(
     secret: config.BETTER_AUTH_SECRET,
     registration: options.registration ?? true,
     providers: config.AUTH_PROVIDERS,
+    rateLimit: {
+      enabled: config.RATE_LIMIT_ENABLED === 'true',
+      loginPerMinute: config.RATE_LIMIT_LOGIN_PER_IP,
+    },
   });
   const services = createServices(db, config);
-  const app = createApp({ db, auth, config, services, connectorFiles: options.connectorFiles });
+  const app = createApp({
+    db,
+    auth,
+    config,
+    services,
+    connectorFiles: options.connectorFiles,
+    rateLimits: options.rateLimiter ? createRateLimits(config, options.rateLimiter) : undefined,
+  });
   const sockets = attachDeviceSocket(server as Server, services);
   const owners: string[] = [];
   async function signup(options: { role?: 'admin' | 'member' } = {}) {

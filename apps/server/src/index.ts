@@ -34,6 +34,10 @@ const auth = createAuth({
   secret: config.BETTER_AUTH_SECRET,
   registration: config.ALLOW_REGISTRATION === 'true',
   providers: config.AUTH_PROVIDERS,
+  rateLimit: {
+    enabled: config.RATE_LIMIT_ENABLED === 'true',
+    loginPerMinute: config.RATE_LIMIT_LOGIN_PER_IP,
+  },
 });
 const services = createServices(db, config);
 const stopUpdates = await startUpdateChecks({

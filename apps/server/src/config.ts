@@ -46,6 +46,15 @@ export const envSchema = z
     PI_MODEL_PROVIDER: z.string().optional(),
     PI_MODEL_ID: z.string().optional(),
     PI_MCP_ADAPTER_OAUTH_FILE_KEY: z.string().optional(),
+    // Request limits, per minute and per process (in-memory); 0 turns one limit off.
+    RATE_LIMIT_ENABLED: z.enum(['true', 'false']).default('true'),
+    RATE_LIMIT_MCP_PER_CREDENTIAL: z.coerce.number().int().nonnegative().default(600),
+    RATE_LIMIT_MCP_PER_USER: z.coerce.number().int().nonnegative().default(1200),
+    RATE_LIMIT_MCP_PER_IP: z.coerce.number().int().nonnegative().default(2400),
+    RATE_LIMIT_AUTH_PER_IP: z.coerce.number().int().nonnegative().default(120),
+    RATE_LIMIT_LOGIN_PER_IP: z.coerce.number().int().nonnegative().default(20),
+    // Hops allowed to set X-Forwarded-For: none, loopback, private, or CIDRs (comma separated).
+    TRUSTED_PROXIES: z.string().default('loopback,private'),
   })
   .refine(
     (value) => !value.CONFIG_MANIFEST_FILE || Boolean(value.CONFIG_MANIFEST_OWNER),
