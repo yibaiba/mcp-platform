@@ -54,6 +54,11 @@ export default function ProfilesPage() {
     queryKey: ['connections'],
     queryFn: () => api<Connection[]>('/connections'),
   });
+  // Shared connections are valid sources too (「共享给我」 → 新建 / 加到已有 Agent).
+  const shares = useQuery({
+    queryKey: ['incoming-shares'],
+    queryFn: () => api<{ connectionId: string; name: string }[]>('/shares'),
+  });
   const keys = useQuery({
     queryKey: ['keys'],
     queryFn: () => api<AccessKey[]>('/profiles/keys/all'),
@@ -72,7 +77,10 @@ export default function ProfilesPage() {
     void navigate({ hash: '', replace: true, search: (previous) => previous });
   }, [hash, navigate]);
   const drawerProfile = drawer && 'profile' in drawer ? drawer.profile : undefined;
-  const source = connections.data?.find((connection) => connection.id === connectionId);
+  const source =
+    connections.data?.find((connection) => connection.id === connectionId) ??
+    shares.data?.find((share) => share.connectionId === connectionId);
+  const toolIdsKnown = new Set(tools.data?.map((tool) => tool.id));
   // Agent 详情 shares this page's drawers so 编辑权限 / 接入客户端 open in place.
   const list = workspace ? (
     <WorkspacePage
@@ -101,7 +109,7 @@ export default function ProfilesPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             选择下方已有 Agent 分配权限，或新建 Agent。保存后可直接获取客户端接入配置。
           </p>
-          {connections.isSuccess && !source ? (
+          {connections.isSuccess && shares.isSuccess && !source ? (
             <p role="alert" className="mt-2 text-sm text-destructive">
               来源连接已不可用，请确认连接是否仍存在或仍获共享授权。
             </p>
@@ -132,6 +140,13 @@ export default function ProfilesPage() {
                           ? `${activeKeys} 个密钥`
                           : '未生成密钥'}
                     {profile.deploymentState !== 'ready' ? ' · 批量配置待处理' : ''}
+                    {tools.isSuccess && profile.toolIds.some((id) => !toolIdsKnown.has(id)) ? (
+                      <span className="text-destructive">
+                        {' '}
+                        · {profile.toolIds.filter((id) => !toolIdsKnown.has(id)).length}{' '}
+                        个工具已失效（共享已取消或工具已移除）
+                      </span>
+                    ) : null}
                   </small>
                   <ChevronRight size={16} aria-hidden="true" className="profile-chevron" />
                 </button>

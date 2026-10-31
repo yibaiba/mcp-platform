@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
+import { Button } from '../../components/ui/button.js';
 import { api, json, type Device, type Connection } from '../../lib/api.js';
 import { Disclosure } from '../../components/shared/Disclosure.js';
 import { Action, Code, Empty, Feedback, Status } from '../../components/shared/Controls.js';
@@ -11,6 +13,8 @@ type Share = {
   connectionId: string;
   name: string;
   credentialMode: 'independent' | 'owner';
+  teamShareId?: string | null;
+  toolIds?: string[];
   status: string;
   error?: string;
   pendingReason?: string;
@@ -45,6 +49,7 @@ export function IncomingShares({ devices }: { devices: Device[] }) {
               ? '所有者已允许使用其凭证或设备服务。'
               : '使用你自己的凭证和运行位置。'}{' '}
             仅能使用所有者授权的工具和内容。
+            {share.teamShareId ? ' 来自全员共享。' : ''}
           </p>
           {share.pendingReason && <p role="status">{share.pendingReason}</p>}
           {share.error && <p className="error">{share.error}</p>}
@@ -73,6 +78,31 @@ export function IncomingShares({ devices }: { devices: Device[] }) {
                 }
               />
             </Disclosure>
+          )}
+          {share.status === 'pending' ? (
+            <p className="text-sm text-muted-foreground">
+              配置好身份并连接后，即可把工具授权给 Agent。
+            </p>
+          ) : (
+            <div className="row-actions" aria-label={`把「${share.name}」的工具授权给 Agent`}>
+              <Button
+                render={
+                  <Link
+                    to="/profiles"
+                    search={{ connectionId: share.connectionId }}
+                    hash="create-profile"
+                  />
+                }
+              >
+                新建 Agent
+              </Button>
+              <Button
+                variant="outline"
+                render={<Link to="/profiles" search={{ connectionId: share.connectionId }} />}
+              >
+                加到已有 Agent
+              </Button>
+            </div>
           )}
           {share.status !== 'pending' && (
             <div className="row-actions">
