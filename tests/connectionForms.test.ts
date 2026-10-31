@@ -89,7 +89,7 @@ test('the next step matches the failure instead of always blaming address, netwo
   // A sandbox refusal carries its own fix; no misleading "command not found" hint is added.
   expect(
     connectionNextStep(
-      { ...stdio, adapter: 'direct', deviceId: undefined },
+      { ...stdio, adapter: 'direct', deviceId: null },
       '已开启 stdio 沙箱（STDIO_SANDBOX=bwrap），但平台服务所在的机器上找不到 bwrap。',
     ),
   ).toBe('');
