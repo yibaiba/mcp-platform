@@ -118,13 +118,16 @@ describe('sandbox decisions', () => {
       version: '0.8.0',
       proc: 'bind',
     });
-    const wrapped = await sandbox.wrap({ command: 'npx', args: ['-y', 'pkg'], env: {} }, 'conn/1');
+    const wrapped = await sandbox.wrap(
+      { command: 'npx', args: ['-y', 'pkg'], env: {} as Record<string, string> },
+      'conn/1',
+    );
     expect(wrapped.command).toBe(fake);
     expect(wrapped.args).toEqual(
       expect.arrayContaining(['--ro-bind', '/proc', '--tmpfs', dir, '--', 'npx', '-y', 'pkg']),
     );
     expect(wrapped.env.HOME).toMatch(new RegExp(`^${dir}/sandbox/[0-9a-f]{32}/home$`));
-    expect(existsSync(wrapped.env.HOME)).toBe(true);
+    expect(existsSync(wrapped.env.HOME!)).toBe(true);
     await rm(dir, { recursive: true, force: true });
   });
 });
