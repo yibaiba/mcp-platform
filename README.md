@@ -27,7 +27,7 @@ pnpm dev
 
 ### 在平台服务器上运行本地命令（stdio，默认关闭，仅管理员）
 
-运行位置为平台服务器（含 Pi 桥接）的本地命令（stdio）会在平台服务器上启动子进程，等同于在服务器上执行任意命令。因此默认关闭：`.env` 设置 `PLATFORM_STDIO_ENABLED=true` 并重启后，**只有管理员**可以创建、修改和启动这类连接；普通成员请使用设备连接器在自己的电脑上运行本地进程。开关关闭时创建/更新返回 403 `HOST_STDIO_DISABLED`，非管理员返回 403 `HOST_STDIO_ADMIN_ONLY`；已存在的此类连接在启动时被标记为错误、连接时拒绝并写入系统日志（`HOST_STDIO_*_BLOCKED`），不会启动子进程，页面也不再显示该选项。MCPB 扩展包安装到平台服务器同样受此限制。子进程环境变量为白名单：`PATH`、`HOME`、`USER`、`SHELL`、`TERM`、`LOGNAME`、`LANG`/`LC_*`/`TZ`/`TMPDIR`、uv 运行时路径，再加上连接自身配置的环境变量；平台自身的数据库地址和密钥不会传入。未提供沙箱。
+运行位置为平台服务器（含 Pi 桥接）的本地命令（stdio）会在平台服务器上启动子进程，等同于在服务器上执行任意命令。因此默认关闭：`.env` 设置 `PLATFORM_STDIO_ENABLED=true` 并重启后，**只有管理员**可以创建、修改和启动这类连接；普通成员请使用设备连接器在自己的电脑上运行本地进程。开关关闭时创建/更新返回 403 `HOST_STDIO_DISABLED`，非管理员返回 403 `HOST_STDIO_ADMIN_ONLY`；已存在的此类连接在启动时被标记为错误、连接时拒绝并写入系统日志（`HOST_STDIO_*_BLOCKED`），不会启动子进程，页面也不再显示该选项。MCPB 扩展包安装到平台服务器同样受此限制。子进程环境变量为白名单：`PATH`、`HOME`、`USER`、`SHELL`、`TERM`、`LOGNAME`、`LANG`/`LC_*`/`TZ`/`TMPDIR`、uv 运行时路径，再加上连接自身配置的环境变量；平台自身的数据库地址和密钥不会传入。可选的 bubblewrap 沙箱：设 `STDIO_SANDBOX=bwrap`（默认 `off`，不改变已有行为）后，这些进程在只读根目录、看不到 `DATA_DIR`、私有 `HOME` 的沙箱里运行；开着但宿主机上没有可用的 bwrap 时，连接返回 503 `STDIO_SANDBOX_UNAVAILABLE`，不会在沙箱外启动。容器里需要的权限见 [部署文档](docs/deployment.md#stdio-沙箱)。
 
 ### 对外地址（PUBLIC_URL）
 

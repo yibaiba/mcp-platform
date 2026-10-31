@@ -169,6 +169,14 @@ jobs:
         run: node scripts/check.mjs 600 node scripts/verify-compose.mjs
       - name: Verify Python MCP with cold and offline warm caches
         run: node scripts/check.mjs 150 node scripts/verify-python-runtime.mjs mcp-platform:local
+      - name: Verify stdio sandbox under default container options (explicit refusal or ready)
+        run: node scripts/check.mjs 150 node scripts/verify-stdio-sandbox-image.mjs mcp-platform:local default
+      - name: Verify stdio sandbox with the documented container options
+        # Ubuntu 23.10+ hosts restrict unprivileged user namespaces through AppArmor; the
+        # deployment docs list this host setting for STDIO_SANDBOX=bwrap.
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          node scripts/check.mjs 150 node scripts/verify-stdio-sandbox-image.mjs mcp-platform:local unconfined
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'release'
         uses: docker/login-action@v4

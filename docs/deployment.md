@@ -109,6 +109,49 @@ Apps 的可信代理通过 `data:` iframe 获得独立的不透明源，实际 A
 
 镜像把 Corepack 缓存放在 `/usr/local/share/corepack`，运行用户 node 可以禁网执行构建时安装的 pnpm。生产启动会检查 `apps/web/dist/index.html`，缺少构建产物会直接失败。浏览器页面路由返回应用入口，缺失的 API、Apps 文档和静态资源仍返回 404。
 
+## stdio 沙箱
+
+`PLATFORM_STDIO_ENABLED=true` 时，管理员可以让平台服务器自己启动本地命令（stdio，直连或 Pi 桥接）。这些进程默认以平台服务进程的身份和权限运行，和以前完全一样。`STDIO_SANDBOX=bwrap` 会用 [bubblewrap](https://github.com/containers/bubblewrap) 把每个进程包起来；默认 `off`，不改任何已有行为。
+
+| 变量 | 默认 | 说明 |
+| --- | --- | --- |
+| `STDIO_SANDBOX` | `off` | `off`：不加沙箱（原行为）；`bwrap`：所有平台服务器上的 stdio 进程都在沙箱里启动 |
+| `STDIO_SANDBOX_BWRAP` | 空 | bwrap 的绝对路径；空时在 `PATH` 里找 `bwrap` |
+
+开关是全局的，对所有平台服务器上的 stdio 连接同时生效（设备连接器在用户自己电脑上运行的 stdio 不受影响）。改动后重启服务；已在运行的进程在下次启动时才进入沙箱。
+
+**沙箱里能做什么**（最小版本，不是容器）：
+- 除网络外的命名空间全部隔离（user、pid、ipc、uts、cgroup、mount）；网络照常可用，出站规则仍由“网络与安装源”管理。
+- 宿主机根目录只读；`/dev`、`/proc`、`/tmp` 是新的（`/tmp` 是进程私有的 tmpfs）。
+- 整个 `DATA_DIR` 被一个空的 tmpfs 盖住：看不到平台生成的密钥（`DATA_DIR/secrets`）、其他连接的数据和产物。例外：uv 的工具与缓存目录（`UV_CACHE_DIR`/`UV_TOOL_DIR`/`UV_TOOL_BIN_DIR`）可写，连接自己的工作目录（`cwd`，例如 MCPB 扩展包的解压目录）可写，启动命令和环境变量里明确引用的 `DATA_DIR` 内文件只读可见。
+- `HOME` 改成每个连接运行时私有、可写、持久的目录 `DATA_DIR/sandbox/<摘要>/home`（npm/npx 缓存放在这里）。
+- 平台服务工作目录及其上级目录里的 `.env` 被遮住。
+- 平台服务退出时进程一起退出（`--die-with-parent`）；停止连接时整个进程组被结束。
+- 环境变量仍是原来的白名单，只把 `HOME` 换成私有目录。
+
+**开着但用不了时不会静默降级**：服务启动时会探测一次 bwrap，在日志里打印 `stdio sandbox: bubblewrap … ready` 或 `stdio sandbox: STDIO_SANDBOX=bwrap but unavailable: …`；之后连接这类服务时返回 503 `STDIO_SANDBOX_UNAVAILABLE`，说明原因和修复方法，进程不会在沙箱外启动。管理员在 `/api/v1/me` 的 `stdioSandbox` 和添加连接表单里能看到同样的状态。探测失败 30 秒后会重新检测，修好后不用重启。
+
+### 宿主机直接运行
+
+安装 bubblewrap（Debian/Ubuntu：`apt-get install bubblewrap`；Fedora：`dnf install bubblewrap`），内核需要允许非特权用户命名空间（`/proc/sys/user/max_user_namespaces` 大于 0）。Ubuntu 23.10 及以后默认用 AppArmor 限制非特权用户命名空间：要么设 `sysctl kernel.apparmor_restrict_unprivileged_userns=0`，要么给 `/usr/bin/bwrap` 一个允许 `userns` 的 AppArmor 配置。可以先运行 `pnpm exec tsx scripts/stdio-sandbox-check.mts` 看结果。
+
+### 容器（官方镜像）
+
+镜像已在 amd64 和 arm64 两个架构里安装 Debian bookworm 的 `bubblewrap`（0.8.x，不是 setuid 版本），运行用户是 `node`。在容器里创建用户命名空间需要：
+
+1. `--security-opt seccomp=unconfined`：Docker 默认的 seccomp 配置拒绝非特权进程创建命名空间。也可以用自定义 seccomp 配置只放开 `clone`/`unshare` 的命名空间参数。
+2. `--security-opt apparmor=unconfined`（启用 AppArmor 的宿主机，例如 Ubuntu）：Docker 默认的 `docker-default` 配置不允许挂载。
+3. 宿主机是 Ubuntu 23.10+ 时，再在宿主机上设 `sysctl kernel.apparmor_restrict_unprivileged_userns=0`。
+4. 不需要 `--privileged`，也不需要 `CAP_SYS_ADMIN`。Docker 会遮住 `/proc` 下的部分路径，导致沙箱里无法挂载新的 procfs；这时会自动改为只读绑定容器的 `/proc`（启动日志里显示 `/proc bind`），进程仍在自己的 pid 命名空间里，但能看到容器内其他进程的 `/proc` 条目。想要独立的 `/proc` 可以再加 `--security-opt systempaths=unconfined`。
+
+`docker-compose.yml` 里 server 服务已经有注释掉的 `security_opt` 两行，设 `STDIO_SANDBOX=bwrap` 时一起取消注释。这些选项放宽的是整个平台容器的 seccomp/AppArmor 限制，换来的是容器内 stdio 进程之间、以及它们和平台数据之间的隔离；只有确实要在平台服务器上运行本地命令时才这样做。CI 在两个架构上都检查：默认容器选项下要么可用要么给出明确的拒绝原因，加上上述选项后沙箱可用且隔离生效（`scripts/verify-stdio-sandbox-image.mjs`）。
+
+### 以后的计划
+
+- 容器级隔离（每个连接一个独立容器 / gVisor / Firecracker）：这一版不做。
+- 每个连接单独的沙箱开关或例外、只读/可写路径白名单、网络隔离（`--unshare-net` 加代理）、CPU/内存/进程数限制（cgroup）、seccomp 系统调用过滤。
+- MCPB 安装时的运行时版本检查（`node --version` 等）和包更新命令目前不进沙箱。
+
 ## 本仓库镜像发布与验收
 
 `.github/workflows/ci.yml` 对 PR、main push、手动运行和 `release.published` 执行 Node.js 22/24 检查，再分别使用原生 amd64、arm64 运行器构建应用镜像，各自核对镜像源码并执行隔离 Compose 和 Python 冷/热缓存验收。只有 `release.published` 会推送镜像；两个架构均通过后，发布统一的 `ghcr.io/yibaiba/mcp-platform:latest`、Release 标签和 `sha-<完整提交号>` 标签。其他触发方式只验证，不发布。Release 同时上传六种连接器二进制、SHA256SUMS 和安装脚本。镜像名由当前 GitHub 仓库生成，源码标签固定指向本项目。发布使用该仓库的 GitHub Token，首次使用需要确认 GHCR 包的读取权限。

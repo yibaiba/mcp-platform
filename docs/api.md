@@ -69,7 +69,7 @@ Schema 使用官方 AJV 按 `$schema` 选择 draft-07、2019-09、2020-12；无�
 
 导入支持 `stdio`、`sse`、`streamable-http`/`http`，映射 `url/command/args/env/headers/cwd`。预览返回每项的 `name/config/needsDevice/errors/warnings/authorization`；缺少设备、URL 无效或传输不支持等错误不会隐藏其他声明。`warnings` 只列未映射字段名和原因，不返回这些字段的原始值；包括 `options`、`perSessionClient`、权限和 OAuth 的旧策略需要逐项核对。应用前会重新验证全部声明，存在错误返回 `IMPORT_INVALID`，不会部分创建。界面允许选择本地命令执行设备，修改原文或设备后需要重新预览。
 
-`/me` 返回 `userId`、`role`、`piEnabled`、`hostStdioEnabled`（`PLATFORM_STDIO_ENABLED` 开关）、`hostStdio`（开关开启且当前用户为管理员）和 `platformOrigin`（`PUBLIC_URL` 的 origin，所有对外地址都应使用它）。平台服务器上的 stdio 连接在开关关闭时返回 403 `HOST_STDIO_DISABLED`，非管理员返回 403 `HOST_STDIO_ADMIN_ONLY`。`PI_ENABLED` 和 `/me`、`/health` 的 `piEnabled` 仅表示内置 Agent 任务是否启用。所有 MCP 连接（包括 Pi 桥接）的授权、工具发现和调用均不受此开关或模型配置限制；模型配置仅在 `POST /tasks` 时检查。
+`/me` 返回 `userId`、`role`、`piEnabled`、`hostStdioEnabled`（`PLATFORM_STDIO_ENABLED` 开关）、`hostStdio`（开关开启且当前用户为管理员）和 `platformOrigin`（`PUBLIC_URL` 的 origin，所有对外地址都应使用它）；开关开启且当前用户为管理员时还返回 `stdioSandbox`：`{mode:'off'}`、`{mode:'bwrap',ready:true,version,path,proc}` 或 `{mode:'bwrap',ready:false,error,hint}`。`STDIO_SANDBOX=bwrap` 但沙箱不可用时，连接这类服务返回 503 `STDIO_SANDBOX_UNAVAILABLE`。平台服务器上的 stdio 连接在开关关闭时返回 403 `HOST_STDIO_DISABLED`，非管理员返回 403 `HOST_STDIO_ADMIN_ONLY`。`PI_ENABLED` 和 `/me`、`/health` 的 `piEnabled` 仅表示内置 Agent 任务是否启用。所有 MCP 连接（包括 Pi 桥接）的授权、工具发现和调用均不受此开关或模型配置限制；模型配置仅在 `POST /tasks` 时检查。
 
 ## MCP 传输与执行位置
 
