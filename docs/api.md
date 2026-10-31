@@ -69,17 +69,17 @@ Schema 使用官方 AJV 按 `$schema` 选择 draft-07、2019-09、2020-12；无�
 
 导入支持 `stdio`、`sse`、`streamable-http`/`http`，映射 `url/command/args/env/headers/cwd`。预览返回每项的 `name/config/needsDevice/errors/warnings/authorization`；缺少设备、URL 无效或传输不支持等错误不会隐藏其他声明。`warnings` 只列未映射字段名和原因，不返回这些字段的原始值；包括 `options`、`perSessionClient`、权限和 OAuth 的旧策略需要逐项核对。应用前会重新验证全部声明，存在错误返回 `IMPORT_INVALID`，不会部分创建。界面允许选择本地命令执行设备，修改原文或设备后需要重新预览。
 
-`/me` 返回 `userId`、`role`、`piEnabled`、`hostStdioEnabled`（`PLATFORM_STDIO_ENABLED` 开关）、`hostStdio`（开关开启且当前用户为管理员）和 `platformOrigin`（`PUBLIC_URL` 的 origin，所有对外地址都应使用它）。平台主机 stdio 连接在开关关闭时返回 403 `HOST_STDIO_DISABLED`，非管理员返回 403 `HOST_STDIO_ADMIN_ONLY`。`PI_ENABLED` 和 `/me`、`/health` 的 `piEnabled` 仅表示内置 Agent 任务是否启用。所有 MCP 连接（包括 Pi 桥接）的授权、工具发现和调用均不受此开关或模型配置限制；模型配置仅在 `POST /tasks` 时检查。
+`/me` 返回 `userId`、`role`、`piEnabled`、`hostStdioEnabled`（`PLATFORM_STDIO_ENABLED` 开关）、`hostStdio`（开关开启且当前用户为管理员）和 `platformOrigin`（`PUBLIC_URL` 的 origin，所有对外地址都应使用它）。平台服务器上的 stdio 连接在开关关闭时返回 403 `HOST_STDIO_DISABLED`，非管理员返回 403 `HOST_STDIO_ADMIN_ONLY`。`PI_ENABLED` 和 `/me`、`/health` 的 `piEnabled` 仅表示内置 Agent 任务是否启用。所有 MCP 连接（包括 Pi 桥接）的授权、工具发现和调用均不受此开关或模型配置限制；模型配置仅在 `POST /tasks` 时检查。
 
 ## MCP 传输与执行位置
 
-| 执行适配器 | Streamable HTTP | HTTP + SSE（旧版） | stdio                  |
-| ---------- | --------------- | ------------------ | ---------------------- |
-| 平台直连   | 支持 HTTP/HTTPS | 支持 HTTP/HTTPS    | 平台主机子进程         |
-| Pi 桥接    | 支持 HTTP/HTTPS | 支持 HTTP/HTTPS    | 平台主机 Pi 子进程托管 |
-| 设备连接器 | 支持 HTTP/HTTPS | 支持 HTTP/HTTPS    | 所选设备子进程         |
+| 执行适配器 | Streamable HTTP | HTTP + SSE（旧版） | stdio                    |
+| ---------- | --------------- | ------------------ | ------------------------ |
+| 平台直连   | 支持 HTTP/HTTPS | 支持 HTTP/HTTPS    | 平台服务器子进程         |
+| Pi 桥接    | 支持 HTTP/HTTPS | 支持 HTTP/HTTPS    | 平台服务器 Pi 子进程托管 |
+| 设备连接器 | 支持 HTTP/HTTPS | 支持 HTTP/HTTPS    | 所选设备子进程           |
 
-连接的 `transport` 分别为 `http`、`sse`、`stdio`。HTTP/SSE 提供 `url`；stdio 使用 `mode: "managed"`，提供 `command`、`args`，可选 `env`、`cwd`，无需 URL。平台及 Pi 的 stdio 命令在平台主机执行，Docker 部署时位于 server 容器，设备适配器在所选设备执行。可执行程序必须已安装在实际执行环境。停止连接会关闭 MCP 会话和子进程。
+连接的 `transport` 分别为 `http`、`sse`、`stdio`。HTTP/SSE 提供 `url`；stdio 使用 `mode: "managed"`，提供 `command`、`args`，可选 `env`、`cwd`，无需 URL。平台及 Pi 的 stdio 命令在平台服务器执行，Docker 部署时位于 server 容器，设备适配器在所选设备执行。可执行程序必须已安装在实际执行环境。停止连接会关闭 MCP 会话和子进程。
 
 `GET /connections` 和 `GET /connections/:id` 为编辑表单返回 `command`、`args`、`cwd` 和 `urlHasQuery`；`url` 只含 origin 和路径，查询参数不返回。`sensitiveArguments` 对应的参数以 `[已隐藏的敏感参数]` 返回，`PATCH` 时在原位置传回这个占位符即保留原值，放到其他位置返回 `VALIDATION`。设备离线时 `POST /connections/:id/discover` 返回 `503 DEVICE_OFFLINE`，错误里写明设备名和下一步。
 

@@ -183,7 +183,7 @@ export class BundleService {
     const environment = await this.environment(ownerId, destination, row.sha256);
     const expected = digest(JSON.stringify([row.sha256, destination, environment]));
     if (expected !== previewDigest)
-      throw new AppError('MCPB_PREVIEW_CHANGED', '配置或执行位置已改变，请重新预览', 409);
+      throw new AppError('MCPB_PREVIEW_CHANGED', '配置或运行位置已改变，请重新预览', 409);
     if (connectionId) {
       const connection = await this.deps.connections.owned(ownerId, connectionId);
       if (revision !== connection.revision)

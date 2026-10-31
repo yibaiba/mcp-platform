@@ -16,7 +16,7 @@ export async function describeSharedTools<T extends typeof tools.$inferSelect>(i
   return input.catalog.map((tool) => {
     const context = contexts.get(tool.connectionId)!;
     const delegated = context.credentialScope?.ownerId !== input.ownerId;
-    const location = context.config.adapter === 'device' ? '所选设备' : '平台主机';
+    const location = context.config.adapter === 'device' ? '所选设备' : '平台服务器';
     return {
       ...tool,
       definition: {
@@ -24,7 +24,7 @@ export async function describeSharedTools<T extends typeof tools.$inferSelect>(i
         title: tool.definition.title ?? `${tool.name} · ${context.config.name}`,
         description: [
           tool.definition.description,
-          `平台执行上下文：原工具 ${tool.name}；共享连接 ${context.config.name}；执行位置 ${location}；${delegated ? '经明确授权使用来源凭证或设备' : '使用接收者独立身份'}。`,
+          `平台执行上下文：原工具 ${tool.name}；共享连接 ${context.config.name}；运行位置 ${location}；${delegated ? '经明确授权使用来源凭证或设备' : '使用接收者独立身份'}。`,
           '共享连接不授予设备管理、文件同步或 Skill 安装权限。',
         ]
           .filter(Boolean)

@@ -13,7 +13,15 @@ import {
 import { Card } from '../../components/ui/card.js';
 import { Button } from '../../components/ui/button.js';
 import { Hint } from '../../components/ui/tooltip.js';
-import { api, type Connection, type Device, type Tool, type Call } from '../../lib/api.js';
+import {
+  api,
+  type Call,
+  type Connection,
+  type Device,
+  type IncomingShare,
+  type Tool,
+} from '../../lib/api.js';
+import { useMe } from '../../lib/me.js';
 import {
   date,
   Empty,
@@ -24,7 +32,7 @@ import {
 } from '../../components/shared/Controls.js';
 import { PageHeader } from '../../components/shared/PageHeader.js';
 import { SetupChecklist } from '../onboarding/SetupChecklist.js';
-import { brokenConnections } from '../onboarding/setupProgress.js';
+import { brokenConnections, connectionsEmptyGuide } from '../onboarding/setupProgress.js';
 function StatTile({
   icon: Icon,
   label,
@@ -128,12 +136,23 @@ export default function OverviewPage() {
   });
   const tools = useQuery({ queryKey: ['tools'], queryFn: () => api<Tool[]>('/tools') });
   const calls = useQuery({ queryKey: ['calls'], queryFn: () => api<Call[]>('/calls?limit=5') });
+  const shares = useQuery({
+    queryKey: ['incoming-shares'],
+    queryFn: () => api<IncomingShare[]>('/shares'),
+  });
+  const me = useMe();
   const userConnections = connections.data?.filter((connection) => connection.source !== 'library');
   const failing = brokenConnections(connections.data ?? []);
   const unavailableTools = tools.data?.filter((tool) => tool.unavailable) ?? [];
   const activeDevices = devices.data?.filter((device) => !device.revoked) ?? [];
   const offline = activeDevices.filter((device) => !device.online);
-  const failed = connections.error ?? devices.error ?? tools.error ?? calls.error;
+  const shared = shares.data ?? [];
+  const guide = connectionsEmptyGuide({
+    role: me.data?.role,
+    own: userConnections?.length ?? 0,
+    shared: shared.length,
+  });
+  const failed = connections.error ?? devices.error ?? tools.error ?? calls.error ?? shares.error;
   return (
     <>
       <PageHeader
@@ -148,7 +167,13 @@ export default function OverviewPage() {
       <QueryError
         error={failed}
         onRetry={() =>
-          Promise.all([connections.refetch(), devices.refetch(), tools.refetch(), calls.refetch()])
+          Promise.all([
+            connections.refetch(),
+            devices.refetch(),
+            tools.refetch(),
+            calls.refetch(),
+            shares.refetch(),
+          ])
         }
       />
       {failing.length || offline.length ? (
@@ -176,10 +201,15 @@ export default function OverviewPage() {
           hero
           icon={Network}
           label="连接"
-          value={userConnections?.length}
+          value={userConnections ? userConnections.length + shared.length : undefined}
           detail={
             userConnections
-              ? `${userConnections.filter((c) => c.status === 'connected' && !c.deviceOffline).length} 个已连接`
+              ? [
+                  `${userConnections.filter((c) => c.status === 'connected' && !c.deviceOffline).length + shared.filter((s) => s.status === 'connected').length} 个已连接`,
+                  shared.length ? `其中 ${shared.length} 个共享给我` : '',
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
               : undefined
           }
         >
@@ -223,40 +253,78 @@ export default function OverviewPage() {
             </Link>
           </div>
           {connections.isPending ? <ListSkeleton rows={3} /> : null}
-          {connections.data?.length ? (
-            connections.data.slice(0, 5).map((connection) => (
-              <Link
-                to="/connections"
-                hash={`connection-${connection.id}`}
-                className="row row-link"
-                key={connection.id}
+          {connections.data?.slice(0, 5).map((connection) => (
+            <Link
+              to="/connections"
+              hash={`connection-${connection.id}`}
+              className="row row-link"
+              key={connection.id}
+            >
+              <strong className="grow truncate">{connection.name}</strong>
+              {connection.deviceOffline ? (
+                <Status value="error" label="设备离线" />
+              ) : (
+                <Status value={connection.status} />
+              )}
+              <small className="row-meta">
+                {tools.data
+                  ? `${tools.data.filter((tool) => tool.connectionId === connection.id).length} 工具`
+                  : ''}
+              </small>
+            </Link>
+          ))}
+          {shared.slice(0, Math.max(0, 5 - (connections.data?.length ?? 0))).map((share) => (
+            <Link to="/connections" className="row row-link" key={`share-${share.id}`}>
+              <strong className="grow truncate">{share.name}</strong>
+              {share.status === 'pending' ? (
+                <span className="row-meta" role="status">
+                  待配置
+                </span>
+              ) : (
+                <Status value={share.status} />
+              )}
+              <small className="row-meta">共享给我</small>
+            </Link>
+          ))}
+          {connections.isSuccess &&
+          shares.isSuccess &&
+          !connections.data.length &&
+          guide !== 'none' ? (
+            guide === 'member-none' ? (
+              <Empty
+                icon={Network}
+                title="还没有可用的连接"
+                action={
+                  <Button
+                    variant="outline"
+                    render={<Link to="/connections" hash="connector-catalog" />}
+                  >
+                    添加连接
+                  </Button>
+                }
               >
-                <strong className="grow truncate">{connection.name}</strong>
-                {connection.deviceOffline ? (
-                  <Status value="error" label="设备离线" />
-                ) : (
-                  <Status value={connection.status} />
-                )}
-                <small className="row-meta">
-                  {tools.data
-                    ? `${tools.data.filter((tool) => tool.connectionId === connection.id).length} 工具`
-                    : ''}
-                </small>
-              </Link>
-            ))
-          ) : connections.isSuccess ? (
-            <Empty
-              icon={Network}
-              title="添加第一个连接"
-              action={
-                <Button
-                  variant="outline"
-                  render={<Link to="/connections" hash="connector-catalog" />}
-                >
-                  添加连接
-                </Button>
-              }
-            />
+                <p>可以添加你自己的服务，也可以请管理员把团队的连接共享给你。</p>
+              </Empty>
+            ) : (
+              <Empty
+                icon={Network}
+                title="添加第一个连接"
+                action={
+                  <Button
+                    variant="outline"
+                    render={<Link to="/connections" hash="connector-catalog" />}
+                  >
+                    添加连接
+                  </Button>
+                }
+              />
+            )
+          ) : null}
+          {connections.isSuccess && !connections.data.length && shared.length ? (
+            <p className="panel-note">
+              你还没有自己的连接；管理员共享给你的连接可以直接在
+              <Link to="/profiles">Agent</Link> 里授权使用。
+            </p>
           ) : null}
         </Card>
         <Card className="panel">

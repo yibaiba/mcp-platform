@@ -60,7 +60,7 @@ export function externalPermissionResult(
       request.status === 'pending'
         ? '请用户在审批入口处理申请，再用 platform_permissions_status 查询；当前业务尚未执行。'
         : request.status === 'approved'
-          ? '审批已批准，请刷新工具目录并发起新的业务调用；平台没有自动执行业务。'
+          ? '审批已批准，请刷新工具列表并发起新的业务调用；平台没有自动执行业务。'
           : '申请已结束且未获批准，请勿执行依赖本次申请的操作。',
   };
 }

@@ -762,3 +762,15 @@ textarea:disabled {
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+/* Overview: one-line note under the connection card (e.g. shared connections only) */
+.panel-note {
+  margin: 0;
+  padding: 10px 16px 14px;
+  color: var(--muted-foreground);
+  font-size: var(--text-caption);
+}
+.panel-note a {
+  color: var(--primary);
+  margin: 0 2px;
+}

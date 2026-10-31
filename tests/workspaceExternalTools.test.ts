@@ -72,7 +72,7 @@ test('external catalog describes only granted tools without changing stable IDs 
       )!;
       expect(tool.description).toContain('Echo for SDK integration');
       expect(tool.description).toContain(`连接 ${source.connection.name}`);
-      expect(tool.description).toContain('执行位置 平台主机');
+      expect(tool.description).toContain('运行位置 平台服务器');
       expect(tool.title).toBe(`echo · ${source.connection.name}`);
       expect(tool.inputSchema).toEqual(source.tool.inputSchema);
     }
@@ -123,7 +123,7 @@ test('device descriptions use the selected device and profile identity while ret
     ],
   });
   expect(described?.definition).toMatchObject(definition);
-  expect(described?.definition.description).toContain('执行位置 工作 Mac');
+  expect(described?.definition.description).toContain('运行位置 工作 Mac');
   expect(described?.definition.description).toContain('身份方式 Agent 专属身份');
   expect(JSON.stringify(described)).not.toContain(device.deviceSecret);
 });

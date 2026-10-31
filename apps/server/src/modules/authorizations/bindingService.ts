@@ -27,7 +27,7 @@ export class BindingService {
         and(eq(authorizationBindings.id, id), eq(authorizationBindings.ownerId, input.ownerId)),
       );
     if (!binding || binding.revoked)
-      throw new AppError('BINDING_REVOKED', '上游授权绑定已撤销，请重新授权', 403);
+      throw new AppError('BINDING_REVOKED', '服务授权已撤销，请重新授权', 403);
     return binding;
   }
   async owned(ownerId: string, id: string) {

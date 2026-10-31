@@ -12,7 +12,7 @@ MCP 连接、授权、工具发现和调用均不需要配置模型。选择 Pi 
 
 `PI_ENABLED` 仅控制内置 Agent 任务，不控制 Pi 桥接或依赖安装。设置 `PI_ENABLED=false` 时，平台登录、直连、设备连接、Pi 桥接、统一入口、Skills 分发和文件流转继续工作。
 
-Pi 桥接支持 Streamable HTTP、旧版 HTTP+SSE 和 stdio。远程地址可用 HTTP/HTTPS；stdio 提供启动命令、参数、环境变量和工作目录，由平台主机（Docker 的 server 容器）执行，不在浏览器所在电脑执行。远程设备上的进程使用设备连接器。
+Pi 桥接支持 Streamable HTTP、旧版 HTTP+SSE 和 stdio。远程地址可用 HTTP/HTTPS；stdio 提供启动命令、参数、环境变量和工作目录，由平台服务器（Docker 的 server 容器）执行，不在浏览器所在电脑执行。远程设备上的进程使用设备连接器。
 
 两条执行路径：
 

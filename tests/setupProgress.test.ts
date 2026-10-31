@@ -1,5 +1,8 @@
 import { expect, test } from 'vitest';
-import { setupProgress } from '../apps/web/src/features/onboarding/setupProgress.js';
+import {
+  connectionsEmptyGuide,
+  setupProgress,
+} from '../apps/web/src/features/onboarding/setupProgress.js';
 
 const profile = {
   id: 'agent',
@@ -57,4 +60,18 @@ test('prompt and resource grants support agents without tool grants', () => {
       keys: [{ profileId: profile.id, revoked: false }],
     }),
   ).toEqual([true, true, true]);
+});
+
+test('a connected shared connection completes the first setup step', () => {
+  const base = { connections: [], profiles: [], keys: [] };
+  expect(setupProgress({ ...base, shared: [{ status: 'pending' }] })[0]).toBe(false);
+  expect(setupProgress({ ...base, shared: [{ status: 'connected' }] })[0]).toBe(true);
+});
+
+test('overview empty state depends on role and shared connections', () => {
+  expect(connectionsEmptyGuide({ role: 'admin', own: 0, shared: 0 })).toBe('admin-first');
+  expect(connectionsEmptyGuide({ role: undefined, own: 0, shared: 0 })).toBe('admin-first');
+  expect(connectionsEmptyGuide({ role: 'member', own: 0, shared: 0 })).toBe('member-none');
+  expect(connectionsEmptyGuide({ role: 'member', own: 0, shared: 2 })).toBe('none');
+  expect(connectionsEmptyGuide({ role: 'admin', own: 1, shared: 0 })).toBe('none');
 });

@@ -8,9 +8,9 @@ export function isHostStdio(config: { adapter?: string; transport?: string; sour
 }
 
 export const hostStdioDisabledMessage =
-  '平台主机 stdio 已关闭（PLATFORM_STDIO_ENABLED=false）：请改用设备连接器在你自己的电脑上运行本地进程';
+  '在平台服务器上运行本地命令（stdio）已关闭（PLATFORM_STDIO_ENABLED=false）：请把运行位置改成“我的设备”，用设备连接器在你自己的电脑上运行';
 export const hostStdioAdminMessage =
-  '只有管理员可以让平台主机运行 stdio 进程：请改用设备连接器在你自己的电脑上运行本地进程';
+  '只有管理员可以在平台服务器上运行本地命令（stdio）：请把运行位置改成“我的设备”，用设备连接器在你自己的电脑上运行';
 
 /** Rejects platform-host stdio unless the deployment switch is on and the owner is an admin. */
 export async function assertHostStdioAllowed(

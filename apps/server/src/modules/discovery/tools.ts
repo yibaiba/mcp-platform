@@ -14,7 +14,7 @@ const object = (
 export const discoveryTools: Tool[] = [
   {
     name: 'platform_tools_search',
-    description: '在当前身份已授权的工具目录中执行语义搜索；不会唤醒休眠连接。',
+    description: '在当前身份已授权的工具列表中执行语义搜索；不会唤醒休眠连接。',
     inputSchema: object(
       {
         query: { type: 'string', minLength: 1 },
