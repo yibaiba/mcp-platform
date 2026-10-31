@@ -49,6 +49,8 @@ import { logRoutes } from './modules/activity/logRoutes.js';
 import { metricsRoutes } from './modules/activity/metrics.js';
 import { requestLogging } from './modules/activity/requestLogging.js';
 import { shareRoutes } from './modules/shares/routes.js';
+import { createRateLimits, rateLimitResponse, type RateLimits } from './rateLimits.js';
+import { RateLimitError } from './shared/rateLimit.js';
 
 export function createApp(deps: {
   db: Database;
@@ -56,8 +58,10 @@ export function createApp(deps: {
   config: Config;
   services: Services;
   connectorFiles?: ConnectorFiles;
+  rateLimits?: RateLimits;
 }) {
   const { db, auth, config, services: s } = deps;
+  const limits = deps.rateLimits ?? createRateLimits(config);
   const app = new Hono<ApiEnv>();
   app.route(
     '/_apps',
@@ -79,7 +83,7 @@ export function createApp(deps: {
     cors({
       origin: config.WEB_ORIGIN,
       credentials: true,
-      exposeHeaders: ['mcp-session-id', 'X-Content-SHA256', 'X-Call-Id'],
+      exposeHeaders: ['mcp-session-id', 'X-Content-SHA256', 'X-Call-Id', 'Retry-After'],
       allowHeaders: [
         'Idempotency-Key',
         'Content-Type',
@@ -92,7 +96,10 @@ export function createApp(deps: {
       allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     }),
   );
+  app.use('/mcp/*', limits.mcpAddress);
+  app.use('/api/v1/*', limits.authAddress);
   app.onError((error, c) => {
+    if (error instanceof RateLimitError) return rateLimitResponse(c, error);
     if (error instanceof ZodError)
       return c.json(
         {
@@ -121,7 +128,7 @@ export function createApp(deps: {
       const session = await auth.api.getSession({ headers: c.req.raw.headers });
       if (session) await activeUser(db, session.user.id);
     }
-    return auth.handler(c.req.raw);
+    return limits.authResponse(await auth.handler(limits.authRequest(c)));
   });
   app.route(
     '/api/v1/connector',
@@ -146,7 +153,9 @@ export function createApp(deps: {
   registerTransfers(app, deps);
   app.get('/mcp/:profileId/artifacts/:id', async (c) => {
     const profileId = paramId(c, 'profileId');
-    const principal = await s.profiles.authenticate(profileId, bearer(c.req.raw.headers));
+    const principal = limits.principal(
+      await s.profiles.authenticate(profileId, bearer(c.req.raw.headers)),
+    );
     return withExecution(
       {
         ownerId: principal.ownerId,
@@ -163,13 +172,21 @@ export function createApp(deps: {
       },
     );
   });
-  app.route('/mcp', restRoutes({ services: s, publicUrl: config.PUBLIC_URL }));
+  app.route(
+    '/mcp',
+    restRoutes({
+      services: s,
+      publicUrl: config.PUBLIC_URL,
+      authenticate: async (profileId, token) =>
+        limits.principal(await s.profiles.authenticate(profileId, token)),
+    }),
+  );
   app.all('/mcp/:profileId', async (c) => {
     const profileId = paramId(c, 'profileId');
     try {
       return await s.gateway.handle(
         c.req.raw,
-        await s.profiles.authenticate(profileId, bearer(c.req.raw.headers)),
+        limits.principal(await s.profiles.authenticate(profileId, bearer(c.req.raw.headers))),
       );
     } catch (error) {
       if (!(error instanceof AppError) || error.status !== 401) throw error;

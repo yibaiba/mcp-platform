@@ -87,6 +87,10 @@ stdio 的进程凭证通过 `env` 配置；上游 HTTP OAuth 端点不适用于 
 
 标准传输是 stdio 和 Streamable HTTP；HTTP+SSE 用于兼容旧版本。WebSocket、TCP 或 Unix socket 属于自定义传输，不能仅凭名称视为通用 MCP 兼容协议。参考 [MCP 传输规范](https://modelcontextprotocol.io/specification/latest/basic/transports)。
 
+## 限流
+
+MCP 入口 `/mcp/*` 按接入密钥或 OAuth 授权、按用户、按客户端地址计数；OAuth、CLI 登录、设备配对和 `/api/v1/auth/*`（读取会话除外）按客户端地址计数。超限返回 `429` 和 `Retry-After`（秒）。`POST/GET /mcp/:profileId` 返回 JSON-RPC 错误 `{"jsonrpc":"2.0","id":null,"error":{"code":-32000,"message":…,"data":{"code":"RATE_LIMITED","scope":"credential|user|ip","retryAfter":…,"limit":…}}}`；其他接口返回 `{ code: "RATE_LIMITED", error, message, scope, retryAfter }`。默认值和配置见[部署说明](deployment.md#请求限流)。
+
 ## OAuth
 
 发现端点 `/.well-known/oauth-authorization-server` 和 `/.well-known/oauth-protected-resource/mcp/:profileId`。Agent OAuth 支持 public client、PKCE S256、精确 redirect/resource 绑定、一次性授权码、access token 1 小时、refresh token 30 天及轮换；同一会话刷新后使用新 token。登录用户须显式同意指定配置，客户端注册不等于获得授权。

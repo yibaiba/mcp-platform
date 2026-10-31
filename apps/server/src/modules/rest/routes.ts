@@ -15,9 +15,17 @@ const responses = z.record(
     })
     .strict(),
 );
-export function restRoutes(deps: { services: Services; publicUrl: string }) {
+export function restRoutes(deps: {
+  services: Services;
+  publicUrl: string;
+  /** Edge authentication; the app adds per-credential and per-user rate limits here. */
+  authenticate?: (profileId: string, token: string) => Promise<Principal>;
+}) {
   const app = new Hono<ApiEnv>();
   const { profiles, rest } = deps.services;
+  const authenticate =
+    deps.authenticate ??
+    ((profileId: string, token: string) => profiles.authenticate(profileId, token));
   const context = <T>(c: Context<ApiEnv>, principal: Principal, action: () => T) =>
     rest.context(principal, action, c.req.header());
   app.use('*', async (c, next) => {
@@ -25,46 +33,31 @@ export function restRoutes(deps: { services: Services; publicUrl: string }) {
     await next();
   });
   app.get('/:profileId/openapi.json', async (c) => {
-    const principal = await profiles.authenticate(
-      paramId(c, 'profileId'),
-      bearer(c.req.raw.headers),
-    );
+    const principal = await authenticate(paramId(c, 'profileId'), bearer(c.req.raw.headers));
     return context(c, principal, async () =>
       c.json(await exportOpenApi(profiles, { ...principal, publicUrl: deps.publicUrl })),
     );
   });
   app.get('/:profileId/rest/search-index', async (c) => {
-    const principal = await profiles.authenticate(
-      paramId(c, 'profileId'),
-      bearer(c.req.raw.headers),
-    );
+    const principal = await authenticate(paramId(c, 'profileId'), bearer(c.req.raw.headers));
     return context(c, principal, async () =>
       c.json(await profiles.discovery.status(principal.ownerId, principal.profileId)),
     );
   });
   app.post('/:profileId/rest/search-index/rebuild', async (c) => {
-    const principal = await profiles.authenticate(
-      paramId(c, 'profileId'),
-      bearer(c.req.raw.headers),
-    );
+    const principal = await authenticate(paramId(c, 'profileId'), bearer(c.req.raw.headers));
     return context(c, principal, async () =>
       c.json(await profiles.discovery.rebuild(principal.ownerId, principal.profileId)),
     );
   });
   app.get('/:profileId/rest/tools', async (c) => {
-    const principal = await profiles.authenticate(
-      paramId(c, 'profileId'),
-      bearer(c.req.raw.headers),
-    );
+    const principal = await authenticate(paramId(c, 'profileId'), bearer(c.req.raw.headers));
     return context(c, principal, async () =>
       c.json(await profiles.searchCatalog(principal.ownerId, principal.profileId)),
     );
   });
   app.get('/:profileId/rest/tools/:toolId', async (c) => {
-    const principal = await profiles.authenticate(
-      paramId(c, 'profileId'),
-      bearer(c.req.raw.headers),
-    );
+    const principal = await authenticate(paramId(c, 'profileId'), bearer(c.req.raw.headers));
     return context(c, principal, async () => {
       const row = await profiles.tool(principal.ownerId, {
         profileId: principal.profileId,
@@ -75,10 +68,7 @@ export function restRoutes(deps: { services: Services; publicUrl: string }) {
     });
   });
   app.post('/:profileId/rest/tools/:toolId', async (c) => {
-    const principal = await profiles.authenticate(
-      paramId(c, 'profileId'),
-      bearer(c.req.raw.headers),
-    );
+    const principal = await authenticate(paramId(c, 'profileId'), bearer(c.req.raw.headers));
     const args = z.record(z.string(), z.unknown()).parse(await c.req.json());
     return context(c, principal, async () => {
       const result = await rest.start(principal, {
@@ -91,24 +81,15 @@ export function restRoutes(deps: { services: Services; publicUrl: string }) {
     });
   });
   app.get('/:profileId/rest/calls/:id', async (c) => {
-    const principal = await profiles.authenticate(
-      paramId(c, 'profileId'),
-      bearer(c.req.raw.headers),
-    );
+    const principal = await authenticate(paramId(c, 'profileId'), bearer(c.req.raw.headers));
     return context(c, principal, async () => c.json(await rest.status(principal, paramId(c))));
   });
   app.get('/:profileId/rest/calls/:id/result', async (c) => {
-    const principal = await profiles.authenticate(
-      paramId(c, 'profileId'),
-      bearer(c.req.raw.headers),
-    );
+    const principal = await authenticate(paramId(c, 'profileId'), bearer(c.req.raw.headers));
     return context(c, principal, async () => c.json(await rest.result(principal, paramId(c))));
   });
   app.post('/:profileId/rest/calls/:id/answer', async (c) => {
-    const principal = await profiles.authenticate(
-      paramId(c, 'profileId'),
-      bearer(c.req.raw.headers),
-    );
+    const principal = await authenticate(paramId(c, 'profileId'), bearer(c.req.raw.headers));
     const input = z
       .object({ interactionId: z.uuid(), responses })
       .strict()
@@ -120,10 +101,7 @@ export function restRoutes(deps: { services: Services; publicUrl: string }) {
     });
   });
   app.post('/:profileId/rest/calls/:id/cancel', async (c) => {
-    const principal = await profiles.authenticate(
-      paramId(c, 'profileId'),
-      bearer(c.req.raw.headers),
-    );
+    const principal = await authenticate(paramId(c, 'profileId'), bearer(c.req.raw.headers));
     return context(c, principal, async () => c.json(await rest.cancel(principal, paramId(c))));
   });
   return app;
