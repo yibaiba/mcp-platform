@@ -49,6 +49,10 @@ export const envSchema = z
     ),
     // Platform-host stdio (direct/Pi adapters spawning processes on the server) is admin-only and off by default.
     PLATFORM_STDIO_ENABLED: z.enum(['true', 'false']).default('false'),
+    // Optional bubblewrap sandbox for those processes; off keeps the previous behaviour exactly.
+    STDIO_SANDBOX: withDefault(z.enum(['off', 'bwrap']).default('off')),
+    // Absolute bwrap path; unset looks up `bwrap` on PATH.
+    STDIO_SANDBOX_BWRAP: z.string().optional(),
     // Only gates built-in agent tasks; MCP bridging loads independently on demand.
     PI_ENABLED: z.enum(['true', 'false']).default('false'),
     PI_MODEL_PROVIDER: z.string().optional(),

@@ -118,6 +118,19 @@ await services.logger.write({ level: 'info', event: 'server_started' });
 console.log(
   `MCP Platform listening on ${config.PORT}; Pi MCP bridge available; built-in agent tasks ${config.PI_ENABLED === 'true' ? 'enabled' : 'disabled'}`,
 );
+if (config.STDIO_SANDBOX !== 'off') {
+  // Report the sandbox state at boot so a missing or blocked bwrap is visible before the first
+  // stdio connection fails with STDIO_SANDBOX_UNAVAILABLE.
+  const sandbox = await services.sandbox.status();
+  if (sandbox.mode === 'bwrap' && sandbox.ready)
+    console.log(
+      `stdio sandbox: bubblewrap ${sandbox.version} ready (${sandbox.path}, /proc ${sandbox.proc})`,
+    );
+  else if (sandbox.mode === 'bwrap')
+    console.error(
+      `stdio sandbox: STDIO_SANDBOX=bwrap but unavailable: ${sandbox.error}. ${sandbox.hint}. Platform-host stdio connections will refuse to start until this is fixed.`,
+    );
+}
 async function shutdown() {
   await stopUpdates();
   await stopRetention();

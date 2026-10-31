@@ -246,7 +246,7 @@ export function createApp(deps: {
     await next();
   });
   app.route('/api/v1/cli', cliManagementRoutes(s.cliAuth));
-  app.get('/api/v1/me', (c) =>
+  app.get('/api/v1/me', async (c) =>
     c.json({
       userId: owner(c),
       role: c.get('role'),
@@ -254,6 +254,10 @@ export function createApp(deps: {
       hostStdioEnabled: config.PLATFORM_STDIO_ENABLED === 'true',
       // Effective permission: the deployment switch is on and this caller is an admin.
       hostStdio: config.PLATFORM_STDIO_ENABLED === 'true' && c.get('role') === 'admin',
+      // Admins see whether host stdio runs sandboxed and why a sandbox is not usable.
+      ...(config.PLATFORM_STDIO_ENABLED === 'true' && c.get('role') === 'admin'
+        ? { stdioSandbox: await s.sandbox.status() }
+        : {}),
       platformOrigin: new URL(config.PUBLIC_URL).origin,
     }),
   );

@@ -64,12 +64,19 @@ import { ActivityService } from './modules/activity/activityService.js';
 import { LogService } from './modules/activity/logService.js';
 import { databaseLogger } from './modules/activity/systemLogger.js';
 import { ShareService } from './modules/shares/shareService.js';
+import { StdioSandbox } from './modules/mcp/stdioSandbox.js';
+import { isHostStdio } from './modules/mcp/hostStdio.js';
 export function createServices(db: Database, config: Config) {
   const build = readBuildInfo(platformRoot);
   const protocolVersion = build.release ? build.version : `dev-${build.commit.slice(0, 8)}`;
   const metrics = new RuntimeMetrics();
   const vault = new Vault(config.ENCRYPTION_KEY);
   const logger = databaseLogger(db);
+  const sandbox = new StdioSandbox({
+    mode: config.STDIO_SANDBOX,
+    dataDir: config.DATA_DIR,
+    bwrap: config.STDIO_SANDBOX_BWRAP,
+  });
   const network = new NetworkService({
     db,
     vault,
@@ -173,7 +180,11 @@ export function createServices(db: Database, config: Config) {
         return createDeviceAdapter(context, broker, async (): Promise<Record<string, string>> => {
           return upstreamOAuth.headers(context);
         });
-      const runtimeConfig = await network.process(context.config);
+      const processed = await network.process(context.config);
+      // Platform-host stdio only (device stdio runs on the user's machine); identity when off.
+      const runtimeConfig = isHostStdio(context.config)
+        ? await sandbox.wrap(processed, context.runtimeKey ?? context.id)
+        : processed;
       const runtimeContext = { ...context, config: runtimeConfig };
       if (context.config.adapter === 'pi') return pi.bridge(runtimeContext);
       return createDirectAdapter(runtimeContext, upstreamOAuth.provider(context), {
@@ -334,6 +345,7 @@ export function createServices(db: Database, config: Config) {
     now: () => new Date(),
   });
   return {
+    sandbox,
     bundles: new BundleService({
       db,
       vault,
