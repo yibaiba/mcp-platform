@@ -26,3 +26,14 @@ export async function promoteFirstUser(
     return result.rows.length > 0;
   });
 }
+
+/** True once any account exists; until then the first sign-up is always allowed. */
+export async function hasUsers(db: NodePgDatabase<Record<string, unknown>>): Promise<boolean> {
+  const result = await db.execute(sql`select 1 from "user" limit 1`);
+  return result.rows.length > 0;
+}
+
+/** Removes an account created by a sign-up that closed registration refused after the fact. */
+export async function removeUser(db: NodePgDatabase<Record<string, unknown>>, userId: string) {
+  await db.execute(sql`delete from "user" where "id" = ${userId}`);
+}

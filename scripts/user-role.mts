@@ -1,13 +1,13 @@
 import { config } from 'dotenv';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { createDatabase, user } from '../packages/db/src/index.js';
+import { createDatabase, databaseUrl, user } from '../packages/db/src/index.js';
 
 config({ path: new URL('../.env', import.meta.url).pathname, quiet: true });
 const [email, role] = z
   .tuple([z.email(), z.enum(['admin', 'member'])])
   .parse(process.argv.slice(2));
-const { db, pool } = createDatabase(z.url().parse(process.env.DATABASE_URL));
+const { db, pool } = createDatabase(databaseUrl());
 try {
   const rows = await db
     .update(user)

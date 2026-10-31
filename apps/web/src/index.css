@@ -154,12 +154,12 @@ h3 {
   font-weight: 500;
 }
 p {
-  color: var(--muted-foreground);
+  color: var(--color-muted-foreground);
 }
 small,
 .label {
   display: block;
-  color: var(--muted-foreground);
+  color: var(--color-muted-foreground);
   font-size: var(--text-caption);
   line-height: 16px;
 }
@@ -199,7 +199,7 @@ code {
 }
 .brand b {
   font-weight: 400;
-  color: var(--muted-foreground);
+  color: var(--color-muted-foreground);
 }
 .avatar {
   width: 28px;
@@ -224,7 +224,7 @@ code {
   gap: 8px;
   min-height: 36px;
   padding: 8px 12px;
-  color: var(--muted-foreground);
+  color: var(--color-muted-foreground);
   border-radius: var(--radius-sm);
   font-size: var(--text-body);
 }
@@ -294,12 +294,12 @@ code {
   font-size: 11px;
 }
 .account > svg {
-  color: var(--muted-foreground);
+  color: var(--color-muted-foreground);
 }
 .menu-meta {
   margin-left: auto;
   padding-left: 12px;
-  color: var(--muted-foreground);
+  color: var(--color-muted-foreground);
   font-size: var(--text-caption);
 }
 .workspace-main {
@@ -347,7 +347,7 @@ code {
   border: 0;
   border-radius: 999px;
   background: none;
-  color: var(--muted-foreground);
+  color: var(--color-muted-foreground);
 }
 .info-tip:hover {
   color: var(--foreground);
@@ -417,7 +417,7 @@ code {
   align-items: center;
   gap: 4px;
   font-size: var(--text-caption);
-  color: var(--muted-foreground);
+  color: var(--color-muted-foreground);
 }
 .panel-heading a:hover {
   color: var(--primary);
@@ -459,7 +459,7 @@ code {
   height: 32px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  color: var(--muted-foreground);
+  color: var(--color-muted-foreground);
   background: var(--background);
   flex-shrink: 0;
 }
@@ -468,7 +468,7 @@ code {
   align-items: center;
   gap: 6px;
   font-size: var(--text-caption);
-  color: var(--muted-foreground);
+  color: var(--color-muted-foreground);
   white-space: nowrap;
 }
 .status-connected,
@@ -506,7 +506,7 @@ code {
   justify-content: center;
   flex-direction: column;
   gap: 8px;
-  color: var(--muted-foreground);
+  color: var(--color-muted-foreground);
   text-align: center;
 }
 .empty > svg {
@@ -529,7 +529,7 @@ code {
 .quiet-empty {
   padding: 32px 16px;
   text-align: center;
-  color: var(--muted-foreground);
+  color: var(--color-muted-foreground);
   font-size: var(--text-caption);
 }
 .form {
@@ -612,7 +612,7 @@ code {
 }
 summary {
   cursor: pointer;
-  color: var(--muted-foreground);
+  color: var(--color-muted-foreground);
   font-size: var(--text-caption);
 }
 details {
@@ -630,7 +630,7 @@ details .field {
   background: var(--card);
   padding: 0 12px;
   border-radius: var(--radius-sm);
-  color: var(--muted-foreground);
+  color: var(--color-muted-foreground);
 }
 .search input {
   border: 0;
@@ -677,7 +677,7 @@ fieldset {
 legend {
   padding: 0 4px;
   font-size: var(--text-caption);
-  color: var(--muted-foreground);
+  color: var(--color-muted-foreground);
 }
 .check-row {
   display: flex;
@@ -703,7 +703,7 @@ legend {
 .cancel-link {
   display: inline-block;
   margin: 16px;
-  color: var(--muted-foreground);
+  color: var(--color-muted-foreground);
 }
 .auth-screen {
   min-height: 100vh;
@@ -732,6 +732,10 @@ legend {
 .auth-card h1 {
   font-size: var(--text-number);
   line-height: 32px;
+}
+.auth-card > p {
+  margin-top: 8px;
+  color: var(--color-muted-foreground);
 }
 .auth-card .form {
   margin: 24px 0 8px;

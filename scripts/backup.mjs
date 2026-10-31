@@ -1,11 +1,20 @@
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, openSync, closeSync, chmodSync, readFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  closeSync,
+  chmodSync,
+  readFileSync,
+} from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'dotenv';
 const cwd = fileURLToPath(new URL('../', import.meta.url));
 if (!process.argv[2]) throw new Error('Usage: pnpm backup /absolute/new-backup-directory');
-const configuration = parse(readFileSync(resolve(cwd, '.env')));
+const envFile = resolve(cwd, '.env');
+const configuration = existsSync(envFile) ? parse(readFileSync(envFile)) : {};
 const databaseUrl = process.env.DATABASE_URL ?? configuration.DATABASE_URL;
 if (!databaseUrl) throw new Error('Set DATABASE_URL to the external PostgreSQL database');
 const connection = backupConnection(databaseUrl);
@@ -21,8 +30,10 @@ const compose = (args, extra = {}) =>
   });
 compose(['stop', 'server']);
 try {
-  copyFileSync(resolve(cwd, '.env'), resolve(destination, 'platform.env'));
-  chmodSync(resolve(destination, 'platform.env'), 0o600);
+  if (existsSync(envFile)) {
+    copyFileSync(envFile, resolve(destination, 'platform.env'));
+    chmodSync(resolve(destination, 'platform.env'), 0o600);
+  }
   const database = openSync(resolve(destination, 'database.dump'), 'wx', 0o600);
   try {
     execFileSync('pg_dump', ['--format=custom', '--dbname', connection.url], {
@@ -43,7 +54,7 @@ try {
     closeSync(files);
   }
   console.log(
-    'Backup complete. Keep platform.env private; it contains encryption keys, including the independent device authentication master key.',
+    'Backup complete. Keep platform.env and files.tar private: they hold the encryption keys (explicit ones in platform.env, generated ones under secrets/ in files.tar), including the independent device authentication master key.',
   );
 } finally {
   compose(['start', 'server']);

@@ -2,23 +2,59 @@
 
 ## 直接使用单端口镜像
 
-`docker-compose.yml` 是独立部署文件，包含应用和 PostgreSQL，没有 `build`。数据库与应用文件分别使用持久卷，PostgreSQL 不发布主机端口。下载该文件和 `.env.docker.example` 即可配置，无需下载应用源码或另行准备数据库。
-
-1. 将 `.env.docker.example` 复制为 `.env`，填写随机十六进制 `POSTGRES_PASSWORD`、`BETTER_AUTH_SECRET` 和 32 字节 Base64 `ENCRYPTION_KEY` 和独立的 `DEVICE_AUTH_ENCRYPTION_KEY`。镜像来自本仓库的 `ghcr.io/yibaiba/mcp-platform`，`PLATFORM_VERSION` 可使用已发布的 `latest` 或 `sha-<完整提交号>`。Compose 自动注入容器内部的 `DATABASE_URL`，无需手填。
-2. 将 `PUBLIC_URL` 和 `WEB_ORIGIN` 均设为实际访问地址，例如 `http://服务器IP:4300`，或 Nginx 提供的同一个 HTTPS 域名。
-3. 首次注册时临时启用 `ALLOW_REGISTRATION=true`，注册后关闭并重新创建应用容器。第一个注册的账号自动成为管理员；之后调整角色用“用户管理”或 `docker compose exec server pnpm user:role <邮箱> admin`。
+`docker-compose.yml` 是独立部署文件，包含应用和 PostgreSQL，没有 `build`。数据库与应用文件分别使用持久卷，PostgreSQL 不发布主机端口。只需下载这一个文件，不需要 `.env`、源码或另行准备数据库：
 
 ```sh
-docker compose -f docker-compose.yml pull
-docker compose -f docker-compose.yml up -d --wait db
-docker compose -f docker-compose.yml run --rm --no-deps server pnpm db:migrate
 docker compose -f docker-compose.yml up -d
+```
+
+然后打开 <http://localhost:4300>，页面直接显示“创建管理员账号”，第一个注册的账号自动成为管理员。之后的注册按 `ALLOW_REGISTRATION`（默认 `false`）处理；调整角色用“用户管理”或 `docker compose -f docker-compose.yml exec server pnpm user:role <邮箱> admin`。
+
+这条命令依次运行：
+
+1. `init`（一次性）：把数据库密码写入 `secrets` 卷的 `POSTGRES_PASSWORD` 文件（权限 0600）。显式设置的 `POSTGRES_PASSWORD` 优先，否则沿用已有文件，都没有才随机生成。
+2. `db`：PostgreSQL 通过 `POSTGRES_PASSWORD_FILE` 读取该密码。
+3. `migrate`（一次性）：执行数据库迁移，可重复执行。
+4. `server`：迁移成功后启动。没有设置的 `BETTER_AUTH_SECRET`、`ENCRYPTION_KEY`、`DEVICE_AUTH_ENCRYPTION_KEY`、`PI_MCP_ADAPTER_OAUTH_FILE_KEY` 在第一次启动时生成，保存在 `files` 卷的 `/app/.data/secrets/`（目录 0700，文件 0600），之后每次启动都读取同一份。详见下面的[密钥](#密钥)。
+
+从其他机器访问前，复制 `.env.docker.example` 为 `.env`，把 `PUBLIC_URL`（以及不同时的 `WEB_ORIGIN`）设为实际访问地址，例如 `http://服务器IP:4300` 或 Nginx 提供的 HTTPS 域名，再执行一次 `up -d`。未设置时默认 `http://localhost:4300`，启动日志会提示。镜像来自本仓库的 `ghcr.io/yibaiba/mcp-platform`，`PLATFORM_VERSION` 默认 `latest`；生产环境建议固定为 `sha-<完整提交号>` 或 Release 标签。
+
+```sh
 docker compose -f docker-compose.yml logs --tail=100 server
 ```
 
 网页、API、MCP、WebSocket 和 Apps 共用 4300。有 Nginx 时将全部路径代理至该端口，保留 Host 和 WebSocket Upgrade 并关闭流式响应缓冲，HTTPS 由自己的 Nginx 管理。Apps 使用不透明源沙箱，无需额外子域名或端口。私有镜像需先登录镜像仓库。
 
 本仓库同时保留 `compose.yaml`，Docker Compose 默认优先选取该文件，因此单端口镜像部署必须显式使用 `-f docker-compose.yml`，或设置 `COMPOSE_FILE=docker-compose.yml`。
+
+## 密钥
+
+平台有 4 把应用密钥，外加随附数据库的密码：
+
+| 变量                            | 用途                                                     | 自动生成格式    |
+| ------------------------------- | -------------------------------------------------------- | --------------- |
+| `BETTER_AUTH_SECRET`            | 登录会话签名，账号表里第三方 OAuth Token 的加密          | 32 字节十六进制 |
+| `ENCRYPTION_KEY`                | MCP 连接凭证、上游 OAuth Token、网络配置等加密保存的数据 | 32 字节 Base64  |
+| `DEVICE_AUTH_ENCRYPTION_KEY`    | 设备认证 HMAC 主密钥（独立于 `ENCRYPTION_KEY`）          | 32 字节 Base64  |
+| `PI_MCP_ADAPTER_OAUTH_FILE_KEY` | Pi 桥接 OAuth 文件加密                                   | 32 字节 Base64  |
+| `POSTGRES_PASSWORD`             | 仅 `docker-compose.yml`：随附 PostgreSQL 的密码          | 32 字节十六进制 |
+
+每把应用密钥按以下顺序取值：
+
+1. 环境变量（`.env`、Compose 或 secret manager）里有非空值时一律使用它，平台不会把它写到任何地方，也不会覆盖已有文件。
+2. 否则读取 `DATA_DIR/secrets/<变量名>`（Docker 里是 `/app/.data/secrets/`，在 `files` 卷里）。
+3. 两者都没有时随机生成，以 0600 权限独占创建该文件，并在日志里给出路径、提醒备份（日志不含密钥）。
+
+为保证升级不换钥，数据库表 `deployment_secrets` 记录每把密钥第一次使用时的指纹（加盐 SHA-256，不含密钥本身），每次启动都核对：
+
+- 已有部署升级：第一次启动只记录 `.env` 里现有密钥的指纹，不生成、不改动任何值。缺少某把核心密钥（前三把）而数据库里已有账号时拒绝启动，不会生成新值让会话失效或加密数据解不开；Pi 文件密钥只加密依赖它才能存在的文件，未使用过时可以补生成。
+- 数据库已经用过某把密钥，但环境变量和文件里都找不到（例如换了空数据卷）：拒绝启动并提示放回原值。
+- 取到的值和指纹不一致（`.env` 被改、数据卷被换，或多个实例各自生成了密钥）：拒绝启动并说明原因。
+- 写不了文件（数据目录只读、属主不对）：启动失败并提示“让 DATA_DIR 可写，或显式设置该变量”。
+- 多实例：所有实例必须使用同一组密钥。共享同一个 `DATA_DIR` 卷时，同时启动也会读到同一份（独占创建，后到者读取先到者写入的值）；不共享时请显式设置全部密钥，否则第二个实例会被指纹检查拦下。
+- 不希望自动生成（例如所有密钥都由 secret manager 注入）：设置 `AUTO_GENERATE_SECRETS=false`，缺少时直接报错。
+
+确实要放弃旧密钥（例如密钥已经遗失，接受对应加密数据无法恢复）时，先备份，再在数据库执行 `delete from deployment_secrets where name = '<变量名>';` 并提供新值。轮换不会重新加密已有数据。
 
 ## 请求限流
 
@@ -54,16 +90,16 @@ docker compose -f docker-compose.yml logs --tail=100 server
 
 默认单实例，没有 Redis、消息队列或多副本路由。MCP 会话和在线设备请求由服务进程维护；重启会中断请求并记录结果未知，不自动重放。
 
-1. 安装 Docker/Compose，准备容器可访问的 PostgreSQL 17 数据库。
-2. `cp .env.example .env`；设置外部 `DATABASE_URL`、随机 `BETTER_AUTH_SECRET` 和 32 字节 Base64 `ENCRYPTION_KEY` 和独立的 `DEVICE_AUTH_ENCRYPTION_KEY`。`PUBLIC_URL` 和 `WEB_ORIGIN` 都填写实际访问地址；直连使用 `http://服务器IP:4300`，Nginx 使用同一个 HTTPS 域名。数据库地址中的 `localhost` 指应用容器自身，用户名与密码中的特殊字符需 URL 编码。不要在仓库提交 `.env`。
-3. 首次临时启用 `ALLOW_REGISTRATION=true`，注册后关闭并重建 server 容器。第一个注册的账号自动成为管理员（已有用户的库不变）；之后用“用户管理”或 `pnpm user:role` 调整角色。
+1. 安装 Docker/Compose，准备容器可访问的 PostgreSQL 17 数据库（需要 pgvector）。
+2. 只需设置 `DATABASE_URL`，例如写入 `.env`：`DATABASE_URL=postgresql://用户:密码@主机:5432/库名`。数据库地址中的 `localhost` 指应用容器自身，用户名与密码中的特殊字符需 URL 编码。不要在仓库提交 `.env`。
+3. 启动后打开页面创建第一个账号（自动成为管理员）。从其他机器访问前设置 `PUBLIC_URL`（`WEB_ORIGIN` 默认与它相同）；密钥规则同[上文](#密钥)，生成的密钥在 `files` 卷的 `/app/.data/secrets/`。
 
 ```sh
-docker compose -f compose.yaml build
-docker compose -f compose.yaml run --rm --no-deps server pnpm db:migrate
-docker compose -f compose.yaml up -d
+docker compose -f compose.yaml up -d --build
 docker compose -f compose.yaml logs --tail=100 server
 ```
+
+`migrate` 服务在 server 启动前执行迁移。不用 Docker 时：`pnpm db:migrate`，然后 `NODE_ENV=production pnpm start`，同样只需要 `DATABASE_URL`。
 
 `/health` 会检查数据库。应用只监听 4300，产物与 Pi 会话保存在文件卷。设备连接器在实际设备运行，不在服务器容器中启动桌面软件。镜像内包含由本仓库 Go 源码构建的六种系统与架构的安装文件。
 
@@ -82,11 +118,19 @@ node scripts/check.mjs 900 docker build --target app -t mcp-platform:local .
 node scripts/check.mjs 600 node scripts/verify-compose.mjs
 ```
 
-验收直接使用 `docker-compose.yml`，以独立项目、随机凭证和新卷启动应用与数据库，仅在回环地址发布临时应用端口 54330。检查镜像源码、禁网 pnpm、新库与重复迁移、网页与资源、认证/API、六种连接器下载，并实际运行本机对应的 Go 连接器检查同端口 WebSocket 上线和撤销。另检查 Apps 一次性文档和 CSP、真实无模型 Pi 桥接，结束后清理本次资源。可通过 `PLATFORM_TEST_IMAGE` 指定另一个由当前源码构建的本地标签。该检查需要支持 `!override` 的 Compose；真实浏览器和公网 Nginx/HTTPS 需分别验证，见[测试说明](testing.md)。
+验收直接使用 `docker-compose.yml`。先以零配置（没有 `.env`、没有任何密钥、不设 `ALLOW_REGISTRATION`）在回环地址 4300 一条 `up -d` 启动，检查第一个账号注册为管理员、第二个账号被拒、生成的密钥文件为 0600 且属于 node、`down` 后再 `up -d` 会话仍然有效；再以独立项目、全部显式随机凭证和新卷启动，仅在回环地址发布临时应用端口 54330，并确认显式密钥没有写入数据卷。检查镜像源码、禁网 pnpm、新库与重复迁移、网页与资源、认证/API、六种连接器下载，并实际运行本机对应的 Go 连接器检查同端口 WebSocket 上线和撤销。另检查 Apps 一次性文档和 CSP、真实无模型 Pi 桥接，结束后清理本次资源。可通过 `PLATFORM_TEST_IMAGE` 指定另一个由当前源码构建的本地标签。该检查需要支持 `!override` 的 Compose；真实浏览器和公网 Nginx/HTTPS 需分别验证，见[测试说明](testing.md)。
 
 ## 升级与回退
 
 应用迁移前先停止服务并备份数据库、整个 DATA_DIR、应用、设备认证与 Pi 加密密钥。0003/0004 增加授权绑定、目录快照和加密交互状态；0005/0006 增加工作空间修订、任务事件、权限申请、临时授权、身份指纹与交接。旧 Profile 省略新增字段时保留已有值。本轮 `0007` 升级设备 HMAC，旧 Token 通道不再接受认证；必须同时升级 Go 连接器并逐台重新配对，保留设备 ID 与连接引用。`0008`/`0009` 增加声明模板、发现和 REST 持久化。Windows stdio host 与连接器必须使用相同版本。
+
+### 从需要手填密钥的版本升级
+
+- 保留现有 `.env`，不要删除其中的 `POSTGRES_PASSWORD`、`BETTER_AUTH_SECRET`、`ENCRYPTION_KEY`、`DEVICE_AUTH_ENCRYPTION_KEY`。显式值永远优先；`0025` 迁移新增 `deployment_secrets`，升级后第一次启动只记录这些值的指纹。
+- `docker-compose.yml` 改为 `docker compose -f docker-compose.yml up -d` 一条命令：新增一次性的 `init`、`migrate` 服务和 `secrets` 卷，数据库改用 `POSTGRES_PASSWORD_FILE`（`init` 会把 `.env` 里的 `POSTGRES_PASSWORD` 写进去）。PostgreSQL 只在数据卷第一次创建时使用密码，已有数据卷不受影响。
+- 之前没设置 `PI_MCP_ADAPTER_OAUTH_FILE_KEY` 的部署会自动生成一把并保存在文件卷里；之前设置过的继续用原值。
+- `ALLOW_REGISTRATION=false` 时，空数据库的第一个注册不再被拒绝（用于创建管理员）；已有账号的部署不受影响。
+- 自定义 Compose 或编排文件：如果在 server 启动前没有执行迁移，启动会提示先运行 `pnpm db:migrate`。
 
 运行中的工具、交互和 App 不支持跨重启恢复；升级后明确中断，禁止通过重新派发恢复。任务快照与输出检查点可查看，任务临时授权随中断任务失效；外部凭证临时授权保留至原截止时间。回退旧程序时恢复升级前数据库、持久目录及原加密密钥，不假设旧程序能读取新授权数据。升级前应在隔离环境中验证新库迁移、旧库备份恢复后升级及重复迁移，并检查原有 Profile 授权保持一致。
 
@@ -107,17 +151,17 @@ umask 077
 docker compose -f docker-compose.yml stop server
 docker compose -f docker-compose.yml exec -T db pg_dump -U platform -d platform -Fc > /backup/database.dump
 docker compose -f docker-compose.yml run --rm --no-deps -T server tar -C /app/.data -cf - . > /backup/files.tar
-cp .env /backup/platform.env
+[ -f .env ] && cp .env /backup/platform.env
 docker compose -f docker-compose.yml start server
 ```
 
 逐条检查退出码；任何步骤失败都不能报告备份成功，并在维护结束时恢复应用。
 
-`platform.env` 含数据库与加密密钥，必须私密保存；没有原 `ENCRYPTION_KEY` 不能解密 MCP/OAuth 凭证。设备密钥依赖原 `DEVICE_AUTH_ENCRYPTION_KEY`；独立保护并另行备份该主密钥，遗失后无法认证现有设备，须逐台重配。Pi 凭证还依赖原 Pi 文件密钥。备份文件不要上传到公开仓库。
+`platform.env`（显式设置的密钥）和 `files.tar`（其中 `secrets/` 是自动生成的密钥）都必须私密保存；没有原 `ENCRYPTION_KEY` 不能解密 MCP/OAuth 凭证。设备密钥依赖原 `DEVICE_AUTH_ENCRYPTION_KEY`；独立保护并另行备份该主密钥，遗失后无法认证现有设备，须逐台重配。Pi 凭证还依赖原 Pi 文件密钥。备份文件不要上传到公开仓库。
 
 ## 恢复到新的空部署
 
-先保留旧部署，使用新的 Compose 项目名或新主机；下面命令只针对空库与空文件卷。复制备份 `platform.env` 为新目录 `.env`，调整域名后使用相同密钥，完成镜像构建或拉取。
+先保留旧部署，使用新的 Compose 项目名或新主机；下面命令只针对空库与空文件卷。有 `platform.env` 时复制为新目录 `.env`，调整域名后使用相同密钥，完成镜像构建或拉取。自动生成的密钥随 `files.tar` 恢复；必须在 server 第一次启动之前恢复文件卷，否则新部署会先生成另一组密钥（之后恢复文件卷会覆盖它们，数据库指纹也随备份恢复，仍可正常启动）。
 
 源码构建部署需要预先创建外部空数据库并设置其 `DATABASE_URL`。在主机配置与目标库匹配的 `PGHOST`、`PGPORT`、`PGUSER` 和 `.pgpass`，将下面 `platform` 替换为目标数据库名；[pg_restore](https://www.postgresql.org/docs/17/app-pgrestore.html) 使用 `--dbname` 指定恢复目标。
 
@@ -131,7 +175,8 @@ docker compose -f compose.yaml up -d
 单端口镜像部署通过随附的数据库容器恢复：
 
 ```sh
-docker compose -f docker-compose.yml up -d --wait db
+docker compose -f docker-compose.yml up -d db
+until docker compose -f docker-compose.yml exec -T db pg_isready -U platform -d platform; do sleep 2; done
 docker compose -f docker-compose.yml exec -T db pg_restore -U platform -d platform --exit-on-error < /backup/database.dump
 docker compose -f docker-compose.yml run --rm --no-deps -T server tar -C /app/.data -xf - < /backup/files.tar
 docker compose -f docker-compose.yml run --rm --no-deps server pnpm db:migrate

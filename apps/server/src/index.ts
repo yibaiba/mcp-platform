@@ -6,7 +6,6 @@ import {
   calls,
   connections,
   connectionShares,
-  createDatabase,
   transfers,
   configManifests,
   user,
@@ -14,7 +13,8 @@ import {
 import { and, eq, inArray } from 'drizzle-orm';
 import type { Server } from 'node:http';
 import { resolve } from 'node:path';
-import { envSchema, platformRoot } from './config.js';
+import { platformRoot } from './config.js';
+import { loadConfig } from './bootstrap.js';
 import { createServices } from './services.js';
 import { createApp } from './app.js';
 import { attachDeviceSocket } from './deviceSocket.js';
@@ -24,9 +24,10 @@ import { applyStartupManifest } from './modules/configuration/startup.js';
 import { startManifestReconciliation } from './modules/configuration/lifecycle.js';
 import { startRetention } from './modules/activity/retention.js';
 loadEnv({ path: resolve(platformRoot, '.env') });
-const parsedConfig = envSchema.parse(process.env);
-const config = { ...parsedConfig, DATA_DIR: resolve(platformRoot, parsedConfig.DATA_DIR) };
-const { db, pool } = createDatabase(config.DATABASE_URL);
+const { config, db, pool } = await loadConfig().catch((error: unknown) => {
+  console.error(error instanceof Error && error.name === 'SecretError' ? error.message : error);
+  process.exit(1);
+});
 const auth = createAuth({
   db,
   baseURL: config.PUBLIC_URL,

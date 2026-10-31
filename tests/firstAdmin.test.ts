@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { afterAll, expect, test } from 'vitest';
-import { asc } from 'drizzle-orm';
-import { createDatabase, promoteFirstUser, user } from '../packages/db/src/index.js';
+import { asc, sql } from 'drizzle-orm';
+import { createDatabase, hasUsers, promoteFirstUser, user } from '../packages/db/src/index.js';
 import { createAuth } from '../packages/auth/src/index.js';
 
 /**
@@ -24,6 +24,11 @@ async function deployment(options: { registration?: boolean } = {}) {
   for (const table of ['user', 'session', 'account', 'verification'])
     await admin.pool.query(
       `create table "${schema}"."${table}" (like public."${table}" including all)`,
+    );
+  // LIKE does not copy foreign keys; restore the real cascades so removals behave as in production.
+  for (const table of ['session', 'account'])
+    await admin.pool.query(
+      `alter table "${schema}"."${table}" add foreign key ("user_id") references "${schema}"."user"("id") on delete cascade`,
     );
   const separator = url!.includes('?') ? '&' : '?';
   const { db, pool } = createDatabase(
@@ -138,9 +143,40 @@ test('a deployment that already has users never promotes or demotes anyone', asy
   ]);
 });
 
-test('closed registration stays closed on an empty deployment', async () => {
+test('closed registration still lets the first account of an empty deployment in, as admin', async () => {
   const d = await deployment({ registration: false });
-  const attempt = await d.signup();
-  expect(attempt.status).not.toBe(200);
-  expect(await d.roles()).toEqual([]);
+  expect(await hasUsers(d.db)).toBe(false);
+  const first = await d.signup();
+  expect(first.status).toBe(200);
+  expect(await hasUsers(d.db)).toBe(true);
+  // The second account is governed by ALLOW_REGISTRATION again.
+  const second = await d.signup();
+  expect(second.status).toBe(403);
+  expect((await d.roles()).map((row) => [row.id, row.role])).toEqual([[first.id, 'admin']]);
+});
+
+test('closed registration: concurrent first sign-ups keep exactly one account, the admin', async () => {
+  for (let round = 0; round < 3; round += 1) {
+    const d = await deployment({ registration: false });
+    const results = await Promise.all(Array.from({ length: 8 }, () => d.signup()));
+    const accepted = results.filter((result) => result.status === 200);
+    expect(accepted).toHaveLength(1);
+    expect(results.filter((result) => result.status === 403)).toHaveLength(7);
+    expect((await d.roles()).map((row) => [row.id, row.role])).toEqual([
+      [accepted[0]!.id, 'admin'],
+    ]);
+    // Refused sign-ups leave nothing behind: one credential account, sessions only for it.
+    const leftovers = await d.db.execute<{ accounts: number; sessions: number }>(
+      sql`select (select count(*)::int from account) as accounts, (select count(*)::int from session where user_id <> ${accepted[0]!.id}) as sessions`,
+    );
+    expect(leftovers.rows[0]).toEqual({ accounts: 1, sessions: 0 });
+  }
+});
+
+test('closed registration on an upgraded deployment with users refuses every sign-up', async () => {
+  const d = await deployment({ registration: false });
+  const old = randomUUID();
+  await d.db.insert(user).values({ id: old, name: 'Existing', email: `${old}@example.test` });
+  expect((await d.signup()).status).toBe(403);
+  expect((await d.roles()).map((row) => [row.id, row.role])).toEqual([[old, 'member']]);
 });
