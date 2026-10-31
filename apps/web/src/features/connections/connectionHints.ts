@@ -31,6 +31,9 @@ export function connectionLocation(
 export function connectionNextStep(connection: Target, error?: string | null, code?: string) {
   // Server messages for an offline device already name the device and the fix.
   if (error?.includes('重新运行安装命令')) return '';
+  // Sandbox refusals (STDIO_SANDBOX_UNAVAILABLE) already say what is missing and how to fix it;
+  // the generic "command not found" hint would point at the wrong program.
+  if (/STDIO_SANDBOX/.test(`${code ?? ''} ${error ?? ''}`)) return '';
   const text = `${code ?? ''} ${error ?? ''}`;
   if (
     connection.status === 'waiting_authorization' ||

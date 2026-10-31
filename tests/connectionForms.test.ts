@@ -86,6 +86,13 @@ test('the next step matches the failure instead of always blaming address, netwo
     '这台电脑访问不到',
   );
   expect(connectionNextStep(http, 'HTTP 401 Unauthorized')).toContain('凭据');
+  // A sandbox refusal carries its own fix; no misleading "command not found" hint is added.
+  expect(
+    connectionNextStep(
+      { ...stdio, adapter: 'direct', deviceId: undefined },
+      '已开启 stdio 沙箱（STDIO_SANDBOX=bwrap），但平台服务所在的机器上找不到 bwrap。',
+    ),
+  ).toBe('');
   expect(connectionNextStep({ ...http, status: 'waiting_authorization' }, 'x')).toContain(
     '授权与账号',
   );
