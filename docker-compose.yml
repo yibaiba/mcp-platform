@@ -60,6 +60,8 @@ services:
       DEVICE_AUTH_ENCRYPTION_KEY: ${DEVICE_AUTH_ENCRYPTION_KEY:-}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       AUTO_GENERATE_SECRETS: ${AUTO_GENERATE_SECRETS:-}
+      # Startup also migrates (same lock as `migrate`, a no-op after it); false skips that.
+      AUTO_MIGRATE: ${AUTO_MIGRATE:-}
       CONFIG_MANIFEST_FILE: ${CONFIG_MANIFEST_FILE:-}
       CONFIG_MANIFEST_OWNER: ${CONFIG_MANIFEST_OWNER:-}
       AUTH_PROVIDERS: ${AUTH_PROVIDERS:-}

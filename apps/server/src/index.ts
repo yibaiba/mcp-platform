@@ -9,6 +9,8 @@ import {
   transfers,
   configManifests,
   user,
+  describeMigrationFailure,
+  MigrationError,
 } from '@platform/db';
 import { and, eq, inArray } from 'drizzle-orm';
 import type { Server } from 'node:http';
@@ -25,7 +27,13 @@ import { startManifestReconciliation } from './modules/configuration/lifecycle.j
 import { startRetention } from './modules/activity/retention.js';
 loadEnv({ path: resolve(platformRoot, '.env') });
 const { config, db, pool } = await loadConfig().catch((error: unknown) => {
-  console.error(error instanceof Error && error.name === 'SecretError' ? error.message : error);
+  console.error(
+    error instanceof MigrationError
+      ? describeMigrationFailure(error, 'startup')
+      : error instanceof Error && error.name === 'SecretError'
+        ? error.message
+        : error,
+  );
   process.exit(1);
 });
 const auth = createAuth({

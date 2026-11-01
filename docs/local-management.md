@@ -68,7 +68,7 @@ Skill 根目录符号链接显示真实目标，编辑作用于该目标；Skill
 
 本机 `/local-api/v1/session` 交换一次性令牌 / 读取会话，`POST /local-api/v1/request` 执行共享用例。它只监听 loopback，并校验 Host、Origin、SameSite 会话与 CSRF；平台管理登录不能替代本机会话。`backup`、`restore`、`identity.bind` 只允许本机页。所有写操作要求预期修订与幂等键，文件编辑还要求 `expectedDigest`。扫描和运行操作返回操作 ID，通过 `operation` 或同步记录查看进度；不占用业务调用等待流程。
 
-平台迁移 `0018` 增加 `local_sources`、`local_bindings`、`local_operations`。升级前备份平台数据库和设备本机目录；执行 `pnpm db:migrate`，更新连接器。旧连接器原能力仍可用，打开本机管理会明确提示缺少 `local-management` 能力并要求升级。
+平台迁移 `0018` 增加 `local_sources`、`local_bindings`、`local_operations`。升级前备份平台数据库和设备本机目录；重启服务时自动迁移（设置了 `AUTO_MIGRATE=false` 时手动执行 `pnpm db:migrate`），更新连接器。旧连接器原能力仍可用，打开本机管理会明确提示缺少 `local-management` 能力并要求升级。
 
 ## 备份与恢复
 

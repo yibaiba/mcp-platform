@@ -18,10 +18,11 @@ cp .env.example .env
 `.env` 里只需要填写真实的 `DATABASE_URL`。`BETTER_AUTH_SECRET`、`ENCRYPTION_KEY`、`DEVICE_AUTH_ENCRYPTION_KEY` 和 `PI_MCP_ADAPTER_OAUTH_FILE_KEY` 留空时，第一次启动会随机生成并保存在 `DATA_DIR/secrets/`（权限 0600），之后一直沿用；已经填写的值永远优先，不会被覆盖。请把这个目录和数据库一起备份，规则见[部署说明](docs/deployment.md#密钥)。空数据库的第一个注册总是放行（即使 `ALLOW_REGISTRATION=false`），这个账号自动成为管理员（已有用户的部署升级后不改动任何角色）；之后的注册按 `ALLOW_REGISTRATION` 处理，之后的账号是普通用户，可由管理员在“用户管理”里调整，或在服务器上用 `pnpm user:role <邮箱> admin|member` 修改。不会生成默认管理员或共享密码。规则见 [用户与角色](docs/users-and-observability.md#第一个账号自动成为管理员)。
 
 ```sh
-pnpm db:migrate
 pnpm connector:build # 平台管理员构建六种设备安装包；需要 Go 1.27.3+
 pnpm dev
 ```
+
+`pnpm dev`、`pnpm start` 启动时会自动把数据库迁移到当前版本（多个实例同时启动只会有一个执行，迁移失败则拒绝启动并说明原因）；设置 `AUTO_MIGRATE=false` 可关闭，改为手动执行 `pnpm db:migrate`。详见[部署说明](docs/deployment.md#启动时自动迁移)。
 
 开发管理界面 <http://localhost:4301>，API 和 Apps 资源 <http://localhost:4300>；Apps 使用 `/_apps/*` 路由。在“连接”页点“添加连接”：选内置服务，或在“自定义”里填写远程地址或本地命令，点“保存并连接”后直接读取工具列表；需要时在“更多操作”里刷新工具列表，再到“工具”页实际调用。页面的“使用指南”提供从服务授权、Agent 权限到客户端配置的完整入口，详见[首次接入说明](docs/getting-started.md)；用词见[术语表](docs/glossary.md)。也可在“导入”里读取 OpenAPI 文档，预览并选择要发布的操作。本地命令（stdio）在连接的运行位置上执行：运行位置选“平台服务器”（含 Pi 桥接）时在平台服务器上运行（Docker 部署时是 server 容器），选“我的设备”时在所选设备上通过设备连接器运行。
 

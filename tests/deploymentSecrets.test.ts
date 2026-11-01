@@ -374,14 +374,16 @@ describe('loadConfig against PostgreSQL', () => {
     await admin.pool.query(`create schema "${schema}"`);
     await admin.pool.query(`create table "${schema}"."user" (like public."user" including all)`);
     const separator = url.includes('?') ? '&' : '?';
+    const env = {
+      DATABASE_URL: `${url}${separator}options=${encodeURIComponent(`-c search_path=${schema}`)}`,
+      DATA_DIR: await dataDir(),
+    };
     await expect(
-      loadConfig({
-        env: {
-          DATABASE_URL: `${url}${separator}options=${encodeURIComponent(`-c search_path=${schema}`)}`,
-          DATA_DIR: await dataDir(),
-        },
-        log: quiet,
-      }),
-    ).rejects.toThrow(/请先运行 pnpm db:migrate/);
+      loadConfig({ env: { ...env, AUTO_MIGRATE: 'false' }, log: quiet }),
+    ).rejects.toThrow(/AUTO_MIGRATE=false 关闭了启动时自动迁移。请运行 pnpm db:migrate/);
+    // Automatic migration on: the bookkeeping says current, so the gap is the target itself.
+    await expect(loadConfig({ env, log: quiet })).rejects.toThrow(
+      /迁移记录（drizzle.__drizzle_migrations）显示已是最新。请确认 DATABASE_URL 指向正确的数据库和 schema/,
+    );
   });
 });
