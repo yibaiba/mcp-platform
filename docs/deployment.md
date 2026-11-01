@@ -14,7 +14,7 @@ docker compose -f docker-compose.yml up -d
 
 1. `init`（一次性）：把数据库密码写入 `secrets` 卷的 `POSTGRES_PASSWORD` 文件（权限 0600）。显式设置的 `POSTGRES_PASSWORD` 优先，否则沿用已有文件，都没有才随机生成。
 2. `db`：PostgreSQL 通过 `POSTGRES_PASSWORD_FILE` 读取该密码。
-3. `migrate`（一次性）：执行数据库迁移，可重复执行。
+3. `migrate`（一次性）：执行数据库迁移，可重复执行。server 启动时也会检查并自动迁移（[启动时自动迁移](#启动时自动迁移)），两者用同一把锁，重复执行时已应用的迁移直接跳过。
 4. `server`：迁移成功后启动。没有设置的 `BETTER_AUTH_SECRET`、`ENCRYPTION_KEY`、`DEVICE_AUTH_ENCRYPTION_KEY`、`PI_MCP_ADAPTER_OAUTH_FILE_KEY` 在第一次启动时生成，保存在 `files` 卷的 `/app/.data/secrets/`（目录 0700，文件 0600），之后每次启动都读取同一份。详见下面的[密钥](#密钥)。
 
 从其他机器访问前，复制 `.env.docker.example` 为 `.env`，把 `PUBLIC_URL`（以及不同时的 `WEB_ORIGIN`）设为实际访问地址，例如 `http://服务器IP:4300` 或 Nginx 提供的 HTTPS 域名，再执行一次 `up -d`。未设置时默认 `http://localhost:4300`，启动日志会提示。镜像来自本仓库的 `ghcr.io/yibaiba/mcp-platform`，`PLATFORM_VERSION` 默认 `latest`；生产环境建议固定为 `sha-<完整提交号>` 或 Release 标签。
@@ -101,7 +101,29 @@ docker compose -f compose.yaml up -d --build
 docker compose -f compose.yaml logs --tail=100 server
 ```
 
-`migrate` 服务在 server 启动前执行迁移。不用 Docker 时：`pnpm db:migrate`，然后 `NODE_ENV=production pnpm start`，同样只需要 `DATABASE_URL`。
+`migrate` 服务在 server 启动前执行迁移。不用 Docker 时直接 `NODE_ENV=production pnpm start`，同样只需要 `DATABASE_URL`，启动时会自动迁移。
+
+## 启动时自动迁移
+
+`pnpm start`（含 `NODE_ENV=production pnpm start`）和 `pnpm dev` 在读取密钥、监听端口之前，先把数据库迁移到当前版本，不需要再单独执行 `pnpm db:migrate`。做法和 MCPHub 一样在应用启动时处理数据库结构，区别是这里执行的是仓库里的版本化迁移文件（`packages/db/migrations`），不会根据代码自动改表。
+
+- **多实例同时启动**：迁移在 PostgreSQL 会话级 advisory lock（固定 key `7263660010`，按数据库区分）里执行。先拿到锁的实例执行迁移，其余实例在日志里打印“另一个实例正在执行数据库迁移，等待它完成…”，等锁释放后发现已是最新，直接继续启动。持锁进程意外退出时连接断开，锁随之释放。
+- **迁移失败就拒绝启动**：本次要应用的迁移在同一个事务里执行，任何一条失败都会全部回滚，数据库停在原来的版本；进程以非 0 退出，报错写明失败的迁移文件、第几条语句、PostgreSQL 的原因和 SQLSTATE，以及怎么处理。报错不包含数据库密码（连接串里的密码会被替换成 `***`）。例如：
+
+  ```text
+  数据库迁移失败，服务没有启动。
+    失败的迁移：0027_example（第 2 条语句）
+    原因：relation "no_such_table" does not exist（SQLSTATE 42P01）
+    本次要应用的迁移已全部回滚，数据库仍停在 0026_team_shares。
+  处理：
+    1. 按上面的原因修复（数据库权限、扩展如 pgvector、冲突的数据或表），必要时先备份数据库；
+    2. 重新启动服务会再次自动迁移；也可以先手动运行 pnpm db:migrate 确认已经修好；
+    3. 如果迁移由外部流程负责（例如 Docker Compose 的 migrate 服务或发布流水线），可设置 AUTO_MIGRATE=false 跳过启动时迁移。
+  ```
+
+- **和 `pnpm db:migrate`、Compose 的 `migrate` 服务兼容**：它们使用同一个迁移程序和同一把锁，记录仍写在 `drizzle.__drizzle_migrations`（格式与之前的 drizzle 迁移器相同，已有数据库不需要任何处理）。先后或同时执行都安全，已应用的迁移会跳过。
+- **关闭**：设置 `AUTO_MIGRATE=false`（默认开启）后启动时不再迁移，由你在升级时执行 `pnpm db:migrate`（或 Compose 的 `migrate` 服务）。这时如果数据库还没迁移，启动会拒绝并提示执行 `pnpm db:migrate` 或去掉 `AUTO_MIGRATE=false`。适合数据库账号没有建表权限、或要求迁移在发布流水线里单独审核执行的环境。
+- 升级前照旧先备份数据库和 `DATA_DIR`：自动迁移只是省掉手动那一步，不会自动备份。
 
 `/health` 会检查数据库。应用只监听 4300，产物与 Pi 会话保存在文件卷。设备连接器在实际设备运行，不在服务器容器中启动桌面软件。镜像内包含由本仓库 Go 源码构建的六种系统与架构的安装文件。
 
@@ -175,7 +197,7 @@ node scripts/check.mjs 600 node scripts/verify-compose.mjs
 - `docker-compose.yml` 改为 `docker compose -f docker-compose.yml up -d` 一条命令：新增一次性的 `init`、`migrate` 服务和 `secrets` 卷，数据库改用 `POSTGRES_PASSWORD_FILE`（`init` 会把 `.env` 里的 `POSTGRES_PASSWORD` 写进去）。PostgreSQL 只在数据卷第一次创建时使用密码，已有数据卷不受影响。
 - 之前没设置 `PI_MCP_ADAPTER_OAUTH_FILE_KEY` 的部署会自动生成一把并保存在文件卷里；之前设置过的继续用原值。
 - `ALLOW_REGISTRATION=false` 时，空数据库的第一个注册不再被拒绝（用于创建管理员）；已有账号的部署不受影响。
-- 自定义 Compose 或编排文件：如果在 server 启动前没有执行迁移，启动会提示先运行 `pnpm db:migrate`。
+- 自定义 Compose 或编排文件：server 启动时会自动迁移，不再需要在它之前单独执行迁移；设置了 `AUTO_MIGRATE=false` 而没有执行迁移时，启动会提示运行 `pnpm db:migrate`。
 
 运行中的工具、交互和 App 不支持跨重启恢复；升级后明确中断，禁止通过重新派发恢复。任务快照与输出检查点可查看，任务临时授权随中断任务失效；外部凭证临时授权保留至原截止时间。回退旧程序时恢复升级前数据库、持久目录及原加密密钥，不假设旧程序能读取新授权数据。升级前应在隔离环境中验证新库迁移、旧库备份恢复后升级及重复迁移，并检查原有 Profile 授权保持一致。
 

@@ -10,7 +10,7 @@ Docker 一条命令即可启动，不需要手填密钥或数据库密码：
 docker compose -f docker-compose.yml up -d
 ```
 
-不用 Docker 时只需要一个数据库地址：`.env` 写 `DATABASE_URL`，然后 `pnpm db:migrate` 和 `NODE_ENV=production pnpm start`。缺少的密钥在第一次启动时自动生成并保存在 `DATA_DIR/secrets/`，已经填写的值不会被覆盖；请和数据库一起备份。从其他机器访问前设置 `PUBLIC_URL`。详见[部署说明](deployment.md)。
+不用 Docker 时只需要一个数据库地址：`.env` 写 `DATABASE_URL`，然后 `NODE_ENV=production pnpm start`，启动时会自动执行数据库迁移（[启动时自动迁移](deployment.md#启动时自动迁移)）。缺少的密钥在第一次启动时自动生成并保存在 `DATA_DIR/secrets/`，已经填写的值不会被覆盖；请和数据库一起备份。从其他机器访问前设置 `PUBLIC_URL`。详见[部署说明](deployment.md)。
 
 打开平台页面，全新部署会直接显示“创建管理员账号”：即使 `ALLOW_REGISTRATION=false`，第一个账号也总能注册，并自动成为管理员。之后的注册按 `ALLOW_REGISTRATION` 处理，之后注册的账号是普通用户；自己的角色显示在左下角账号菜单和“个人账号”页。
 

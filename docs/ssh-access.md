@@ -59,6 +59,6 @@ SSH 接入只由所属账号查看、编辑、删除和下载。共享 MCP 的�
 
 账号管理凭证保护 `/api/v1/ssh-accesses`：GET 列表、POST 创建、PUT `/:id` 更新（必须携带 `revision`）、DELETE `/:id` 删除（JSON `{revision}`）、GET `/:id/windows-bundle` 下载。跨账号请求按不存在处理，冲突不泄露另一账号信息。
 
-迁移 `0019` 新增 `ssh_accesses` 和 `ssh_bindings`，不修改旧设备配对。升级前备份数据库、数据卷、加密密钥；执行 `pnpm db:migrate`。回退恢复匹配版本备份。
+迁移 `0019` 新增 `ssh_accesses` 和 `ssh_bindings`，不修改旧设备配对。升级前备份数据库、数据卷、加密密钥；重启服务时自动迁移（设置了 `AUTO_MIGRATE=false` 时手动执行 `pnpm db:migrate`）。回退恢复匹配版本备份。
 
 可复现验证见 [测试说明](testing.md)。OpenSSH 本机夹具不能替代实际 Windows 设备的登录任务和远端 SSH 服务配置验收。

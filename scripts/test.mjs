@@ -124,6 +124,8 @@ const groups = requested.length
         'tests/library.test.ts',
         '--exclude',
         'tests/bundle*.test.ts',
+        '--exclude',
+        'tests/autoMigrate.test.ts',
       ],
       [
         'tests/network.test.ts',
@@ -151,6 +153,8 @@ const groups = requested.length
         'tests/resultPresentation.test.ts',
       ],
       ['tests/cliAuth.test.ts'],
+      // Creates and fully migrates several fresh databases, and spawns the server and CLI.
+      ['tests/autoMigrate.test.ts'],
       // Real bubblewrap launches (direct and Pi) need their own budget.
       ['tests/stdioSandbox.test.ts'],
       // The default group was within seconds of its 60-second limit on CI; these two are its slowest.

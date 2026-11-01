@@ -9,3 +9,4 @@ export type Database = ReturnType<typeof createDatabase>['db'];
 export * from './schema/index.js';
 export * from './firstAdmin.js';
 export * from './url.js';
+export * from './migrations.js';
